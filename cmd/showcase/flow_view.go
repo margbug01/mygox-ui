@@ -40,18 +40,24 @@ func (f *flowState) loadPreset(name string) {
 	f.running = false
 	f.fitted = false
 	switch name {
+	case "schema", "db-schema":
+		f.preset = "schema"
+		f.graph = flow.PresetDatabaseSchema()
+	case "subflows", "cicd":
+		f.preset = "subflows"
+		f.graph = flow.PresetSubFlows()
+	case "ai-agent":
+		f.preset = "ai-agent"
+		f.graph = flow.PresetAIAgent()
 	case "etl":
 		f.preset = "etl"
 		f.graph = flow.PresetDataPipeline()
-	case "cicd":
-		f.preset = "cicd"
-		f.graph = flow.PresetCICD()
 	case "blank":
 		f.preset = "blank"
 		f.graph = flow.NewGraph()
 	default:
-		f.preset = "ai-agent"
-		f.graph = flow.PresetAIAgent()
+		f.preset = "schema"
+		f.graph = flow.PresetDatabaseSchema()
 	}
 	f.graph.OnConnect = func(e *flow.Edge) {
 		f.flash("Connected " + e.Source + " -> " + e.Target)
@@ -192,6 +198,7 @@ func (a *showcaseApp) renderFlowTab(c *ui.Context, t theme.Tokens, winW, winH fl
 		f.fitted = true
 	}
 
+	// Track current layout direction for toggle button
 	ui.Row(c).WidthPercent(100).Grow(1).MinHeight(0).Children(func() {
 		// Left Coss-style Sidebar (Node Palette + Presets)
 		if !isMobile {
@@ -211,18 +218,18 @@ func (a *showcaseApp) renderFlowTab(c *ui.Context, t theme.Tokens, winW, winH fl
 
 		// Center Flow Workspace
 		ui.Column(c).Grow(1).MinWidth(0).HeightPercent(100).Children(func() {
-			// Coss-style Secondary Action Bar
+			// Coss-style Secondary Action Bar (compact so it never overflows with Inspector open)
 			ui.Row(c).
 				WidthPercent(100).
 				AlignItems(ui.Center).
 				Justify(ui.SpaceBetween).
-				Padding(10, 16).
+				Padding(9, 12).
 				BorderWidth(0, 0, 1, 0).
 				BorderColor(t.Border).
 				Background(t.Background).
-				Gap(8).
+				Gap(6).
 				Children(func() {
-					ui.Row(c).AlignItems(ui.Center).Gap(6).Children(func() {
+					ui.Row(c).AlignItems(ui.Center).Gap(4).Children(func() {
 						if isMobile {
 							coss.IconButton(c, icons.PanelLeft(), "Open node palette").
 								Size(coss.SizeIconSM).
@@ -230,12 +237,12 @@ func (a *showcaseApp) renderFlowTab(c *ui.Context, t theme.Tokens, winW, winH fl
 								OnClick(func() { a.mobileNavOpen = true })
 						}
 						for _, p := range []struct{ id, label string }{
+							{"schema", "DB Schema"},
+							{"subflows", "Sub-Flows"},
 							{"ai-agent", "AI Agent"},
-							{"etl", "Data ETL"},
-							{"cicd", "CI/CD"},
-							{"blank", "Blank"},
+							{"etl", "ETL"},
 						} {
-							if isMobile && p.id == "blank" {
+							if isMobile && p.id == "etl" {
 								continue
 							}
 							v := coss.ButtonGhost
@@ -250,11 +257,8 @@ func (a *showcaseApp) renderFlowTab(c *ui.Context, t theme.Tokens, winW, winH fl
 						}
 					})
 
-					ui.Row(c).AlignItems(ui.Center).Gap(6).Children(func() {
+					ui.Row(c).AlignItems(ui.Center).Gap(4).Children(func() {
 						runLabel := "Run"
-						if !isMobile {
-							runLabel = "Run Flow"
-						}
 						if f.running {
 							runLabel = "Running…"
 						}
@@ -263,12 +267,8 @@ func (a *showcaseApp) renderFlowTab(c *ui.Context, t theme.Tokens, winW, winH fl
 						})
 
 						if !isMobile {
-							coss.Button(c, "Layout LR").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
+							coss.Button(c, "Layout").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
 								f.graph.AutoLayout(flow.LayoutLR)
-								f.graph.FitView(0, 0, 56)
-							})
-							coss.Button(c, "Layout TB").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
-								f.graph.AutoLayout(flow.LayoutTB)
 								f.graph.FitView(0, 0, 56)
 							})
 
@@ -276,9 +276,9 @@ func (a *showcaseApp) renderFlowTab(c *ui.Context, t theme.Tokens, winW, winH fl
 							if f.graph.EdgeKind == flow.EdgeSmoothStep {
 								edgeLabel = "Step"
 							} else if f.graph.EdgeKind == flow.EdgeStraight {
-								edgeLabel = "Straight"
+								edgeLabel = "Line"
 							}
-							coss.Button(c, "Edge: "+edgeLabel).Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
+							coss.Button(c, edgeLabel).Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
 								switch f.graph.EdgeKind {
 								case flow.EdgeBezier:
 									f.graph.EdgeKind = flow.EdgeSmoothStep
@@ -298,7 +298,7 @@ func (a *showcaseApp) renderFlowTab(c *ui.Context, t theme.Tokens, winW, winH fl
 							} else if f.graph.Background == flow.BackgroundCross {
 								bgLabel = "Cross"
 							}
-							coss.Button(c, "Grid: "+bgLabel).Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
+							coss.Button(c, bgLabel).Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
 								switch f.graph.Background {
 								case flow.BackgroundDots:
 									f.graph.Background = flow.BackgroundLines

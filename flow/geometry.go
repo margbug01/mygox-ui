@@ -23,6 +23,23 @@ func PortPosition(n *Node, portID string) (Point, PortSide, bool) {
 		return Point{X: b.X + b.W, Y: b.Y + b.H*0.5}, PortRight, false
 	}
 
+	// DatabaseSchemaNode aligns handles directly with their table rows.
+	if n.Variant == VariantSchema && len(n.SchemaRows) > 0 {
+		const (
+			schemaHeaderH = float32(34)
+			schemaRowH    = float32(26)
+		)
+		for idx, row := range n.SchemaRows {
+			rowMidY := b.Y + schemaHeaderH + float32(idx)*schemaRowH + schemaRowH*0.5 + 2
+			if row.InID == portID {
+				return Point{X: b.X, Y: rowMidY}, PortLeft, true
+			}
+			if row.OutID == portID {
+				return Point{X: b.X + b.W, Y: rowMidY}, PortRight, true
+			}
+		}
+	}
+
 	side := target.Side
 	if side == "" {
 		if target.Kind == PortInput {

@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/margbug01/mygox-ui/coss"
+	"github.com/margbug01/mygox-ui/coss/icons"
 	"github.com/margbug01/mygox-ui/motion"
 )
 
@@ -14,11 +16,11 @@ type categoryInfo struct {
 }
 
 var motionCategories = []categoryInfo{
-	{ID: "cards", Label: "Cards & Borders"},
+	{ID: "surfaces", Label: "Cards & Surfaces"},
 	{ID: "text", Label: "Text & Numbers"},
 	{ID: "interactive", Label: "Micro-Interactions"},
-	{ID: "backgrounds", Label: "Backgrounds"},
-	{ID: "layout", Label: "Layout & Motion"},
+	{ID: "overlays", Label: "Dialogs & Panels"},
+	{ID: "layout", Label: "Scroll & Layout"},
 }
 
 type motionDemoEntry struct {
@@ -30,181 +32,333 @@ type motionDemoEntry struct {
 	Render      func(c *ui.Context, t motion.Theme, a *motionState)
 }
 
-func smallActionBtn(c *ui.Context, t motion.Theme, label string, onClick func()) ui.Element {
-	btn := ui.Box(c).
-		Padding(5, 11).
-		Radius(8).
-		Background(t.SurfaceSubtle).
-		Border(1, t.Border).
-		Cursor(ui.CursorPointer)
-	if btn.Hovered() {
-		btn.Background(t.SurfaceHover).Border(1, t.BorderStrong)
-	}
-	btn.Children(func() {
-		ui.Text(c, label).FontSize(12).FontWeight(600).TextColor(t.Text)
-	})
-	if btn.Clicked() && onClick != nil {
-		onClick()
-	}
-	return btn
-}
-
 func buildMotionCatalog() []motionDemoEntry {
 	return []motionDemoEntry{
-		// ------------------------------------------------------------------
-		// 1. Cards & Borders (5)
-		// ------------------------------------------------------------------
+		// ====================================================================
+		// 1. Cards & Surfaces (6)
+		// ====================================================================
 		{
-			ID:          "border-beam",
-			Name:        "BorderBeam",
-			Category:    "cards",
-			Description: "Rotating conic-gradient luminous beam gliding smoothly along a card's border.",
-			Code: `motion.BorderBeam(c, func() {
-    ui.Text(c, "GPU Border Beam").FontSize(16).FontWeight(700)
-    ui.Text(c, "60fps conic gradient sweep").FontSize(13)
-}, motion.BorderBeamOptions{
-    Duration: 3500 * time.Millisecond,
-    BorderWidth: 2,
+			ID:          "border-trail",
+			Name:        "BorderTrail",
+			Category:    "surfaces",
+			Description: "Luminous monochrome comet gliding continuously around a card's hairline border.",
+			Code: `motion.BorderTrail(c, func() {
+    ui.Text(c, "Generating layout...").FontSize(13).FontWeight(500)
+}, motion.BorderTrailOptions{
+    Duration:    4500 * time.Millisecond,
+    BorderWidth: 1.5,
+    Radius:      12,
 })`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				motion.BorderBeam(c, func() {
-					ui.Row(c).AlignItems(ui.Center).Justify(ui.SpaceBetween).WidthPercent(100).Children(func() {
-						ui.Text(c, "PRO PLAN").FontSize(11).FontWeight(700).TextColor(t.AccentSecondary).LetterSpacing(1.2)
-						ui.Box(c).Padding(2, 8).Radius(999).Background(t.Accent.Alpha(0.16)).Children(func() {
-							ui.Text(c, "60 FPS").FontSize(11).FontWeight(600).TextColor(t.Accent)
+				barBg := ui.Hex("#e4e4e7")
+				if t.Dark {
+					barBg = ui.Hex("#27272a")
+				}
+				motion.BorderTrail(c, func() {
+					ui.Column(c).WidthPercent(100).Gap(10).Children(func() {
+						ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
+							ui.Box(c).Width(28).Height(28).Radius(999).Background(barBg)
+							coss.Badge(c, "Active").Variant(coss.BadgeOutline).Size(coss.BadgeSizeSM)
+						})
+						ui.Column(c).WidthPercent(100).Gap(6).Children(func() {
+							ui.Box(c).WidthPercent(68).Height(8).Radius(4).Background(barBg)
+							ui.Box(c).WidthPercent(92).Height(8).Radius(4).Background(barBg)
+							ui.Box(c).WidthPercent(52).Height(8).Radius(4).Background(barBg)
 						})
 					})
-					ui.Text(c, "GPU Border Beam").FontSize(18).FontWeight(700).TextColor(t.Text).Margin(8, 0, 4, 0)
-					ui.Text(c, "Conic-gradient comet sweeping smoothly around rounded corners.").FontSize(13).TextColor(t.TextMuted).LineHeight(1.4)
-				}, motion.BorderBeamOptions{
-					Duration:    3600 * time.Millisecond,
-					BorderWidth: 2,
-					Radius:      16,
-					Padding:     20,
-				}).WidthPercent(100)
+				}, motion.BorderTrailOptions{
+					Duration:    4200 * time.Millisecond,
+					BorderWidth: 1.5,
+					Radius:      12,
+					Padding:     18,
+				}).Width(280).MaxWidthPercent(100)
 			},
 		},
 		{
-			ID:          "spotlight-card",
-			Name:        "SpotlightCard",
-			Category:    "cards",
-			Description: "Pointer-tracking radial spotlight glow with an illuminated hover border.",
-			Code: `motion.SpotlightCard(c, func() {
-    ui.Text(c, "Hover to illuminate").FontSize(16).FontWeight(700)
-}, motion.SpotlightCardOptions{
-    SpotlightSize: 220,
+			ID:          "spotlight",
+			Name:        "Spotlight",
+			Category:    "surfaces",
+			Description: "Restrained radial mouse-tracking surface spotlight with hairline border.",
+			Code: `motion.Spotlight(c, func() {
+    ui.Text(c, "Move pointer across").FontSize(14).FontWeight(600)
+}, motion.SpotlightOptions{
+    Size: 180,
 })`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				motion.SpotlightCard(c, func() {
-					ui.Text(c, "INTERACTIVE GLOW").FontSize(11).FontWeight(700).TextColor(t.Accent).LetterSpacing(1.1)
-					ui.Text(c, "Move Cursor Across Card").FontSize(18).FontWeight(700).TextColor(t.Text).Margin(8, 0, 4, 0)
-					ui.Text(c, "Spring-smoothed radial spotlight follows pointer coordinates in real time.").FontSize(13).TextColor(t.TextMuted).LineHeight(1.4)
-				}, motion.SpotlightCardOptions{
-					SpotlightSize: 240,
-					Radius:        16,
-					Padding:       20,
-				}).WidthPercent(100)
-			},
-		},
-		{
-			ID:          "tilt-card",
-			Name:        "TiltCard",
-			Category:    "cards",
-			Description: "3D perspective pointer-tracking tilt card with moving specular sheen.",
-			Code: `motion.TiltCard(c, func() {
-    ui.Text(c, "3D Perspective Tilt").FontSize(16).FontWeight(700)
-}, motion.TiltCardOptions{
-    MaxTilt: 12,
-    HoverScale: 1.03,
-})`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				motion.TiltCard(c, func() {
-					ui.Row(c).AlignItems(ui.Center).Justify(ui.SpaceBetween).WidthPercent(100).Children(func() {
-						ui.Text(c, "PERSPECTIVE 3D").FontSize(11).FontWeight(700).TextColor(t.AccentSecondary).LetterSpacing(1.1)
-						ui.Text(c, "900px").FontSize(11).FontWeight(600).TextColor(t.TextSubtle)
+				motion.Spotlight(c, func() {
+					ui.Column(c).Gap(6).Children(func() {
+						ui.Row(c).AlignItems(ui.Center).Gap(6).Children(func() {
+							ui.Icon(c, icons.Sparkles()).Size(14, 14).TextColor(t.TextMuted)
+							ui.Text(c, "Spotlight Surface").FontSize(13.5).FontWeight(600).TextColor(t.Text)
+						})
+						ui.Text(c, "Subtle radial illumination tracks your pointer smoothly across the card.").
+							FontSize(12).TextColor(t.TextMuted).LineHeight(1.45)
 					})
-					ui.Text(c, "Tactile Tilt Surface").FontSize(18).FontWeight(700).TextColor(t.Text).Margin(8, 0, 4, 0)
-					ui.Text(c, "Hover anywhere to rotate in 3D space with a synced specular glint.").FontSize(13).TextColor(t.TextMuted).LineHeight(1.4)
-				}, motion.TiltCardOptions{
-					MaxTilt:    12,
-					HoverScale: 1.03,
-					Radius:     16,
-					Padding:    20,
-				}).WidthPercent(100)
+				}, motion.SpotlightOptions{
+					Size:    180,
+					Radius:  12,
+					Padding: 18,
+				}).Width(290).MaxWidthPercent(100)
 			},
 		},
 		{
-			ID:          "glow-card",
-			Name:        "GlowCard",
-			Category:    "cards",
-			Description: "Breathing multi-stop ambient aura card with soft drifting color lobes.",
-			Code: `motion.GlowCard(c, func() {
-    ui.Text(c, "Ambient Aura").FontSize(16).FontWeight(700)
+			ID:          "tilt",
+			Name:        "Tilt",
+			Category:    "surfaces",
+			Description: "Subtle 3D perspective pointer tilt card with soft specular sheen.",
+			Code: `motion.Tilt(c, func() {
+    ui.Column(c).Padding(14).Children(func() {
+        ui.Text(c, "Ghost in the Shell").FontSize(13).FontWeight(600)
+    })
+}, motion.TiltOptions{
+    RotationFactor: 10,
+    IsReverse:      true,
 })`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				motion.GlowCard(c, func() {
-					ui.Text(c, "AMBIENT AURA").FontSize(11).FontWeight(700).TextColor(t.AccentRose).LetterSpacing(1.1)
-					ui.Text(c, "Breathing Luminous Halo").FontSize(18).FontWeight(700).TextColor(t.Text).Margin(8, 0, 4, 0)
-					ui.Text(c, "Layered multi-stop radial blooms oscillate gently behind elevated content.").FontSize(13).TextColor(t.TextMuted).LineHeight(1.4)
-				}, motion.GlowCardOptions{
-					Duration: 4500 * time.Millisecond,
-					Radius:   16,
-					Padding:  20,
-				}).WidthPercent(100)
+				artFrom := ui.Hex("#e4e4e7")
+				artTo := ui.Hex("#a1a1aa")
+				if t.Dark {
+					artFrom = ui.Hex("#27272a")
+					artTo = ui.Hex("#09090b")
+				}
+				motion.Tilt(c, func() {
+					ui.Column(c).WidthPercent(100).Children(func() {
+						ui.Box(c).
+							WidthPercent(100).
+							Height(84).
+							LinearGradient(ui.LinearGradient{From: artFrom, To: artTo, Angle: 135}).
+							Center().
+							Children(func() {
+								ui.Box(c).Width(44).Height(44).Radius(999).Border(1, t.BorderStrong).Center().Children(func() {
+									ui.Icon(c, icons.Layers()).Size(18, 18).TextColor(t.Text)
+								})
+							})
+						ui.Column(c).Padding(12, 14).Gap(2).Children(func() {
+							ui.Text(c, "Ghost in the Shell").FontSize(13).FontWeight(600).TextColor(t.Text)
+							ui.Text(c, "Kôkaku kidôtai · 1995").FontSize(11.5).TextColor(t.TextMuted)
+						})
+					})
+				}, motion.TiltOptions{
+					RotationFactor: 10,
+					IsReverse:      true,
+					HoverScale:     1.02,
+					Radius:         12,
+				}).Width(240)
 			},
 		},
 		{
-			ID:          "shine-border",
-			Name:        "ShineBorder",
-			Category:    "cards",
-			Description: "Periodic diagonal specular light streak gliding across card surface and rim.",
-			Code: `motion.ShineBorder(c, func() {
-    ui.Text(c, "Specular Streak").FontSize(16).FontWeight(700)
-}, motion.ShineBorderOptions{
-    Duration: 3200 * time.Millisecond,
+			ID:          "glow-effect",
+			Name:        "GlowEffect",
+			Category:    "surfaces",
+			Description: "Multi-mode ambient gradient halo behind buttons or cards.",
+			Code: `motion.GlowEffect(c, func() {
+    coss.Button(c, "Explore").Variant(coss.ButtonDefault)
+}, motion.GlowEffectOptions{
+    Mode: motion.GlowRotate,
+    Blur: 14,
 })`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				motion.ShineBorder(c, func() {
-					ui.Text(c, "SPECULAR SWEEP").FontSize(11).FontWeight(700).TextColor(t.AccentAmber).LetterSpacing(1.1)
-					ui.Text(c, "Diagonal Metallic Glint").FontSize(18).FontWeight(700).TextColor(t.Text).Margin(8, 0, 4, 0)
-					ui.Text(c, "Clipped linear-gradient reflection glides across the card face and edge.").FontSize(13).TextColor(t.TextMuted).LineHeight(1.4)
-				}, motion.ShineBorderOptions{
-					Duration: 3200 * time.Millisecond,
-					Radius:   16,
-					Padding:  20,
-				}).WidthPercent(100)
+				ui.Column(c).AlignItems(ui.Center).Gap(16).Children(func() {
+					motion.GlowEffect(c, func() {
+						ui.Row(c).
+							Padding(9, 18).
+							Radius(10).
+							Background(t.InverseBg).
+							AlignItems(ui.Center).
+							Gap(8).
+							Cursor(ui.CursorPointer).
+							Children(func() {
+								ui.Text(c, "Explore").FontSize(13).FontWeight(600).TextColor(t.InverseText).SingleLine()
+								ui.Icon(c, icons.ArrowRight()).Size(14, 14).TextColor(t.InverseText)
+							})
+					}, motion.GlowEffectOptions{
+						Mode:     a.glowMode,
+						Blur:     14,
+						Scale:    1.04,
+						Duration: 3800 * time.Millisecond,
+						Radius:   10,
+					})
+					ui.Row(c).Gap(6).Wrap().Justify(ui.Center).Children(func() {
+						modes := []struct {
+							label string
+							mode  motion.GlowMode
+						}{
+							{"Rotate", motion.GlowRotate},
+							{"Pulse", motion.GlowPulse},
+							{"Breathe", motion.GlowBreathe},
+							{"Shift", motion.GlowColorShift},
+							{"Flow", motion.GlowFlowHorizontal},
+						}
+						for _, item := range modes {
+							m := item.mode
+							v := coss.ButtonOutline
+							if a.glowMode == m {
+								v = coss.ButtonDefault
+							}
+							coss.Button(c, item.label).Size(coss.SizeXS).Variant(v).OnClick(func() {
+								a.glowMode = m
+							})
+						}
+					})
+				})
+			},
+		},
+		{
+			ID:          "progressive-blur",
+			Name:        "ProgressiveBlur",
+			Category:    "surfaces",
+			Description: "Layered frosted edge gradient blur scrim over media and gallery cards.",
+			Code: `motion.ProgressiveBlur(c, mediaFn, captionFn, motion.ProgressiveBlurOptions{
+    Direction: motion.BlurBottom,
+    Layers:    6,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				bgTop := ui.Hex("#d4d4d8")
+				bgBot := ui.Hex("#71717a")
+				circleCol := ui.Hex("#fafafa")
+				if t.Dark {
+					bgTop = ui.Hex("#3f3f46")
+					bgBot = ui.Hex("#18181b")
+					circleCol = ui.Hex("#d4d4d8")
+				}
+				motion.ProgressiveBlur(c, func() {
+					ui.Box(c).
+						Width(260).
+						Height(148).
+						LinearGradient(ui.LinearGradient{From: bgTop, To: bgBot, Angle: 155}).
+						Children(func() {
+							// Minimalist geometric artwork behind the progressive blur
+							ui.Box(c).Absolute().Top(22).Left(32).Width(64).Height(64).Radius(999).Background(circleCol.Alpha(0.32))
+							ui.Box(c).Absolute().Top(44).Right(28).Width(84).Height(84).Radius(16).Background(circleCol.Alpha(0.18)).Rotate(14)
+						})
+				}, func() {
+					ui.Column(c).Padding(12, 14).Gap(1).Children(func() {
+						ui.Text(c, "Benjamin Spiers").FontSize(13).FontWeight(600).TextColor(t.Text)
+						ui.Text(c, "Moonlight · 2023").FontSize(11).TextColor(t.TextMuted)
+					})
+				}, motion.ProgressiveBlurOptions{
+					Direction:     motion.BlurBottom,
+					Layers:        6,
+					BlurIntensity: 1.5,
+					Coverage:      0.56,
+					Radius:        12,
+				}).Width(260).Height(148).Border(1, t.Border)
+			},
+		},
+		{
+			ID:          "image-comparison",
+			Name:        "ImageComparison",
+			Category:    "surfaces",
+			Description: "Interactive draggable before/after split-pane comparison slider.",
+			Code: `motion.ImageComparison(c, leftPane, rightPane, motion.ImageComparisonOptions{
+    Position: &pos,
+    Height:   148,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				ui.Column(c).WidthPercent(100).Gap(8).AlignItems(ui.Center).Children(func() {
+					motion.ImageComparison(c, func() {
+						// Light UI preview pane
+						ui.Column(c).Fill().Background(ui.Hex("#fafafa")).Padding(14).Justify(ui.SpaceBetween).Children(func() {
+							ui.Row(c).AlignItems(ui.Center).Gap(6).Children(func() {
+								ui.Box(c).Width(8).Height(8).Radius(999).Background(ui.Hex("#18181b"))
+								ui.Text(c, "Light Mode").FontSize(11.5).FontWeight(600).TextColor(ui.Hex("#18181b")).SingleLine()
+							})
+							ui.Column(c).Gap(6).Children(func() {
+								ui.Box(c).WidthPercent(70).Height(10).Radius(4).Background(ui.Hex("#e4e4e7"))
+								ui.Box(c).WidthPercent(90).Height(10).Radius(4).Background(ui.Hex("#e4e4e7"))
+								ui.Box(c).WidthPercent(48).Height(22).Radius(6).Background(ui.Hex("#18181b"))
+							})
+						})
+					}, func() {
+						// Dark UI preview pane
+						ui.Column(c).Fill().Background(ui.Hex("#09090b")).Padding(14).Justify(ui.SpaceBetween).Children(func() {
+							ui.Row(c).WidthPercent(100).Justify(ui.End).AlignItems(ui.Center).Gap(6).Children(func() {
+								ui.Text(c, "Dark Mode").FontSize(11.5).FontWeight(600).TextColor(ui.Hex("#fafafa")).SingleLine()
+								ui.Box(c).Width(8).Height(8).Radius(999).Background(ui.Hex("#fafafa"))
+							})
+							ui.Column(c).Gap(6).Children(func() {
+								ui.Box(c).WidthPercent(70).Height(10).Radius(4).Background(ui.Hex("#27272a"))
+								ui.Box(c).WidthPercent(90).Height(10).Radius(4).Background(ui.Hex("#27272a"))
+								ui.Box(c).WidthPercent(48).Height(22).Radius(6).Background(ui.Hex("#fafafa"))
+							})
+						})
+					}, motion.ImageComparisonOptions{
+						Position: &a.comparePos,
+						Height:   136,
+						Radius:   10,
+					})
+					ui.Row(c).AlignItems(ui.Center).Gap(8).Children(func() {
+						ui.Text(c, fmt.Sprintf("Drag handle · %.0f%%", a.comparePos)).FontSize(11).TextColor(t.TextMuted).SingleLine()
+						coss.Button(c, "Reset").Size(coss.SizeXS).Variant(coss.ButtonGhost).OnClick(func() {
+							a.comparePos = 50
+						})
+					})
+				})
 			},
 		},
 
-		// ------------------------------------------------------------------
-		// 2. Text & Numbers (6)
-		// ------------------------------------------------------------------
+		// ====================================================================
+		// 2. Text & Numbers (10)
+		// ====================================================================
 		{
-			ID:          "number-ticker",
-			Name:        "NumberTicker",
+			ID:          "sliding-number",
+			Name:        "SlidingNumber",
 			Category:    "text",
-			Description: "Smooth eased rolling numeric counter with prefix, suffix, commas, and decimals.",
-			Code: `motion.NumberTicker(c, 12480.50, motion.NumberTickerOptions{
-    Prefix:   "$",
-    Decimals: 2,
-    Trigger:  replayCount,
+			Description: "Vertical digit-by-digit odometer slot-machine rolling number.",
+			Code: `motion.SlidingNumber(c, float64(count), motion.SlidingNumberOptions{
+    PadStart: true,
+    FontSize: 28,
 })`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				ui.Column(c).Center().Gap(14).WidthPercent(100).Children(func() {
-					motion.NumberTicker(c, a.tickerTarget, motion.NumberTickerOptions{
-						Prefix:   "$",
-						Decimals: 2,
-						FontSize: 38,
-						Trigger:  a.tickerTrigger,
+				now := c.Now()
+				c.After(250 * time.Millisecond)
+				ui.Column(c).AlignItems(ui.Center).Gap(14).Children(func() {
+					// Live ticking odometer clock
+					ui.Row(c).AlignItems(ui.Center).Gap(2).Children(func() {
+						motion.SlidingNumber(c, float64(now.Hour()), motion.SlidingNumberOptions{PadStart: true, FontSize: 26})
+						ui.Text(c, ":").FontSize(24).FontWeight(600).TextColor(t.TextSubtle).Padding(0, 2)
+						motion.SlidingNumber(c, float64(now.Minute()), motion.SlidingNumberOptions{PadStart: true, FontSize: 26})
+						ui.Text(c, ":").FontSize(24).FontWeight(600).TextColor(t.TextSubtle).Padding(0, 2)
+						motion.SlidingNumber(c, float64(now.Second()), motion.SlidingNumberOptions{PadStart: true, FontSize: 26})
 					})
-					ui.Row(c).Gap(8).Children(func() {
-						smallActionBtn(c, t, "Replay", func() {
-							a.tickerTrigger++
+					// Interactive counter with odometer roll
+					ui.Row(c).AlignItems(ui.Center).Gap(10).Children(func() {
+						coss.IconButton(c, icons.Minus(), "Decrement").Size(coss.SizeIconXS).Variant(coss.ButtonOutline).OnClick(func() {
+							if a.slidingCount > 0 {
+								a.slidingCount--
+							}
 						})
-						smallActionBtn(c, t, "Randomize", func() {
-							presets := []float64{12480.50, 48920.00, 99450.75, 3210.40, 184290.90}
-							a.tickerPreset = (a.tickerPreset + 1) % len(presets)
-							a.tickerTarget = presets[a.tickerPreset]
+						motion.SlidingNumber(c, float64(a.slidingCount), motion.SlidingNumberOptions{PadStart: true, FontSize: 18, Color: t.TextMuted})
+						coss.IconButton(c, icons.Plus(), "Increment").Size(coss.SizeIconXS).Variant(coss.ButtonOutline).OnClick(func() {
+							a.slidingCount++
+						})
+					})
+				})
+			},
+		},
+		{
+			ID:          "animated-number",
+			Name:        "AnimatedNumber",
+			Category:    "text",
+			Description: "Spring-interpolated smooth numeric readout with tabular numerals.",
+			Code: `motion.AnimatedNumber(c, value, motion.AnimatedNumberOptions{
+    FontSize: 28,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				ui.Column(c).AlignItems(ui.Center).Gap(14).Children(func() {
+					motion.AnimatedNumber(c, a.animNumVal, motion.AnimatedNumberOptions{
+						FontSize:   30,
+						FontWeight: 600,
+					})
+					ui.Row(c).AlignItems(ui.Center).Gap(8).Children(func() {
+						coss.Button(c, "-100").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
+							a.animNumVal -= 100
+						})
+						coss.Button(c, "+100").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
+							a.animNumVal += 100
+						})
+						coss.Button(c, "+1,000").Size(coss.SizeXS).Variant(coss.ButtonDefault).OnClick(func() {
+							a.animNumVal += 1000
 						})
 					})
 				})
@@ -214,18 +368,121 @@ func buildMotionCatalog() []motionDemoEntry {
 			ID:          "text-shimmer",
 			Name:        "TextShimmer",
 			Category:    "text",
-			Description: "Luminous per-glyph shimmer wave gliding smoothly across headline typography.",
-			Code: `motion.TextShimmer(c, "Generating GPU shaders...", motion.TextShimmerOptions{
-    FontSize: 24,
-    Duration: 2200 * time.Millisecond,
+			Description: "Restrained luminous sweep gliding across subtle muted text.",
+			Code: `motion.TextShimmer(c, "Generating code...", motion.TextShimmerOptions{
+    Duration: 1800 * time.Millisecond,
 })`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				ui.Column(c).Center().Gap(10).WidthPercent(100).Children(func() {
-					motion.TextShimmer(c, "Thinking with GPU precision...", motion.TextShimmerOptions{
-						FontSize: 22,
-						Duration: 2200 * time.Millisecond,
+				ui.Column(c).AlignItems(ui.Center).Gap(8).Children(func() {
+					motion.TextShimmer(c, "Generating code...", motion.TextShimmerOptions{
+						Duration:   1800 * time.Millisecond,
+						FontSize:   15,
+						FontWeight: 500,
 					})
-					ui.Text(c, "Zero-clipping RichText per-glyph color wave").FontSize(12).TextColor(t.TextSubtle)
+					ui.Text(c, "Subtle zinc-to-peak luminance sweep").FontSize(11).TextColor(t.TextSubtle)
+				})
+			},
+		},
+		{
+			ID:          "text-shimmer-wave",
+			Name:        "TextShimmerWave",
+			Category:    "text",
+			Description: "Per-character wave shimmer with subtle scale and vertical ripple.",
+			Code: `motion.TextShimmerWave(c, "Generating code...", motion.TextShimmerWaveOptions{
+    Duration: 1500 * time.Millisecond,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				motion.TextShimmerWave(c, "Generating code...", motion.TextShimmerWaveOptions{
+					Duration:      1500 * time.Millisecond,
+					FontSize:      15,
+					FontWeight:    500,
+					YDistance:     -2.5,
+					ScaleDistance: 1.12,
+				})
+			},
+		},
+		{
+			ID:          "text-loop",
+			Name:        "TextLoop",
+			Category:    "text",
+			Description: "Smooth vertical spring-cycling phrase loop.",
+			Code: `motion.TextLoop(c, []string{
+    "How can I assist you today?",
+    "Generate a logo",
+    "Create a component",
+    "Draw a diagram",
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				ui.Row(c).AlignItems(ui.Center).Gap(8).Padding(8, 14).Radius(10).Background(t.SurfaceSubtle).Border(1, t.Border).Children(func() {
+					ui.Icon(c, icons.Sparkles()).Size(14, 14).TextColor(t.TextMuted)
+					motion.TextLoop(c, []string{
+						"How can I assist you today?",
+						"Generate a logo",
+						"Create a component",
+						"Draw a diagram",
+					}, motion.TextLoopOptions{
+						Interval:   2000 * time.Millisecond,
+						FontSize:   13.5,
+						FontWeight: 500,
+					})
+				})
+			},
+		},
+		{
+			ID:          "text-morph",
+			Name:        "TextMorph",
+			Category:    "text",
+			Description: "Smooth shared-character cross-morph between words.",
+			Code: `motion.TextMorph(c, label, motion.TextMorphOptions{
+    FontSize: 14,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				label := "Continue"
+				if a.textMorphConfirm {
+					label = "Confirm"
+				}
+				ui.Column(c).AlignItems(ui.Center).Gap(10).Children(func() {
+					btn := ui.Box(c).
+						Height(38).
+						MinWidth(124).
+						Padding(0, 20).
+						Radius(999).
+						Background(t.InverseBg).
+						Center().
+						Cursor(ui.CursorPointer)
+					btn.Children(func() {
+						motion.TextMorph(c, label, motion.TextMorphOptions{
+							FontSize:   14,
+							FontWeight: 500,
+							Color:      t.InverseText,
+						})
+					})
+					if btn.Clicked() {
+						a.textMorphConfirm = !a.textMorphConfirm
+					}
+					ui.Text(c, "Click pill to morph shared glyphs").FontSize(11).TextColor(t.TextSubtle)
+				})
+			},
+		},
+		{
+			ID:          "text-roll",
+			Name:        "TextRoll",
+			Category:    "text",
+			Description: "Dual-layer staggered vertical rolling character wave on hover or trigger.",
+			Code: `motion.TextRoll(c, "motion-primitives", motion.TextRollOptions{
+    FontSize: 22,
+    Trigger:  trigger,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				ui.Column(c).AlignItems(ui.Center).Gap(12).Children(func() {
+					motion.TextRoll(c, "motion-primitives", motion.TextRollOptions{
+						FontSize:   22,
+						FontWeight: 600,
+						Trigger:    a.textRollTrig,
+					})
+					coss.Button(c, "Roll again").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
+						a.textRollTrig++
+					})
 				})
 			},
 		},
@@ -233,113 +490,130 @@ func buildMotionCatalog() []motionDemoEntry {
 			ID:          "text-scramble",
 			Name:        "TextScramble",
 			Category:    "text",
-			Description: "Cryptographic character-by-character decode reveal on hover or trigger.",
-			Code: `motion.TextScramble(c, "MOTIONGO // GPU ENGINE", motion.TextScrambleOptions{
-    Trigger: scrambleCount,
+			Description: "Character-by-character cryptographic scramble decode.",
+			Code: `motion.TextScramble(c, "TEXT SCRAMBLE", motion.TextScrambleOptions{
+    Duration: 800 * time.Millisecond,
+    Trigger:  trigger,
 })`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				ui.Column(c).Center().Gap(14).WidthPercent(100).Children(func() {
-					motion.TextScramble(c, "MOTIONGO // GPU ENGINE", motion.TextScrambleOptions{
-						FontSize: 20,
-						Trigger:  a.scrambleTrigger,
+				ui.Column(c).AlignItems(ui.Center).Gap(12).Children(func() {
+					motion.TextScramble(c, "TEXT SCRAMBLE", motion.TextScrambleOptions{
+						Duration:   900 * time.Millisecond,
+						FontSize:   16,
+						FontWeight: 600,
+						Trigger:    a.textScrambleTrig,
 					})
-					ui.Row(c).AlignItems(ui.Center).Gap(10).Children(func() {
-						smallActionBtn(c, t, "Scramble", func() {
-							a.scrambleTrigger++
-						})
-						ui.Text(c, "or hover text").FontSize(12).TextColor(t.TextSubtle)
+					coss.Button(c, "Scramble").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
+						a.textScrambleTrig++
 					})
 				})
 			},
 		},
 		{
-			ID:          "typewriter",
-			Name:        "Typewriter",
+			ID:          "text-effect",
+			Name:        "TextEffect",
 			Category:    "text",
-			Description: "Multi-phrase typewriter loop with smooth typing, deleting, and blinking caret.",
-			Code: `motion.Typewriter(c, []string{
-    "Native 120Hz Metal & WebGL",
-    "Zero-dependency Go motion",
-    "Spring-driven interactions",
+			Description: "Per-word or per-character animated reveal with fade, slide, scale, and blur presets.",
+			Code: `motion.TextEffect(c, "Animate your ideas with motion-primitives", motion.TextEffectOptions{
+    Per:    motion.PerWord,
+    Preset: motion.PresetBlurSlide,
 })`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				ui.Column(c).Center().Gap(10).WidthPercent(100).Children(func() {
-					ui.Text(c, "Build interfaces with").FontSize(13).TextColor(t.TextMuted)
-					motion.Typewriter(c, []string{
-						"Native 120Hz GPU Motion",
-						"Spring-Driven Micro-UI",
-						"WebGL 2 & Desktop Parity",
-					}, motion.TypewriterOptions{
-						FontSize: 20,
+				ui.Column(c).AlignItems(ui.Center).Gap(12).Children(func() {
+					motion.TextEffect(c, "Animate your ideas with motion-primitives", motion.TextEffectOptions{
+						Per:        motion.PerWord,
+						Preset:     a.textEffectPreset,
+						Trigger:    a.textEffectTrig,
+						FontSize:   15.5,
+						FontWeight: 500,
+					})
+					ui.Row(c).Gap(6).Wrap().Justify(ui.Center).Children(func() {
+						for _, pr := range []struct {
+							label string
+							p     motion.Preset
+						}{
+							{"Blur", motion.PresetBlurSlide},
+							{"Slide", motion.PresetSlide},
+							{"Scale", motion.PresetScale},
+							{"Fade", motion.PresetFade},
+						} {
+							preset := pr.p
+							v := coss.ButtonOutline
+							if a.textEffectPreset == preset {
+								v = coss.ButtonDefault
+							}
+							coss.Button(c, pr.label).Size(coss.SizeXS).Variant(v).OnClick(func() {
+								a.textEffectPreset = preset
+								a.textEffectTrig++
+							})
+						}
 					})
 				})
 			},
 		},
 		{
-			ID:          "blur-reveal",
-			Name:        "BlurReveal",
+			ID:          "spinning-text",
+			Name:        "SpinningText",
 			Category:    "text",
-			Description: "Staggered spring word-by-word slide-up, fade, and focus-snap reveal.",
-			Code: `motion.BlurReveal(c, "Motion that feels effortless and alive.", motion.BlurRevealOptions{
-    Trigger: replayCount,
+			Description: "Characters arranged along a circle rotating continuously around center.",
+			Code: `motion.SpinningText(c, "pre-order • pre-order • pre-order • ", motion.SpinningTextOptions{
+    Radius:   46,
+    Duration: 10 * time.Second,
 })`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				ui.Column(c).Center().Gap(14).WidthPercent(100).Children(func() {
-					motion.BlurReveal(c, "Motion that feels effortless and alive.", motion.BlurRevealOptions{
-						FontSize: 20,
-						Trigger:  a.revealTrigger,
-					})
-					smallActionBtn(c, t, "Replay Reveal", func() {
-						a.revealTrigger++
-					})
-				})
-			},
-		},
-		{
-			ID:          "flip-words",
-			Name:        "FlipWords",
-			Category:    "text",
-			Description: "3D vertical spring-flipping rotating keyword badge for hero headlines.",
-			Code: `motion.FlipWords(c, []string{"Fluid", "Tactile", "Instant", "Spatial"})`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				ui.Row(c).Center().Wrap().Gap(8).WidthPercent(100).Children(func() {
-					ui.Text(c, "Craft").FontSize(20).FontWeight(600).TextColor(t.Text)
-					motion.FlipWords(c, []string{"Fluid", "Tactile", "Instant", "Spatial"}, motion.FlipWordsOptions{
-						FontSize: 20,
-						Interval: 2000 * time.Millisecond,
-					})
-					ui.Text(c, "Go UIs").FontSize(20).FontWeight(600).TextColor(t.Text)
+				motion.SpinningText(c, "pre-order • pre-order • pre-order • ", motion.SpinningTextOptions{
+					Radius:     44,
+					FontSize:   11,
+					FontWeight: 500,
+					Duration:   10 * time.Second,
 				})
 			},
 		},
 
-		// ------------------------------------------------------------------
-		// 3. Micro-Interactions (7)
-		// ------------------------------------------------------------------
+		// ====================================================================
+		// 3. Micro-Interactions (6)
+		// ====================================================================
+		{
+			ID:          "animated-background",
+			Name:        "AnimatedBackground",
+			Category:    "interactive",
+			Description: "Shared spring-sliding hover/active highlight pill across tabs or segments.",
+			Code: `motion.AnimatedBackground(c, []string{"Day", "Week", "Month", "Year"}, &active, motion.AnimatedBackgroundOptions{
+    EnableHover: true,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				ui.Column(c).AlignItems(ui.Center).Gap(10).Children(func() {
+					motion.AnimatedBackground(c, []string{"Day", "Week", "Month", "Year"}, &a.animBgTab, motion.AnimatedBackgroundOptions{
+						EnableHover: true,
+					})
+					ui.Text(c, "Hover or click to glide the zinc pill").FontSize(11).TextColor(t.TextSubtle)
+				})
+			},
+		},
 		{
 			ID:          "dock",
 			Name:        "Dock",
 			Category:    "interactive",
-			Description: "macOS-style Gaussian spring magnification dock reacting to pointer proximity.",
-			Code: `motion.Dock(c, items, &activeIdx, motion.DockOptions{
-    BaseSize: 44,
-    MaxScale: 1.42,
+			Description: "macOS-style Gaussian spring magnification dock in monochrome zinc.",
+			Code: `motion.Dock(c, items, motion.DockOptions{
+    BaseSize:      38,
+    Magnification: 58,
+    ActiveIndex:   active,
 })`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				items := []motion.DockItem{
-					{Label: "Finder", Glyph: "FN", Accent: t.AccentSecondary},
-					{Label: "Motion", Glyph: "MG", Accent: t.Accent},
-					{Label: "Shaders", Glyph: "GL", Accent: t.AccentEmerald},
-					{Label: "Spark", Glyph: "SP", Accent: t.AccentAmber},
-					{Label: "Audio", Glyph: "AU", Accent: t.AccentRose},
+					{Label: "Home", Icon: icons.Home(), OnClick: func() { a.dockActive = 0 }},
+					{Label: "Products", Icon: icons.Box(), OnClick: func() { a.dockActive = 1 }},
+					{Label: "Components", Icon: icons.Component(), OnClick: func() { a.dockActive = 2 }},
+					{Label: "Activity", Icon: icons.Zap(), OnClick: func() { a.dockActive = 3 }},
+					{Label: "Mail", Icon: icons.Mail(), OnClick: func() { a.dockActive = 4 }},
+					{Label: "Settings", Icon: icons.Settings(), OnClick: func() { a.dockActive = 5 }},
 				}
-				ui.Column(c).Center().Gap(12).WidthPercent(100).Children(func() {
-					motion.Dock(c, items, &a.dockActive)
-					lbl := items[0].Label
-					if a.dockActive >= 0 && a.dockActive < len(items) {
-						lbl = items[a.dockActive].Label
-					}
-					ui.Text(c, "Active app: "+lbl).FontSize(12).TextColor(t.TextMuted)
+				motion.Dock(c, items, motion.DockOptions{
+					BaseSize:      36,
+					Magnification: 56,
+					Distance:      110,
+					ActiveIndex:   a.dockActive,
 				})
 			},
 		},
@@ -347,364 +621,596 @@ func buildMotionCatalog() []motionDemoEntry {
 			ID:          "magnetic",
 			Name:        "Magnetic",
 			Category:    "interactive",
-			Description: "Pointer-attracted spring magnetic wrapper with elastic rebound on leave.",
+			Description: "Spring-physics pointer-attracted wrapper with range and intensity.",
 			Code: `motion.Magnetic(c, func() {
-    ui.Box(c).Padding(10, 20).Radius(999).Background(t.Accent)
-}, motion.MagneticOptions{Strength: 16})`,
+    coss.Button(c, "Submit").Variant(coss.ButtonOutline)
+}, motion.MagneticOptions{
+    Intensity: 0.45,
+    Range:     90,
+})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				ui.Column(c).Center().Gap(8).WidthPercent(100).Children(func() {
+				ui.Column(c).AlignItems(ui.Center).Gap(6).Children(func() {
 					motion.Magnetic(c, func() {
-						pill := ui.Row(c).
-							Center().
-							Padding(11, 24).
-							Radius(999).
-							Background(t.Accent).
-							Cursor(ui.CursorPointer).
-							Children(func() {
-								ui.Text(c, "Magnetic Pull").FontSize(14).FontWeight(600).TextColor(ui.Hex("#ffffff"))
-							})
-						if pill.Clicked() {
-							a.magneticClicks++
+						label := "Submit"
+						if a.magneticClicks > 0 {
+							label = fmt.Sprintf("Submitted (%d)", a.magneticClicks)
 						}
-					}, motion.MagneticOptions{Strength: 16, Padding: 18})
-					ui.Text(c, fmt.Sprintf("Hover around the pill · clicks: %d", a.magneticClicks)).FontSize(12).TextColor(t.TextSubtle)
-				})
-			},
-		},
-		{
-			ID:          "shimmer-button",
-			Name:        "ShimmerButton",
-			Category:    "interactive",
-			Description: "Glossy CTA pill with continuous rotating conic beam and spring press scale.",
-			Code: `motion.ShimmerButton(c, "Launch Engine", func() {
-    clicks++
-})`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				ui.Column(c).Center().Gap(12).WidthPercent(100).Children(func() {
-					motion.ShimmerButton(c, "Launch Engine", func() {
-						a.shimmerClicks++
-					})
-					ui.Text(c, fmt.Sprintf("Triggered %d times", a.shimmerClicks)).FontSize(12).TextColor(t.TextMuted)
-				})
-			},
-		},
-		{
-			ID:          "ripple-button",
-			Name:        "RippleButton",
-			Category:    "interactive",
-			Description: "Click-originating concentric water ripple feedback clipped inside the button.",
-			Code: `motion.RippleButton(c, "Tap for Ripple", func() {
-    clicks++
-})`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				ui.Column(c).Center().Gap(12).WidthPercent(100).Children(func() {
-					motion.RippleButton(c, "Tap for Ripple", func() {
-						a.rippleClicks++
-					})
-					ui.Text(c, fmt.Sprintf("Ripples spawned: %d", a.rippleClicks)).FontSize(12).TextColor(t.TextMuted)
-				})
-			},
-		},
-		{
-			ID:          "pulsing-badge",
-			Name:        "PulsingBadge",
-			Category:    "interactive",
-			Description: "Live status pill with staggered GPU sonar pulse rings around an active dot.",
-			Code: `motion.PulsingBadge(c, "GPU Pipeline Live")`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				ui.Row(c).Center().Wrap().Gap(10).WidthPercent(100).Children(func() {
-					motion.PulsingBadge(c, "GPU Live", motion.PulsingBadgeOptions{Color: t.AccentEmerald})
-					motion.PulsingBadge(c, "Syncing", motion.PulsingBadgeOptions{Color: t.AccentSecondary})
-					motion.PulsingBadge(c, "Recording", motion.PulsingBadgeOptions{Color: t.AccentRose})
-				})
-			},
-		},
-		{
-			ID:          "morph-tabs",
-			Name:        "MorphTabs",
-			Category:    "interactive",
-			Description: "Shared spring-gliding indicator pill smoothly animating between active tabs.",
-			Code: `motion.MorphTabs(c, []string{"Overview", "Motion", "Shaders", "Export"}, &activeTab)`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				tabs := []string{"Overview", "Motion", "Shaders", "Export"}
-				ui.Column(c).Center().Gap(12).WidthPercent(100).Children(func() {
-					motion.MorphTabs(c, tabs, &a.morphTab)
-					ui.Text(c, "Selected panel: "+tabs[a.morphTab]).FontSize(12).TextColor(t.TextMuted)
-				})
-			},
-		},
-		{
-			ID:          "spring-counter",
-			Name:        "SpringCounter",
-			Category:    "interactive",
-			Description: "Interactive -/+ stepped counter with spring scale pop and directional slide.",
-			Code: `motion.SpringCounter(c, &count, motion.SpringCounterOptions{Min: 0, Max: 99})`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				ui.Column(c).Center().Gap(10).WidthPercent(100).Children(func() {
-					motion.SpringCounter(c, &a.counterVal, motion.SpringCounterOptions{Min: 0, Max: 99})
-					ui.Text(c, "Tap - or + to watch spring bounce").FontSize(12).TextColor(t.TextSubtle)
-				})
-			},
-		},
-
-		// ------------------------------------------------------------------
-		// 4. Backgrounds & Particles (6)
-		// ------------------------------------------------------------------
-		{
-			ID:          "aurora-background",
-			Name:        "AuroraBackground",
-			Category:    "backgrounds",
-			Description: "Layered northern-lights backdrop made of smoothly drifting radial lobes.",
-			Code: `motion.AuroraBackground(c, func() {
-    ui.Text(c, "Aurora Borealis").FontSize(20).FontWeight(700)
-}).WidthPercent(100).Height(180)`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				motion.AuroraBackground(c, func() {
-					ui.Column(c).Center().Gap(4).Children(func() {
-						ui.Text(c, "Aurora Canvas").FontSize(19).FontWeight(700).TextColor(t.Text)
-						ui.Text(c, "4 drifting radial gradient ribbons").FontSize(12).TextColor(t.TextMuted)
-					})
-				}).WidthPercent(100).Height(176)
-			},
-		},
-		{
-			ID:          "dot-pattern",
-			Name:        "DotPattern",
-			Category:    "backgrounds",
-			Description: "Crisp dot-matrix canvas with radial vignette fade and pointer proximity glow.",
-			Code: `motion.DotPattern(c, func() {
-    ui.Text(c, "Dot Matrix").FontSize(18).FontWeight(700)
-}, motion.DotPatternOptions{RadialFade: true}).WidthPercent(100).Height(180)`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				motion.DotPattern(c, func() {
-					ui.Column(c).Center().Gap(4).Children(func() {
-						ui.Text(c, "Interactive Dot Matrix").FontSize(17).FontWeight(700).TextColor(t.Text)
-						ui.Text(c, "Hover to illuminate nearby dots").FontSize(12).TextColor(t.TextMuted)
-					})
-				}, motion.DotPatternOptions{
-					Spacing:    16,
-					RadialFade: true,
-				}).WidthPercent(100).Height(176)
-			},
-		},
-		{
-			ID:          "grid-pattern",
-			Name:        "GridPattern",
-			Category:    "backgrounds",
-			Description: "Architectural grid canvas with softly pulsing glowing highlight cells.",
-			Code: `motion.GridPattern(c, func() {
-    ui.Text(c, "Architectural Grid").FontSize(18).FontWeight(700)
-}).WidthPercent(100).Height(180)`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				motion.GridPattern(c, func() {
-					ui.Column(c).Center().Gap(4).Children(func() {
-						ui.Text(c, "Architectural Grid").FontSize(17).FontWeight(700).TextColor(t.Text)
-						ui.Text(c, "Animated glowing cell highlights").FontSize(12).TextColor(t.TextMuted)
-					})
-				}, motion.GridPatternOptions{
-					CellSize:    26,
-					ActiveCells: 14,
-				}).WidthPercent(100).Height(176)
-			},
-		},
-		{
-			ID:          "meteors",
-			Name:        "Meteors",
-			Category:    "backgrounds",
-			Description: "Diagonal shooting-star streaks with fading luminous gradient tails.",
-			Code: `motion.Meteors(c, func() {
-    ui.Text(c, "Meteor Shower").FontSize(18).FontWeight(700)
-}, motion.MeteorsOptions{Count: 14}).WidthPercent(100).Height(180)`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				motion.Meteors(c, func() {
-					ui.Column(c).Center().Gap(4).Children(func() {
-						ui.Text(c, "Meteor Shower").FontSize(18).FontWeight(700).TextColor(t.Text)
-						ui.Text(c, "StrokePathGradient luminous streaks").FontSize(12).TextColor(t.TextMuted)
-					})
-				}, motion.MeteorsOptions{
-					Count: 14,
-				}).WidthPercent(100).Height(176)
-			},
-		},
-		{
-			ID:          "sparkles",
-			Name:        "Sparkles",
-			Category:    "backgrounds",
-			Description: "Twinkling multi-size 4-point starfield emitter with smooth spin and glow.",
-			Code: `motion.Sparkles(c, func() {
-    ui.Text(c, "Starfield Sparkles").FontSize(18).FontWeight(700)
-}, motion.SparklesOptions{Count: 28}).WidthPercent(100).Height(180)`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				motion.Sparkles(c, func() {
-					ui.Column(c).Center().Gap(4).Children(func() {
-						ui.Text(c, "Starfield Sparkles").FontSize(18).FontWeight(700).TextColor(t.Text)
-						ui.Text(c, "Twinkling quadratic-curve 4-point stars").FontSize(12).TextColor(t.TextMuted)
-					})
-				}, motion.SparklesOptions{
-					Count: 28,
-				}).WidthPercent(100).Height(176)
-			},
-		},
-		{
-			ID:          "ripple-rings",
-			Name:        "RippleRings",
-			Category:    "backgrounds",
-			Description: "Concentric pulsing radar/sonar waves expanding seamlessly from center.",
-			Code: `motion.RippleRings(c, func() {
-    ui.Text(c, "Sonar Core").FontSize(14).FontWeight(700)
-}).WidthPercent(100).Height(180)`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				motion.RippleRings(c, func() {
-					ui.Box(c).
-						Padding(8, 16).
-						Radius(999).
-						Background(t.Surface).
-						Border(1, t.Accent.Alpha(0.5)).
-						Children(func() {
-							ui.Text(c, "Sonar Core").FontSize(13).FontWeight(700).TextColor(t.Text)
+						coss.Button(c, label).Variant(coss.ButtonOutline).OnClick(func() {
+							a.magneticClicks++
 						})
-				}, motion.RippleRingsOptions{
-					RingCount: 5,
-				}).WidthPercent(100).Height(176)
+					}, motion.MagneticOptions{
+						Intensity: 0.5,
+						Range:     95,
+					})
+					ui.Text(c, "Move pointer near button to feel attraction").FontSize(11).TextColor(t.TextSubtle)
+				})
+			},
+		},
+		{
+			ID:          "cursor",
+			Name:        "Cursor",
+			Category:    "interactive",
+			Description: "Custom pointer-following floating badge cursor inside an interactive stage.",
+			Code: `motion.Cursor(c, stageContent, func() {
+    coss.Badge(c, "View →").Variant(coss.BadgeDefault)
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				motion.Cursor(c, func() {
+					ui.Column(c).AlignItems(ui.Center).Gap(4).Children(func() {
+						ui.Icon(c, icons.Plus()).Size(18, 18).TextColor(t.TextMuted)
+						ui.Text(c, "Hover inside stage").FontSize(12.5).FontWeight(500).TextColor(t.TextMuted)
+					})
+				}, func() {
+					ui.Row(c).
+						Padding(4, 10).
+						Radius(999).
+						Background(t.InverseBg).
+						AlignItems(ui.Center).
+						Gap(4).
+						Children(func() {
+							ui.Text(c, "More").FontSize(11).FontWeight(600).TextColor(t.InverseText).SingleLine()
+							ui.Icon(c, icons.Plus()).Size(11, 11).TextColor(t.InverseText)
+						})
+				}, motion.CursorOptions{
+					Height: 132,
+				})
+			},
+		},
+		{
+			ID:          "toolbar-dynamic",
+			Name:        "ToolbarDynamic",
+			Category:    "interactive",
+			Description: "Compact pill toolbar that smoothly expands horizontally into a live search bar.",
+			Code: `motion.ToolbarDynamic(c, &query, motion.ToolbarDynamicOptions{
+    Open:       &open,
+    UserIcon:   icons.User(),
+    SearchIcon: icons.Search(),
+    BackIcon:   icons.ArrowLeft(),
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				ui.Column(c).AlignItems(ui.Center).Gap(10).Children(func() {
+					motion.ToolbarDynamic(c, &a.toolbarDynQuery, motion.ToolbarDynamicOptions{
+						Open:          &a.toolbarDynOpen,
+						Placeholder:   "Search notes...",
+						CompactWidth:  94,
+						ExpandedWidth: 268,
+						UserIcon:      icons.User(),
+						SearchIcon:    icons.Search(),
+						BackIcon:      icons.ArrowLeft(),
+					})
+					hint := "Click the search icon to expand"
+					if a.toolbarDynOpen {
+						hint = "Click back arrow or press Esc to collapse"
+					}
+					ui.Text(c, hint).FontSize(11).TextColor(t.TextSubtle)
+				})
+			},
+		},
+		{
+			ID:          "toolbar-expandable",
+			Name:        "ToolbarExpandable",
+			Category:    "interactive",
+			Description: "Compact icon toolbar with smoothly expanding animated drawer panels above it.",
+			Code: `motion.ToolbarExpandable(c, items, &activeIdx, motion.ToolbarExpandableOptions{
+    Width:       280,
+    PanelHeight: 104,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				items := []motion.ExpandableToolbarItem{
+					{
+						ID: "user", Label: "User", Icon: icons.User(),
+						Content: func() {
+							ui.Row(c).AlignItems(ui.Center).Gap(10).Children(func() {
+								ui.Box(c).Width(28).Height(28).Radius(999).Background(t.InverseBg).Center().Children(func() {
+									ui.Text(c, "IB").FontSize(11).FontWeight(600).TextColor(t.InverseText)
+								})
+								ui.Column(c).Gap(1).Children(func() {
+									ui.Text(c, "Ibelick").FontSize(12.5).FontWeight(600).TextColor(t.Text)
+									ui.Text(c, "Motion designer & engineer").FontSize(11).TextColor(t.TextMuted)
+								})
+							})
+							coss.Button(c, "Edit Profile").Size(coss.SizeXS).Variant(coss.ButtonOutline)
+						},
+					},
+					{
+						ID: "messages", Label: "Messages", Icon: icons.Mail(),
+						Content: func() {
+							ui.Text(c, "Unread Messages").FontSize(12.5).FontWeight(600).TextColor(t.Text)
+							ui.Text(c, "3 new replies on motion-primitives release.").FontSize(11.5).TextColor(t.TextMuted)
+						},
+					},
+					{
+						ID: "docs", Label: "Documents", Icon: icons.Folder(),
+						Content: func() {
+							ui.Text(c, "Workspace Files").FontSize(12.5).FontWeight(600).TextColor(t.Text)
+							ui.Text(c, "design-tokens.json · spring-presets.go").FontSize(11.5).TextColor(t.TextMuted)
+						},
+					},
+					{
+						ID: "settings", Label: "Settings", Icon: icons.Settings(),
+						Content: func() {
+							ui.Text(c, "Preferences").FontSize(12.5).FontWeight(600).TextColor(t.Text)
+							ui.Text(c, "60fps GPU springs · Reduced motion auto").FontSize(11.5).TextColor(t.TextMuted)
+						},
+					},
+				}
+				motion.ToolbarExpandable(c, items, &a.toolbarExpIdx, motion.ToolbarExpandableOptions{
+					Width:       280,
+					PanelHeight: 96,
+				})
 			},
 		},
 
-		// ------------------------------------------------------------------
-		// 5. Layout & Connection Motion (4)
-		// ------------------------------------------------------------------
+		// ====================================================================
+		// 4. Dialogs & Panels (6)
+		// ====================================================================
 		{
-			ID:          "marquee",
-			Name:        "Marquee",
-			Category:    "layout",
-			Description: "Seamless infinite ticker with reverse track, edge fade mask, and pause-on-hover.",
-			Code: `motion.Marquee(c, len(tags), func(i int) {
-    renderTag(tags[i])
-}, motion.MarqueeOptions{PauseOnHover: true, FadeEdges: true})`,
+			ID:          "accordion",
+			Name:        "Accordion",
+			Category:    "overlays",
+			Description: "Spring-animated smooth expandable accordion items with hairline dividers.",
+			Code: `motion.Accordion(c, items, &expanded, motion.AccordionOptions{
+    AllowCollapse: true,
+})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				row1 := []string{"Metal GPU", "WebGL 2", "Spring Physics", "Conic Beams", "Zero Deps", "120 FPS"}
-				row2 := []string{"BorderBeam", "Spotlight", "Orbiting", "Confetti", "MorphTabs", "TiltCard"}
-				chip := func(label string, accent ui.Color) {
-					ui.Row(c).
-						AlignItems(ui.Center).
-						Gap(6).
-						Padding(7, 13).
-						Radius(10).
+				items := []motion.AccordionItem{
+					{
+						Value: "getting-started",
+						Title: "Getting Started",
+						Content: func() {
+							ui.Text(c, "Discover the foundational concepts of motion-primitives and drop-in Go components.").
+								FontSize(12).TextColor(t.TextMuted).LineHeight(1.45)
+						},
+					},
+					{
+						Value: "animation",
+						Title: "Animation Properties",
+						Content: func() {
+							ui.Text(c, "Every primitive exposes configurable spring stiffness, damping, and duration.").
+								FontSize(12).TextColor(t.TextMuted).LineHeight(1.45)
+						},
+					},
+					{
+						Value: "community",
+						Title: "Community & Support",
+						Content: func() {
+							ui.Text(c, "Built for MyGo with native GPU composition in both Light and Dark themes.").
+								FontSize(12).TextColor(t.TextMuted).LineHeight(1.45)
+						},
+					},
+				}
+				motion.Accordion(c, items, &a.accordionOpen, motion.AccordionOptions{
+					AllowCollapse: true,
+				})
+			},
+		},
+		{
+			ID:          "disclosure",
+			Name:        "Disclosure",
+			Category:    "overlays",
+			Description: "Single smooth expandable disclosure card with spring clip reveal.",
+			Code: `motion.Disclosure(c, "Show more", &open, func() {
+    ui.Text(c, "Expandable details...")
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				motion.Disclosure(c, "Show more", &a.disclosureOpen, func() {
+					ui.Text(c, "This disclosure smoothly expands and collapses using spring height & opacity interpolation without layout flicker.").
+						FontSize(12).TextColor(t.TextMuted).LineHeight(1.45)
+				}, motion.DisclosureOptions{
+					MaxHeight: 120,
+				})
+			},
+		},
+		{
+			ID:          "dialog",
+			Name:        "Dialog",
+			Category:    "overlays",
+			Description: "Spring scale and fade modal dialog with soft backdrop.",
+			Code: `motion.Dialog(c, &open, bodyFn, motion.DialogOptions{
+    Title:       "Join the waitlist",
+    Description: "Enter your email for early access.",
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				ui.Column(c).AlignItems(ui.Center).Gap(8).Children(func() {
+					coss.Button(c, "Join the waitlist").Variant(coss.ButtonDefault).OnClick(func() {
+						a.dialogOpen = true
+					})
+					ui.Text(c, "Opens a spring scale+fade modal").FontSize(11).TextColor(t.TextSubtle)
+				})
+				motion.Dialog(c, &a.dialogOpen, func() {
+					ui.Column(c).WidthPercent(100).Gap(10).Children(func() {
+						coss.Input(c, &a.dialogEmail).Placeholder("you@example.com")
+						ui.Row(c).WidthPercent(100).Justify(ui.End).Gap(8).Children(func() {
+							coss.Button(c, "Cancel").Size(coss.SizeSM).Variant(coss.ButtonOutline).OnClick(func() {
+								a.dialogOpen = false
+							})
+							coss.Button(c, "Join now").Size(coss.SizeSM).Variant(coss.ButtonDefault).OnClick(func() {
+								a.dialogOpen = false
+							})
+						})
+					})
+				}, motion.DialogOptions{
+					Title:       "Join the waitlist",
+					Description: "Enter your email address to receive updates when new primitives ship.",
+				})
+			},
+		},
+		{
+			ID:          "morphing-dialog",
+			Name:        "MorphingDialog",
+			Category:    "overlays",
+			Description: "Preview card smoothly morphing into an expanded detail modal on click.",
+			Code: `motion.MorphingDialog(c, &open, previewCard, expandedModal)`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				thumbBg := ui.Hex("#e4e4e7")
+				if t.Dark {
+					thumbBg = ui.Hex("#27272a")
+				}
+				motion.MorphingDialog(c, &a.morphDialogOpen, func() {
+					ui.Row(c).Width(264).Padding(10).Gap(12).AlignItems(ui.Center).Children(func() {
+						ui.Box(c).Width(48).Height(48).Radius(8).Background(thumbBg).Center().Shrink(0).Children(func() {
+							ui.Icon(c, icons.Sun()).Size(20, 20).TextColor(t.Text)
+						})
+						ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+							ui.Text(c, "EB27 Desk Lamp").FontSize(13).FontWeight(600).TextColor(t.Text).SingleLine()
+							ui.Text(c, "Edouard Wilfrid Buquet").FontSize(11.5).TextColor(t.TextMuted).SingleLine()
+						})
+						ui.Icon(c, icons.Plus()).Size(14, 14).TextColor(t.TextMuted)
+					})
+				}, func() {
+					ui.Column(c).WidthPercent(100).Children(func() {
+						ui.Box(c).WidthPercent(100).Height(140).Background(thumbBg).Center().Children(func() {
+							ui.Icon(c, icons.Sun()).Size(44, 44).TextColor(t.Text)
+						})
+						ui.Column(c).Padding(18).Gap(6).Children(func() {
+							ui.Text(c, "EB27 Desk Lamp").FontSize(17).FontWeight(600).TextColor(t.Text)
+							ui.Text(c, "Edouard Wilfrid Buquet · 1927").FontSize(12.5).TextColor(t.TextMuted)
+							ui.Text(c, "Little is known about the life of Édouard-Wilfrid Buquet. In 1925 he invented the iconic counterbalanced articulated desk lamp.").
+								FontSize(12.5).TextColor(t.TextMuted).LineHeight(1.5).Margin(6, 0, 0, 0)
+						})
+					})
+				})
+			},
+		},
+		{
+			ID:          "morphing-popover",
+			Name:        "MorphingPopover",
+			Category:    "overlays",
+			Description: "Compact button smoothly morphing into a floating popover form.",
+			Code: `motion.MorphingPopover(c, &open, "Add Note", func() {
+    coss.Input(c, &note).Placeholder("Write a quick note...")
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				ui.Column(c).AlignItems(ui.Center).Gap(8).Children(func() {
+					motion.MorphingPopover(c, &a.morphPopOpen, "Add Note", func() {
+						ui.Column(c).WidthPercent(100).Gap(10).Children(func() {
+							ui.Text(c, "Add Note").FontSize(12.5).FontWeight(600).TextColor(t.Text)
+							coss.Input(c, &a.morphPopNote).Placeholder("Type a quick thought...")
+							ui.Row(c).WidthPercent(100).Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
+								coss.Button(c, "Close").Size(coss.SizeXS).Variant(coss.ButtonGhost).OnClick(func() {
+									a.morphPopOpen = false
+								})
+								coss.Button(c, "Submit").Size(coss.SizeXS).Variant(coss.ButtonDefault).OnClick(func() {
+									a.morphPopOpen = false
+								})
+							})
+						})
+					}, motion.MorphingPopoverOptions{
+						Width: 264,
+					})
+					if a.morphPopNote != "" {
+						ui.Text(c, "Saved: "+a.morphPopNote).FontSize(11).TextColor(t.TextMuted).SingleLine().Ellipsis("…")
+					}
+				})
+			},
+		},
+		{
+			ID:          "transition-panel",
+			Name:        "TransitionPanel",
+			Category:    "overlays",
+			Description: "Smooth animated tabbed content switcher with crossfade and subtle blur.",
+			Code: `motion.TransitionPanel(c, activeTab, panels, motion.TransitionPanelOptions{
+    Blur: true,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				tabs := []struct {
+					title    string
+					subtitle string
+					body     string
+				}{
+					{"Aesthetics", "Refining Visual Harmony", "Explore the principles of motion aesthetics that elevate clarity without visual noise."},
+					{"Art", "Narrative and Expression", "Craft transitions that guide spatial understanding and anchor user focus."},
+					{"Design", "Mastering Motion Craft", "Combine spring physics with monochrome typography for calm, tactile software."},
+				}
+				ui.Column(c).WidthPercent(100).Gap(10).Children(func() {
+					ui.Row(c).Gap(6).Children(func() {
+						for i, tb := range tabs {
+							idx := i
+							v := coss.ButtonOutline
+							if a.transPanelTab == idx {
+								v = coss.ButtonDefault
+							}
+							coss.Button(c, tb.title).Size(coss.SizeXS).Variant(v).OnClick(func() {
+								a.transPanelTab = idx
+							})
+						}
+					})
+					panels := make([]func(), len(tabs))
+					for i, tb := range tabs {
+						item := tb
+						panels[i] = func() {
+							ui.Column(c).
+								WidthPercent(100).
+								Padding(12, 14).
+								Radius(10).
+								Background(t.SurfaceSubtle).
+								Border(1, t.Border).
+								Gap(4).
+								Children(func() {
+									ui.Text(c, item.subtitle).FontSize(13).FontWeight(600).TextColor(t.Text)
+									ui.Text(c, item.body).FontSize(12).TextColor(t.TextMuted).LineHeight(1.45)
+								})
+						}
+					}
+					motion.TransitionPanel(c, a.transPanelTab, panels, motion.TransitionPanelOptions{
+						Blur: true,
+					})
+				})
+			},
+		},
+
+		// ====================================================================
+		// 5. Scroll & Layout (5)
+		// ====================================================================
+		{
+			ID:          "animated-group",
+			Name:        "AnimatedGroup",
+			Category:    "layout",
+			Description: "Staggered entrance group supporting fade, slide, scale, blur, and zoom presets.",
+			Code: `motion.AnimatedGroup(c, items, motion.AnimatedGroupOptions{
+    Preset:  motion.PresetScale,
+    Columns: 4,
+    Trigger: trigger,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				labels := []string{"01", "02", "03", "04"}
+				items := make([]func(), len(labels))
+				for i, lb := range labels {
+					text := lb
+					items[i] = func() {
+						ui.Box(c).
+							WidthPercent(100).
+							Height(58).
+							Radius(8).
+							Background(t.SurfaceSubtle).
+							Border(1, t.Border).
+							Center().
+							Children(func() {
+								ui.Text(c, text).FontSize(14).FontWeight(600).TextColor(t.Text)
+							})
+					}
+				}
+				ui.Column(c).WidthPercent(100).AlignItems(ui.Center).Gap(12).Children(func() {
+					motion.AnimatedGroup(c, items, motion.AnimatedGroupOptions{
+						Preset:  a.groupPreset,
+						Columns: 4,
+						Gap:     8,
+						Trigger: a.groupTrigger,
+					})
+					ui.Row(c).Gap(6).Children(func() {
+						for _, p := range []struct {
+							name   string
+							preset motion.Preset
+						}{
+							{"Scale", motion.PresetScale},
+							{"Slide", motion.PresetSlide},
+							{"Blur", motion.PresetBlur},
+						} {
+							pr := p.preset
+							v := coss.ButtonOutline
+							if a.groupPreset == pr {
+								v = coss.ButtonDefault
+							}
+							coss.Button(c, p.name).Size(coss.SizeXS).Variant(v).OnClick(func() {
+								a.groupPreset = pr
+								a.groupTrigger++
+							})
+						}
+					})
+				})
+			},
+		},
+		{
+			ID:          "carousel",
+			Name:        "Carousel",
+			Category:    "layout",
+			Description: "Spring-sliding multi-card carousel with prev/next buttons and dot indicators.",
+			Code: `motion.Carousel(c, slides, &index, motion.CarouselOptions{
+    SlideWidth:     240,
+    SlideHeight:    116,
+    ShowNavigation: true,
+    ShowIndicator:  true,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				slideTitles := []string{"01 · Springs", "02 · Gestures", "03 · Surfaces", "04 · Typography"}
+				slides := make([]func(), len(slideTitles))
+				for i, st := range slideTitles {
+					title := st
+					slides[i] = func() {
+						ui.Column(c).
+							Fill().
+							Radius(10).
+							Background(t.SurfaceSubtle).
+							Border(1, t.Border).
+							Center().
+							Gap(4).
+							Children(func() {
+								ui.Text(c, title).FontSize(14).FontWeight(600).TextColor(t.Text)
+								ui.Text(c, "Spring-interpolated track").FontSize(11).TextColor(t.TextMuted)
+							})
+					}
+				}
+				motion.Carousel(c, slides, &a.carouselIdx, motion.CarouselOptions{
+					SlideWidth:     248,
+					SlideHeight:    112,
+					Gap:            12,
+					ShowNavigation: true,
+					ShowIndicator:  true,
+				})
+			},
+		},
+		{
+			ID:          "in-view",
+			Name:        "InView",
+			Category:    "layout",
+			Description: "Viewport/mount reveal wrapper with replay trigger and blur-slide preset.",
+			Code: `motion.InView(c, func() {
+    ui.Text(c, "Revealed in viewport")
+}, motion.InViewOptions{
+    Preset:  motion.PresetBlurSlide,
+    Trigger: trigger,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				ui.Column(c).AlignItems(ui.Center).Gap(12).Children(func() {
+					motion.InView(c, func() {
+						ui.Column(c).
+							Width(260).
+							Padding(14, 16).
+							Radius(10).
+							Background(t.SurfaceSubtle).
+							Border(1, t.Border).
+							Gap(4).
+							Children(func() {
+								ui.Text(c, "Entered Viewport").FontSize(13.5).FontWeight(600).TextColor(t.Text)
+								ui.Text(c, "Fades, rises, and clears blur smoothly when scrolled into view.").
+									FontSize(11.5).TextColor(t.TextMuted).LineHeight(1.4)
+							})
+					}, motion.InViewOptions{
+						Preset:  motion.PresetBlurSlide,
+						Once:    true,
+						Trigger: a.inViewTrigger,
+					})
+					coss.Button(c, "Replay reveal").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
+						a.inViewTrigger++
+					})
+				})
+			},
+		},
+		{
+			ID:          "infinite-slider",
+			Name:        "InfiniteSlider",
+			Category:    "layout",
+			Description: "Seamless infinite scrolling strip with smooth hover deceleration.",
+			Code: `motion.InfiniteSlider(c, items, motion.InfiniteSliderOptions{
+    Speed:        48,
+    SpeedOnHover: 14,
+    EdgeFade:     true,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				chips := []string{"Motion", "Springs", "Shaders", "Zinc", "MyGo", "60fps"}
+				items := make([]func(), len(chips))
+				for i, ch := range chips {
+					lbl := ch
+					items[i] = func() {
+						ui.Box(c).
+							WidthPercent(100).
+							Height(46).
+							Radius(8).
+							Background(t.SurfaceSubtle).
+							Border(1, t.Border).
+							Center().
+							Children(func() {
+								ui.Text(c, lbl).FontSize(12.5).FontWeight(500).TextColor(t.Text).SingleLine()
+							})
+					}
+				}
+				ui.Column(c).WidthPercent(100).AlignItems(ui.Center).Gap(10).Children(func() {
+					motion.InfiniteSlider(c, items, motion.InfiniteSliderOptions{
+						Speed:        46,
+						SpeedOnHover: 12,
+						Gap:          10,
+						ItemWidth:    86,
+						EdgeFade:     true,
+					})
+					ui.Text(c, "Hover strip to smoothly decelerate").FontSize(11).TextColor(t.TextSubtle)
+				})
+			},
+		},
+		{
+			ID:          "scroll-progress",
+			Name:        "ScrollProgress",
+			Category:    "layout",
+			Description: "Live spring progress bar bound to a scrollable container's ui.ScrollState.",
+			Code: `motion.ScrollProgress(c, &scrollState, motion.ScrollProgressOptions{
+    Height: 3,
+})`,
+			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
+				ui.Column(c).WidthPercent(100).Gap(8).Children(func() {
+					motion.ScrollProgress(c, &a.scrollDemoStat, motion.ScrollProgressOptions{
+						Height: 3,
+					})
+					ui.Scroll(c).
+						TrackScroll(&a.scrollDemoStat).
+						WidthPercent(100).
+						Height(104).
+						Radius(8).
 						Background(t.SurfaceSubtle).
 						Border(1, t.Border).
-						Shrink(0).
 						Children(func() {
-							ui.Box(c).Size(6, 6).Radius(3).Background(accent)
-							ui.Text(c, label).FontSize(12).FontWeight(600).TextColor(t.Text).NoWrap()
+							ui.Column(c).WidthPercent(100).Padding(10, 12).Gap(8).Children(func() {
+								paragraphs := []string{
+									"01. Scroll inside this box to drive the live spring progress bar above.",
+									"02. Motion primitives stay monochrome and let physics carry the delight.",
+									"03. ScrollState exposes Y and MaxY directly from MyGo's layout engine.",
+									"04. Spring damping smooths discrete mouse-wheel ticks into fluid motion.",
+									"05. End of scrollable article — try scrolling back to the top.",
+								}
+								for _, p := range paragraphs {
+									ui.Text(c, p).FontSize(11.5).TextColor(t.TextMuted).LineHeight(1.45)
+								}
+							})
 						})
-				}
-				ui.Column(c).Gap(10).WidthPercent(100).Children(func() {
-					motion.Marquee(c, len(row1), func(i int) {
-						chip(row1[i], t.Accent)
-					}, motion.MarqueeOptions{
-						Speed:        42,
-						Gap:          10,
-						PauseOnHover: true,
-						FadeEdges:    true,
-					}).WidthPercent(100)
-					motion.Marquee(c, len(row2), func(i int) {
-						chip(row2[i], t.AccentSecondary)
-					}, motion.MarqueeOptions{
-						Speed:        36,
-						Gap:          10,
-						Reverse:      true,
-						PauseOnHover: true,
-						FadeEdges:    true,
-					}).WidthPercent(100)
-				})
-			},
-		},
-		{
-			ID:          "animated-beam",
-			Name:        "AnimatedBeam",
-			Category:    "layout",
-			Description: "Cubic-bezier node connections with glowing energy pulses traveling along curves.",
-			Code: `motion.AnimatedBeam(c, nodes, links).WidthPercent(100).Height(196)`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				nodes := []motion.BeamNode{
-					{X: 0.08, Y: 0.08, Label: "Input", Glyph: "IN", Accent: t.AccentSecondary, Size: 30},
-					{X: 0.08, Y: 0.50, Label: "Spring", Glyph: "SP", Accent: t.AccentEmerald, Size: 30},
-					{X: 0.08, Y: 0.92, Label: "Clock", Glyph: "CK", Accent: t.AccentAmber, Size: 30},
-					{X: 0.50, Y: 0.50, Label: "MyGo GPU", Glyph: "MG", Accent: t.Accent, Size: 42},
-					{X: 0.92, Y: 0.26, Label: "Metal", Glyph: "MT", Accent: t.AccentRose, Size: 34},
-					{X: 0.92, Y: 0.74, Label: "WASM", Glyph: "GL", Accent: t.AccentSecondary, Size: 34},
-				}
-				links := []motion.BeamLink{
-					{From: 0, To: 3, Curvature: -18, Color: t.AccentSecondary, Delay: 0.0},
-					{From: 1, To: 3, Curvature: 0, Color: t.AccentEmerald, Delay: 0.22},
-					{From: 2, To: 3, Curvature: 18, Color: t.AccentAmber, Delay: 0.44},
-					{From: 3, To: 4, Curvature: -16, Color: t.AccentRose, Delay: 0.15},
-					{From: 3, To: 5, Curvature: 16, Color: t.Accent, Delay: 0.55},
-				}
-				motion.AnimatedBeam(c, nodes, links).WidthPercent(100).Height(216)
-			},
-		},
-		{
-			ID:          "orbiting-circles",
-			Name:        "OrbitingCircles",
-			Category:    "layout",
-			Description: "Glowing badges smoothly revolving on concentric dashed orbital rings.",
-			Code: `motion.OrbitingCircles(c, rings, func() {
-    ui.Text(c, "CORE").FontSize(12).FontWeight(700)
-}).WidthPercent(100).Height(210)`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				rings := []motion.OrbitRing{
-					{
-						Radius:   46,
-						Duration: 8 * time.Second,
-						Satellites: []motion.OrbitSatellite{
-							{Glyph: "G", Accent: t.AccentSecondary},
-							{Glyph: "M", Accent: t.AccentEmerald},
-						},
-					},
-					{
-						Radius:   78,
-						Duration: 14 * time.Second,
-						Reverse:  true,
-						Satellites: []motion.OrbitSatellite{
-							{Glyph: "S", Accent: t.Accent},
-							{Glyph: "R", Accent: t.AccentRose},
-							{Glyph: "A", Accent: t.AccentAmber},
-						},
-					},
-				}
-				motion.OrbitingCircles(c, rings, func() {
-					ui.Box(c).
-						Size(46, 46).
-						Radius(23).
-						Background(t.Accent.Alpha(0.18)).
-						Border(1.5, t.Accent.Alpha(0.6)).
-						Center().
-						Children(func() {
-							ui.Text(c, "GPU").FontSize(12).FontWeight(700).TextColor(t.Text)
+					ui.Row(c).WidthPercent(100).Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
+						pct := float32(0)
+						if a.scrollDemoStat.MaxY > 0 {
+							pct = (a.scrollDemoStat.Y / a.scrollDemoStat.MaxY) * 100
+						}
+						ui.Text(c, fmt.Sprintf("Scroll: %.0f%%", pct)).FontSize(11).TextColor(t.TextSubtle).SingleLine()
+						ui.Row(c).Gap(4).Children(func() {
+							coss.Button(c, "Top").Size(coss.SizeXS).Variant(coss.ButtonGhost).OnClick(func() {
+								a.scrollDemoStat.Y = 0
+							})
+							coss.Button(c, "50%").Size(coss.SizeXS).Variant(coss.ButtonGhost).OnClick(func() {
+								if a.scrollDemoStat.MaxY > 0 {
+									a.scrollDemoStat.Y = a.scrollDemoStat.MaxY * 0.5
+								}
+							})
+							coss.Button(c, "End").Size(coss.SizeXS).Variant(coss.ButtonGhost).OnClick(func() {
+								a.scrollDemoStat.Y = a.scrollDemoStat.MaxY
+							})
 						})
-				}).WidthPercent(100).Height(206)
-			},
-		},
-		{
-			ID:          "confetti-burst",
-			Name:        "ConfettiBurst",
-			Category:    "layout",
-			Description: "Physics-driven GPU confetti burst with gravity, drag, 3D tumble, and click bursts.",
-			Code: `motion.ConfettiBurst(c, burstCount, func() {
-    ui.Text(c, "Click anywhere!")
-}, motion.ConfettiBurstOptions{ClickToBurst: true})`,
-			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
-				motion.ConfettiBurst(c, a.confettiTrigger, func() {
-					ui.Column(c).Center().Gap(10).Children(func() {
-						smallActionBtn(c, t, "Launch Confetti", func() {
-							a.confettiTrigger++
-						})
-						ui.Text(c, "Click button or anywhere inside canvas").FontSize(12).TextColor(t.TextMuted)
 					})
-				}, motion.ConfettiBurstOptions{
-					Count:        52,
-					ClickToBurst: true,
-				}).WidthPercent(100).Height(186)
+				})
 			},
 		},
 	}

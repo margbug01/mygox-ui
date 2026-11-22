@@ -118,23 +118,46 @@ type NodeField struct {
 	Value string `json:"value"`
 }
 
+// NodeVariant selects the React Flow UI visual card style of a Node.
+type NodeVariant string
+
+const (
+	VariantBase        NodeVariant = "base"
+	VariantSchema      NodeVariant = "schema"
+	VariantGroup       NodeVariant = "group"
+	VariantPlaceholder NodeVariant = "placeholder"
+	VariantAnnotation  NodeVariant = "annotation"
+)
+
+// SchemaRow represents a typed column row inside a DatabaseSchemaNode.
+type SchemaRow struct {
+	Name   string `json:"name"`
+	Type   string `json:"type"`
+	InID   string `json:"inId,omitempty"`
+	OutID  string `json:"outId,omitempty"`
+	IsKey  bool   `json:"isKey,omitempty"`
+}
+
 // Node represents a draggable, connectable unit on the canvas.
 type Node struct {
-	ID        string      `json:"id"`
-	Type      string      `json:"type"`
-	Title     string      `json:"title"`
-	Subtitle  string      `json:"subtitle,omitempty"`
-	Badge     string      `json:"badge,omitempty"`
-	X         float32     `json:"x"`
-	Y         float32     `json:"y"`
-	W         float32     `json:"w"`
-	H         float32     `json:"h"`
-	AccentHex uint32      `json:"accent,omitempty"`
-	Ports     []Port      `json:"ports,omitempty"`
-	Fields    []NodeField `json:"fields,omitempty"`
-	Selected  bool        `json:"selected,omitempty"`
-	Locked    bool        `json:"locked,omitempty"`
-	Status    NodeStatus  `json:"status,omitempty"`
+	ID         string      `json:"id"`
+	Type       string      `json:"type"`
+	Variant    NodeVariant `json:"variant,omitempty"`
+	Title      string      `json:"title"`
+	Subtitle   string      `json:"subtitle,omitempty"`
+	Badge      string      `json:"badge,omitempty"`
+	Footer     string      `json:"footer,omitempty"`
+	X          float32     `json:"x"`
+	Y          float32     `json:"y"`
+	W          float32     `json:"w"`
+	H          float32     `json:"h"`
+	AccentHex  uint32      `json:"accent,omitempty"`
+	Ports      []Port      `json:"ports,omitempty"`
+	Fields     []NodeField `json:"fields,omitempty"`
+	SchemaRows []SchemaRow `json:"schemaRows,omitempty"`
+	Selected   bool        `json:"selected,omitempty"`
+	Locked     bool        `json:"locked,omitempty"`
+	Status     NodeStatus  `json:"status,omitempty"`
 }
 
 func (n *Node) Bounds() Rect {
@@ -143,6 +166,12 @@ func (n *Node) Bounds() Rect {
 		w = 224
 	}
 	h := n.H
+	if n.Variant == VariantSchema && len(n.SchemaRows) > 0 {
+		minH := float32(34 + len(n.SchemaRows)*26 + 8)
+		if h < minH {
+			h = minH
+		}
+	}
 	if h <= 0 {
 		h = 112
 	}

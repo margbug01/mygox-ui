@@ -1,5 +1,6 @@
-// Package motiongo provides GPU-accelerated motion and visual effects
-// components for MyGo (github.com/egoist/mygo).
+// Package motion is a 1:1 Go/MyGo port of ibelick/motion-primitives,
+// delivering all 33 GPU-accelerated motion primitives in a restrained,
+// monochromatic zinc aesthetic for Light and Dark themes.
 package motion
 
 import (
@@ -9,74 +10,86 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Theme holds semantic surface, text, border, and accent tokens used by
-// motiongo components across Dark and Light modes.
+// Theme holds semantic surface, border, and text tokens aligned with
+// motion-primitives and coss neutral zinc palettes.
 type Theme struct {
-	Dark           bool
-	Background     ui.Color
-	Surface        ui.Color
-	SurfaceSubtle  ui.Color
-	SurfaceHover   ui.Color
-	Border         ui.Color
-	BorderStrong   ui.Color
-	Text           ui.Color
-	TextMuted      ui.Color
-	TextSubtle     ui.Color
-	Accent         ui.Color
-	AccentSecondary ui.Color
-	AccentEmerald  ui.Color
-	AccentAmber    ui.Color
-	AccentRose     ui.Color
-	AccentIndigo   ui.Color
-	Specular       ui.Color
-	Shadow         ui.Color
+	Dark          bool
+	Background    ui.Color
+	Surface       ui.Color
+	SurfaceSubtle ui.Color
+	SurfaceHover  ui.Color
+	Border        ui.Color
+	BorderStrong  ui.Color
+	Text          ui.Color
+	TextMuted     ui.Color
+	TextSubtle    ui.Color
+	InverseBg     ui.Color
+	InverseText   ui.Color
+	Accent        ui.Color
+	Specular      ui.Color
+	Shadow        ui.Color
 }
 
-// DarkTheme returns the obsidian dark palette tuned for glowing motion effects.
+// Preset selects an entrance/transition animation style shared across
+// TextEffect, AnimatedGroup, and InView.
+type Preset string
+
+const (
+	PresetFade      Preset = "fade"
+	PresetSlide     Preset = "slide"
+	PresetScale     Preset = "scale"
+	PresetBlur      Preset = "blur"
+	PresetBlurSlide Preset = "blur-slide"
+	PresetZoom      Preset = "zoom"
+)
+
+// Common spring presets matching upstream motion-primitives feel.
+var (
+	SpringSnappy = ui.SpringOptions{Stiffness: 320, Damping: 26, Mass: 0.8}
+	SpringSmooth = ui.SpringOptions{Stiffness: 220, Damping: 26, Mass: 1.0}
+	SpringBouncy = ui.SpringOptions{Stiffness: 280, Damping: 18, Mass: 0.4}
+	SpringGentle = ui.SpringOptions{Stiffness: 160, Damping: 24, Mass: 1.0}
+)
+
+// DarkTheme returns the monochromatic dark zinc palette.
 func DarkTheme() Theme {
 	return Theme{
-		Dark:            true,
-		Background:      ui.Hex("#09090b"),
-		Surface:         ui.Hex("#111115"),
-		SurfaceSubtle:   ui.Hex("#18181d"),
-		SurfaceHover:    ui.Hex("#202028"),
-		Border:          ui.Hex("#27272f"),
-		BorderStrong:    ui.Hex("#3f3f4c"),
-		Text:            ui.Hex("#fafafa"),
-		TextMuted:       ui.Hex("#a1a1aa"),
-		TextSubtle:      ui.Hex("#71717a"),
-		Accent:          ui.Hex("#8b5cf6"),
-		AccentSecondary: ui.Hex("#06b6d4"),
-		AccentEmerald:   ui.Hex("#10b981"),
-		AccentAmber:     ui.Hex("#f59e0b"),
-		AccentRose:      ui.Hex("#f43f5e"),
-		AccentIndigo:    ui.Hex("#6366f1"),
-		Specular:        ui.RGBA(255, 255, 255, 0.20),
-		Shadow:          ui.RGBA(0, 0, 0, 0.55),
+		Dark:          true,
+		Background:    ui.Hex("#09090b"),
+		Surface:       ui.Hex("#18181b"),
+		SurfaceSubtle: ui.Hex("#111114"),
+		SurfaceHover:  ui.Hex("#27272a"),
+		Border:        ui.Hex("#27272a"),
+		BorderStrong:  ui.Hex("#3f3f46"),
+		Text:          ui.Hex("#fafafa"),
+		TextMuted:     ui.Hex("#a1a1aa"),
+		TextSubtle:    ui.Hex("#71717a"),
+		InverseBg:     ui.Hex("#fafafa"),
+		InverseText:   ui.Hex("#09090b"),
+		Accent:        ui.Hex("#f4f4f5"),
+		Specular:      ui.RGBA(255, 255, 255, 0.14),
+		Shadow:        ui.RGBA(0, 0, 0, 0.48),
 	}
 }
 
-// LightTheme returns the crisp light palette with high-contrast accents.
+// LightTheme returns the crisp light zinc palette.
 func LightTheme() Theme {
 	return Theme{
-		Dark:            false,
-		Background:      ui.Hex("#f8f9fb"),
-		Surface:         ui.Hex("#ffffff"),
-		SurfaceSubtle:   ui.Hex("#f1f3f6"),
-		SurfaceHover:    ui.Hex("#e7eaf0"),
-		Border:          ui.Hex("#e2e5ec"),
-		BorderStrong:    ui.Hex("#cbd2de"),
-		Text:            ui.Hex("#09090b"),
-		TextMuted:       ui.Hex("#52525b"),
-		TextSubtle:      ui.Hex("#71717a"),
-		Accent:          ui.Hex("#7c3aed"),
-		AccentSecondary: ui.Hex("#0891b2"),
-		AccentEmerald:   ui.Hex("#059669"),
-		AccentAmber:     ui.Hex("#d97706"),
-		AccentRose:      ui.Hex("#e11d48"),
-		AccentIndigo:    ui.Hex("#4f46e5"),
-		Specular:        ui.RGBA(255, 255, 255, 0.72),
-		Shadow:          ui.RGBA(15, 23, 42, 0.10),
+		Dark:          false,
+		Background:    ui.Hex("#ffffff"),
+		Surface:       ui.Hex("#ffffff"),
+		SurfaceSubtle: ui.Hex("#f4f4f5"),
+		SurfaceHover:  ui.Hex("#e4e4e7"),
+		Border:        ui.Hex("#e4e4e7"),
+		BorderStrong:  ui.Hex("#d4d4d8"),
+		Text:          ui.Hex("#09090b"),
+		TextMuted:     ui.Hex("#52525b"),
+		TextSubtle:    ui.Hex("#71717a"),
+		InverseBg:     ui.Hex("#18181b"),
+		InverseText:   ui.Hex("#fafafa"),
+		Accent:        ui.Hex("#18181b"),
+		Specular:      ui.RGBA(255, 255, 255, 0.72),
+		Shadow:        ui.RGBA(9, 9, 11, 0.08),
 	}
 }
 
@@ -88,7 +101,7 @@ func ThemeFor(dark bool) Theme {
 	return LightTheme()
 }
 
-// ApplyTheme configures MyGo's context theme to match motiongo's Dark or Light palette.
+// ApplyTheme configures MyGo's context theme to match the zinc palette.
 func ApplyTheme(c *ui.Context, dark bool) Theme {
 	t := ThemeFor(dark)
 	var base *ui.Theme
@@ -105,15 +118,15 @@ func ApplyTheme(c *ui.Context, dark bool) Theme {
 	base.Border = t.Border
 	base.Text = t.Text
 	base.TextMuted = t.TextMuted
-	base.Accent = t.Accent
-	base.AccentHover = t.AccentIndigo
-	base.AccentText = ui.Hex("#ffffff")
+	base.Accent = t.InverseBg
+	base.AccentHover = t.BorderStrong
+	base.AccentText = t.InverseText
 	base.Radius = 10
 	c.SetTheme(base)
 	return t
 }
 
-// ThemeFrom inspects the active MyGo context theme and returns the matching motiongo Theme.
+// ThemeFrom inspects the active MyGo context theme and returns the matching motion Theme.
 func ThemeFrom(c *ui.Context) Theme {
 	if c != nil {
 		if ut := c.Theme(); ut != nil {
@@ -123,10 +136,16 @@ func ThemeFrom(c *ui.Context) Theme {
 	return DarkTheme()
 }
 
-// colorOr returns c when its alpha is non-zero, otherwise fallback.
 func colorOr(c, fallback ui.Color) ui.Color {
 	if c.A != 0 || c.R != 0 || c.G != 0 || c.B != 0 {
 		return c
+	}
+	return fallback
+}
+
+func resolveSpring(o, fallback ui.SpringOptions) ui.SpringOptions {
+	if o.Duration != 0 || o.Bounce != 0 || o.Stiffness != 0 || o.Damping != 0 || o.Mass != 0 {
+		return o
 	}
 	return fallback
 }
@@ -171,6 +190,15 @@ func easeOutCubic(t float64) float64 {
 	return 1 - u*u*u
 }
 
+func easeInOutCubic(t float64) float64 {
+	t = clamp64(t, 0, 1)
+	if t < 0.5 {
+		return 4 * t * t * t
+	}
+	u := -2*t + 2
+	return 1 - (u*u*u)/2
+}
+
 func phaseSeconds(now time.Time) float64 {
 	return float64(now.UnixNano()) / 1e9
 }
@@ -181,4 +209,32 @@ func mod1(v float64) float64 {
 		r += 1
 	}
 	return r
+}
+
+// applyPreset transforms an element according to a Preset and normalized progress p in [0,1].
+func applyPreset(el ui.Element, preset Preset, p float32) {
+	p = clamp32(p, 0, 1)
+	inv := 1 - p
+	switch preset {
+	case PresetSlide:
+		el.Opacity(p).Translate(0, inv*16)
+	case PresetScale:
+		s := lerp32(0.86, 1, p)
+		el.Opacity(p).Scale(s, s)
+	case PresetZoom:
+		s := lerp32(0.72, 1, p)
+		el.Opacity(p).Scale(s, s)
+	case PresetBlur:
+		el.Opacity(p)
+		if inv > 0.02 {
+			el.Blur(inv * 5)
+		}
+	case PresetBlurSlide:
+		el.Opacity(p).Translate(0, inv*14)
+		if inv > 0.02 {
+			el.Blur(inv * 5)
+		}
+	default: // PresetFade
+		el.Opacity(p)
+	}
 }

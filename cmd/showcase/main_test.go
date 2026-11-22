@@ -20,22 +20,22 @@ func TestUnifiedShowcaseAllThreeSuites(t *testing.T) {
 		t.Fatalf("expected UI tab header, got: %v", tt.Texts())
 	}
 
-	// 2. Switch to Flow tab
+	// 2. Switch to Flow tab (React Flow UI DB Schema & Sub-Flows)
 	app.setSection(sectionFlow)
 	tt.Frame()
 	tt.Advance(50 * time.Millisecond)
 	tt.Frame()
-	if !tt.HasText("Node Palette") || !tt.HasText("Inspector") {
+	if !tt.HasText("Node Palette") || !tt.HasText("DB Schema") {
 		t.Fatalf("expected Flow tab UI, got: %v", tt.Texts())
 	}
 
-	// 3. Switch to Motion tab
+	// 3. Switch to Motion tab (33 Motion Primitives)
 	app.setSection(sectionMotion)
 	tt.Frame()
 	tt.Advance(80 * time.Millisecond)
 	tt.Frame()
-	if !tt.HasText("All Motion Effects") || !tt.HasText("BorderBeam") {
-		t.Fatalf("expected Motion tab UI, got: %v", tt.Texts())
+	if !tt.HasText("All Motion Effects") || !tt.HasText("BorderTrail") {
+		t.Fatalf("expected Motion tab UI with BorderTrail, got: %v", tt.Texts())
 	}
 
 	if dir := os.Getenv("MYGOX_UI_SNAPSHOT_DIR"); dir != "" {
@@ -53,34 +53,35 @@ func TestUnifiedShowcaseAllThreeSuites(t *testing.T) {
 		tt.Frame()
 		savePNG(t, filepath.Join(dir, "ui-dark.png"), tt)
 
-		// Flow Light & Dark (in coss style!)
+		// Flow Light (React Flow UI DatabaseSchemaNode) & Dark (Sub-Flows + Spinning Conic Status + Placeholder)
 		app.setSection(sectionFlow)
-		app.flow.loadPreset("ai-agent")
-		app.flow.graph.SelectNode("llm", false)
+		app.flow.loadPreset("schema")
+		app.flow.graph.SelectNode("products", false)
 		app.dark = false
 		tt.Frame()
-		tt.Advance(40 * time.Millisecond)
+		tt.Advance(50 * time.Millisecond)
 		tt.Frame()
 		savePNG(t, filepath.Join(dir, "flow-light.png"), tt)
 
+		app.flow.loadPreset("subflows")
+		app.flow.graph.SelectNode("synth", false)
 		app.dark = true
 		tt.Frame()
-		tt.Advance(40 * time.Millisecond)
+		tt.Advance(60 * time.Millisecond)
 		tt.Frame()
 		savePNG(t, filepath.Join(dir, "flow-dark.png"), tt)
 
-		// Motion Light & Dark (in coss style!)
+		// Motion Primitives 33 — Light (Cards & Surfaces) & Dark (Text & Numbers)
 		app.setSection(sectionMotion)
-		app.motion.selectCategory("")
+		app.motion.selectCategory("surfaces")
 		app.dark = false
 		tt.Frame()
-		tt.Advance(80 * time.Millisecond)
+		tt.Advance(100 * time.Millisecond)
 		tt.Frame()
 		savePNG(t, filepath.Join(dir, "motion-light.png"), tt)
 
 		app.dark = true
-		app.motion.selectCategory("layout")
-		app.motion.confettiTrigger++
+		app.motion.selectCategory("text")
 		tt.Frame()
 		tt.Advance(140 * time.Millisecond)
 		tt.Frame()
@@ -105,13 +106,14 @@ func TestUnifiedShowcaseMobileResponsive(t *testing.T) {
 	tt.Frame()
 	tt.Advance(60 * time.Millisecond)
 	tt.Frame()
-	if !tt.HasText("BorderBeam") {
-		t.Fatalf("expected mobile Motion tab, got: %v", tt.Texts())
+	if !tt.HasText("BorderTrail") {
+		t.Fatalf("expected mobile Motion tab with BorderTrail, got: %v", tt.Texts())
 	}
 
 	if dir := os.Getenv("MYGOX_UI_SNAPSHOT_DIR"); dir != "" {
 		app.dark = false
 		app.setSection(sectionFlow)
+		app.flow.loadPreset("schema")
 		app.flow.fitted = false
 		tt.Frame()
 		tt.Advance(40 * time.Millisecond)

@@ -35,6 +35,12 @@ type connectPreview struct {
 	HasSnap    bool
 }
 
+type edgeButtonHit struct {
+	EdgeID string
+	Center Point
+	Radius float32
+}
+
 type graphSnapshot struct {
 	Nodes []Node `json:"nodes"`
 	Edges []Edge `json:"edges"`
@@ -80,6 +86,7 @@ type Graph struct {
 	lastCanvasW   float32
 	lastCanvasH   float32
 	miniMapRect   Rect
+	edgeBtnHits   []edgeButtonHit
 	nextID        int
 
 	undoStack []graphSnapshot
@@ -141,6 +148,56 @@ func (g *Graph) AddNode(n *Node) *Node {
 	g.Nodes = append(g.Nodes, n)
 	g.notifyChange()
 	return n
+}
+
+// RemoveEdge removes a single edge by ID.
+func (g *Graph) RemoveEdge(id string) bool {
+	if g.ReadOnly {
+		return false
+	}
+	for i, e := range g.Edges {
+		if e.ID == id {
+			g.PushUndo()
+			g.Edges = append(g.Edges[:i], g.Edges[i+1:]...)
+			g.notifyChange()
+			return true
+		}
+	}
+	return false
+}
+
+// PromotePlaceholder turns a PlaceholderNode into a regular BaseNode on click
+// (matching React Flow UI's PlaceholderNode behavior).
+func (g *Graph) PromotePlaceholder(id string) bool {
+	if g.ReadOnly {
+		return false
+	}
+	n := g.NodeByID(id)
+	if n == nil || n.Variant != VariantPlaceholder {
+		return false
+	}
+	g.PushUndo()
+	n.Variant = VariantBase
+	n.Type = "node"
+	n.Title = "New Step"
+	n.Subtitle = "Configured from placeholder"
+	n.Badge = "STEP"
+	n.W = 216
+	n.H = 104
+	if len(n.Ports) == 0 {
+		n.Ports = []Port{
+			{ID: "in", Side: PortLeft, Kind: PortInput},
+			{ID: "out", Side: PortRight, Kind: PortOutput},
+		}
+	}
+	for _, e := range g.Edges {
+		if e.Target == id {
+			e.Animated = false
+		}
+	}
+	g.SelectNode(n.ID, false)
+	g.notifyChange()
+	return true
 }
 
 // RemoveNode removes a node and all incident edges.
@@ -464,6 +521,16 @@ func (g *Graph) ZoomOut() {
 	g.Viewport.ZoomAt(Point{X: g.lastCanvasW * 0.5, Y: g.lastCanvasH * 0.5}, 1/1.2, g.MinZoom, g.MaxZoom)
 }
 
+// ZoomTo sets an exact zoom level around the canvas center (used by ZoomSlider).
+func (g *Graph) ZoomTo(target float32) {
+	cur := g.Viewport.safeZoom()
+	if cur <= 0 {
+		cur = 1
+	}
+	target = clamp32(target, g.MinZoom, g.MaxZoom)
+	g.Viewport.ZoomAt(Point{X: g.lastCanvasW * 0.5, Y: g.lastCanvasH * 0.5}, target/cur, g.MinZoom, g.MaxZoom)
+}
+
 // PushUndo saves the current graph state onto the undo stack.
 func (g *Graph) PushUndo() {
 	const maxHistory = 60
@@ -572,6 +639,11 @@ func cloneNode(n Node) Node {
 		copy(fields, n.Fields)
 		n.Fields = fields
 	}
+	if len(n.SchemaRows) > 0 {
+		rows := make([]SchemaRow, len(n.SchemaRows))
+		copy(rows, n.SchemaRows)
+		n.SchemaRows = rows
+	}
 	return n
 }
 
@@ -603,14 +675,23 @@ func (g *Graph) HitTestPort(worldPt Point, radius float32) (*Node, *Port, Point)
 	return bestN, bestP, bestPos
 }
 
-// HitTestNode returns the topmost node covering worldPt.
+// HitTestNode returns the topmost node covering worldPt (preferring non-group
+// nodes over enclosing LabeledGroupNode backdrops).
 func (g *Graph) HitTestNode(worldPt Point) *Node {
+	var groupHit *Node
 	for i := len(g.Nodes) - 1; i >= 0; i-- {
-		if g.Nodes[i].Bounds().Contains(worldPt) {
-			return g.Nodes[i]
+		n := g.Nodes[i]
+		if n.Bounds().Contains(worldPt) {
+			if n.Variant == VariantGroup {
+				if groupHit == nil {
+					groupHit = n
+				}
+				continue
+			}
+			return n
 		}
 	}
-	return nil
+	return groupHit
 }
 
 // HitTestEdge returns the edge closest to screenPt within tolerance DIPs.

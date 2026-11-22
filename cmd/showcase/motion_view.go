@@ -21,19 +21,42 @@ type motionState struct {
 	contentScroll ui.ScrollState
 	catalog       []motionDemoEntry
 
-	// Interactive demo states used by motion_demos.go
-	tickerTarget    float64
-	tickerPreset    int
-	tickerTrigger   int
-	scrambleTrigger int
-	revealTrigger   int
+	// Kept for showcase test compatibility
+	confettiTrigger int
+
+	// Interactive states for all 33 motion-primitives demos
+	animNumVal       float64
+	slidingCount     int
+	textEffectTrig   int
+	textEffectPreset motion.Preset
+	textMorphConfirm bool
+	textRollTrig     int
+	textScrambleTrig int
+
+	glowMode   motion.GlowMode
+	comparePos float32
+
+	animBgTab       int
 	dockActive      int
 	magneticClicks  int
-	shimmerClicks   int
-	rippleClicks    int
-	morphTab        int
-	counterVal      int
-	confettiTrigger int
+	toolbarDynOpen  bool
+	toolbarDynQuery string
+	toolbarExpIdx   int
+
+	accordionOpen   string
+	disclosureOpen  bool
+	dialogOpen      bool
+	dialogEmail     string
+	morphDialogOpen bool
+	morphPopOpen    bool
+	morphPopNote    string
+	transPanelTab   int
+
+	groupTrigger   int
+	groupPreset    motion.Preset
+	carouselIdx    int
+	inViewTrigger  int
+	scrollDemoStat ui.ScrollState
 }
 
 func newMotionState(cat string) *motionState {
@@ -48,14 +71,20 @@ func newMotionState(cat string) *motionState {
 		cat = ""
 	}
 	return &motionState{
-		selectedCat:  cat,
-		openCode:     map[string]bool{},
-		copiedUntil:  map[string]time.Time{},
-		catalog:      buildMotionCatalog(),
-		tickerTarget: 12480.50,
-		dockActive:   1,
-		morphTab:     0,
-		counterVal:   7,
+		selectedCat:      cat,
+		openCode:         map[string]bool{},
+		copiedUntil:      map[string]time.Time{},
+		catalog:          buildMotionCatalog(),
+		animNumVal:       1000,
+		slidingCount:     42,
+		textEffectPreset: motion.PresetBlurSlide,
+		glowMode:         motion.GlowRotate,
+		comparePos:       50,
+		animBgTab:        0,
+		dockActive:       0,
+		toolbarExpIdx:    -1,
+		accordionOpen:    "getting-started",
+		groupPreset:      motion.PresetScale,
 	}
 }
 
@@ -99,7 +128,7 @@ func (m *motionState) selectCategory(cat string) {
 func (a *showcaseApp) renderMotionTab(c *ui.Context, t theme.Tokens, isMobile bool) {
 	m := a.motion
 	mt := motion.ApplyTheme(c, a.dark)
-	// Align motion surface & border tokens with cossgo neutral aesthetic.
+	// Keep motion surface & border tokens aligned with coss neutral zinc theme.
 	mt.Background = t.Background
 	mt.Surface = t.Card
 	mt.SurfaceSubtle = t.Sidebar
@@ -130,7 +159,7 @@ func (a *showcaseApp) renderMotionTab(c *ui.Context, t theme.Tokens, isMobile bo
 				})
 		}
 
-		// Right Main Content (exact cossgo card-grid visual grammar)
+		// Right Main Content (coss card-grid visual grammar)
 		ui.Column(c).Grow(1).MinWidth(0).HeightPercent(100).Children(func() {
 			title := "All Motion Effects"
 			for _, cat := range motionCategories {
@@ -158,7 +187,7 @@ func (a *showcaseApp) renderMotionTab(c *ui.Context, t theme.Tokens, isMobile bo
 								ui.Text(c, title).FontSize(14.5).FontWeight(600).TextColor(t.Foreground).SingleLine().Ellipsis("…")
 								coss.Badge(c, fmt.Sprintf("%d", len(visible))).Variant(coss.BadgeSecondary).Size(coss.BadgeSizeSM)
 							})
-							coss.Badge(c, "60fps GPU").Variant(coss.BadgeOutline).Size(coss.BadgeSizeSM)
+							coss.Badge(c, "33 primitives").Variant(coss.BadgeOutline).Size(coss.BadgeSizeSM)
 						})
 						a.motionSearchInput(c)
 					})
@@ -173,7 +202,7 @@ func (a *showcaseApp) renderMotionTab(c *ui.Context, t theme.Tokens, isMobile bo
 					Children(func() {
 						ui.Column(c).Gap(2).Children(func() {
 							ui.Text(c, title).FontSize(18).FontWeight(600).TextColor(t.Foreground)
-							ui.Text(c, fmt.Sprintf("Showing %d GPU-accelerated motion primitives rendered in coss style", len(visible))).
+							ui.Text(c, fmt.Sprintf("Showing %d of %d motion-primitives components in monochrome coss style", len(visible), len(m.catalog))).
 								FontSize(13).TextColor(t.MutedForeground)
 						})
 						coss.Badge(c, "mygox-ui/motion").Variant(coss.BadgeOutline)
@@ -192,7 +221,7 @@ func (a *showcaseApp) renderMotionTab(c *ui.Context, t theme.Tokens, isMobile bo
 						coss.Empty(c, func() {
 							coss.EmptyHeader(c, func() {
 								coss.EmptyMedia(c, icons.Search())
-								coss.EmptyTitle(c, "No matching motion effects")
+								coss.EmptyTitle(c, "No matching motion primitives")
 								coss.EmptyDescription(c, "Try clearing your search query or choosing another category.")
 							})
 							coss.EmptyContent(c, func() {
@@ -234,7 +263,7 @@ func (a *showcaseApp) motionSearchInput(c *ui.Context) {
 		coss.InputGroupAddon(c, func() {
 			ui.Icon(c, icons.Search()).Size(14, 14)
 		})
-		coss.InputGroupInput(c, &m.query).Placeholder("Search motion effects...")
+		coss.InputGroupInput(c, &m.query).Placeholder("Search 33 primitives...")
 		if m.query != "" {
 			coss.IconButton(c, icons.X(), "Clear search").
 				Size(coss.SizeIconXS).
@@ -248,7 +277,7 @@ func (a *showcaseApp) motionCategoryNav(c *ui.Context, t theme.Tokens, touch boo
 	m := a.motion
 	ui.Scroll(c).TrackScroll(&m.sidebarScroll).WidthPercent(100).Grow(1).MinHeight(0).Children(func() {
 		ui.Column(c).WidthPercent(100).Padding(8, 14, 16, 12).Gap(2).Children(func() {
-			a.genericNavItem(c, t, "All Effects", m.selectedCat == "", len(m.catalog), touch, func() {
+			a.genericNavItem(c, t, "All Primitives", m.selectedCat == "", len(m.catalog), touch, func() {
 				m.selectCategory("")
 				a.mobileNavOpen = false
 				a.updateHash()
@@ -275,7 +304,7 @@ func (a *showcaseApp) motionCard(c *ui.Context, t theme.Tokens, mt motion.Theme,
 	}
 
 	card := coss.Card(c, func() {
-		// Exact same cossgo Card Header
+		// Card Header
 		ui.Row(c).
 			WidthPercent(100).
 			AlignItems(ui.Center).
@@ -314,12 +343,12 @@ func (a *showcaseApp) motionCard(c *ui.Context, t theme.Tokens, mt motion.Theme,
 				})
 			})
 
-		// Live GPU Effect Stage
-		padV, padH := float32(20), float32(16)
-		minH := float32(176)
+		// Live Primitive Stage
+		padV, padH := float32(20), float32(18)
+		minH := float32(188)
 		if isMobile {
 			padV, padH = 14, 12
-			minH = 152
+			minH = 160
 		}
 		ui.Column(c).
 			WidthPercent(100).

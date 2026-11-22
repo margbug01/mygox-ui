@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>mygox-ui — Native Go UI, Node Canvas &amp; GPU Motion for MyGo</title>
-  <meta name="description" content="A unified pure-Go UI suite for MyGo v0.10.0: 56 coss primitives, 530 particles, an interactive node graph canvas, and 28 GPU motion effects." />
+  <meta name="description" content="A unified pure-Go UI suite for MyGo v0.10.0: 56 coss primitives, 530 particles, React Flow UI node canvas, and 33 Motion Primitives GPU effects." />
   <style>
     :root {
       --bg: #ffffff;
@@ -455,18 +455,18 @@
     <section class="hero">
       <div class="hero-eyebrow">
         <span class="dot"></span>
-        <span>56 Primitives · 530 Particles · Node Graph Canvas · 28 GPU Effects</span>
+        <span>56 Primitives · 530 Particles · React Flow UI Canvas · 33 Motion Primitives</span>
       </div>
       <h1>One Go UI suite for MyGo.</h1>
       <p>
-        A cohesive, coss-styled native component suite for <strong>MyGo</strong> — combining
-        <code>coss</code> UI primitives &amp; 530 particles, <code>flow</code> interactive node graph canvas,
-        and <code>motion</code> 60fps GPU effects in a single pure-Go module with zero WebView.
+        A cohesive, coss-styled native component suite for <strong>MyGo</strong> — porting
+        <code>coss</code> UI (56 primitives &amp; 530 particles), <code>flow</code> (React Flow UI node canvas),
+        and <code>motion</code> (all 33 Motion Primitives) in one pure-Go module with zero WebView.
       </p>
       <div class="hero-actions">
         <a class="btn btn-primary btn-lg" href="./playground/#coss">Open Unified WASM Playground →</a>
-        <a class="btn btn-lg" href="./playground/#flow">Try Flow Canvas</a>
-        <a class="btn btn-lg" href="./playground/#motion">Try Motion 28</a>
+        <a class="btn btn-lg" href="./playground/#flow/schema">Try Flow Canvas</a>
+        <a class="btn btn-lg" href="./playground/#motion">Try Motion 33</a>
       </div>
       <div class="install-bar">
         <code id="installCmd">go get github.com/margbug01/mygox-ui</code>
@@ -480,12 +480,12 @@
         <div class="stat-lbl">coss primitives &amp; particles in pure Go</div>
       </div>
       <div class="stat">
-        <div class="stat-val">Flow Canvas</div>
-        <div class="stat-lbl">Pan/zoom, magnetic ports, layout &amp; MiniMap</div>
+        <div class="stat-val">React Flow UI</div>
+        <div class="stat-lbl">Schema nodes, Sub-flows, ZoomSlider &amp; MiniMap</div>
       </div>
       <div class="stat">
-        <div class="stat-val">28 Effects</div>
-        <div class="stat-lbl">Conic beams, spotlights, dock &amp; particles</div>
+        <div class="stat-val">33 / 33</div>
+        <div class="stat-lbl">Motion Primitives ported 1:1 in pure Go</div>
       </div>
       <div class="stat">
         <div class="stat-val">0 WebView</div>
@@ -498,10 +498,10 @@
         <div class="tabs" role="tablist">
           <button class="tab active" data-src="screenshots/ui-light.png" data-href="./playground/#coss">UI · Light</button>
           <button class="tab" data-src="screenshots/ui-dark.png" data-href="./playground/#coss">UI · Dark</button>
-          <button class="tab" data-src="screenshots/flow-light.png" data-href="./playground/#flow">Flow · Light</button>
-          <button class="tab" data-src="screenshots/flow-dark.png" data-href="./playground/#flow">Flow · Dark</button>
-          <button class="tab" data-src="screenshots/motion-light.png" data-href="./playground/#motion">Motion · Light</button>
-          <button class="tab" data-src="screenshots/motion-dark.png" data-href="./playground/#motion/layout">Motion · Dark</button>
+          <button class="tab" data-src="screenshots/flow-light.png" data-href="./playground/#flow/schema">Flow · DB Schema</button>
+          <button class="tab" data-src="screenshots/flow-dark.png" data-href="./playground/#flow/subflows">Flow · Sub-Flows</button>
+          <button class="tab" data-src="screenshots/motion-light.png" data-href="./playground/#motion/surfaces">Motion · Surfaces</button>
+          <button class="tab" data-src="screenshots/motion-dark.png" data-href="./playground/#motion/text">Motion · Text</button>
         </div>
         <a class="btn" id="frameOpenBtn" href="./playground/#coss">Open in WebGL 2 Playground →</a>
       </div>
@@ -535,34 +535,33 @@ coss.Button(c, "Deploy").
 
         <div class="card">
           <div class="card-head">
-            <h3>flow · Node Graph Canvas</h3>
+            <h3>flow · React Flow UI Canvas</h3>
             <span class="pkg-chip">mygox-ui/flow</span>
           </div>
-          <p>Infinite pan/zoom canvas, typed magnetic ports, Bezier/SmoothStep/Straight animated edges, alignment guides, Undo/Redo, Kahn auto-layout, MiniMap &amp; JSON.</p>
+          <p>BaseNode, DatabaseSchemaNode (row-level FK handles), LabeledGroupNode, PlaceholderNode, spinning conic NodeStatusIndicator, ButtonEdge, NodeToolbar &amp; ZoomSlider.</p>
           <pre><code>import "github.com/margbug01/mygox-ui/flow"
 
-g := flow.PresetAIAgent()
-g.AutoLayout(flow.LayoutLR)
+g := flow.PresetDatabaseSchema()
 flow.Canvas(c, g, flow.CanvasOptions{
     Theme: flow.LightTheme(),
 })</code></pre>
-          <div><a class="btn" href="./playground/#flow">Launch Flow Studio →</a></div>
+          <div><a class="btn" href="./playground/#flow/schema">Launch Flow Studio →</a></div>
         </div>
 
         <div class="card">
           <div class="card-head">
-            <h3>motion · GPU Effects</h3>
+            <h3>motion · 33 Motion Primitives</h3>
             <span class="pkg-chip">mygox-ui/motion</span>
           </div>
-          <p>28 GPU-rendered effects powered by conic/radial gradients, spring physics, and vector paths: BorderBeam, SpotlightCard, Dock, AnimatedBeam, Aurora, Confetti.</p>
+          <p>All 33 components from ibelick/motion-primitives in restrained coss monochrome: BorderTrail, SlidingNumber, SpinningText, Spotlight, Dock, ImageComparison, ToolbarDynamic, MorphingDialog.</p>
           <pre><code>import "github.com/margbug01/mygox-ui/motion"
 
-motion.BorderBeam(c, func() {
-    ui.Text(c, "60fps GPU Beam")
-}, motion.BorderBeamOptions{
-    BorderWidth: 2,
+motion.BorderTrail(c, func() {
+    ui.Text(c, "Motion Primitives in Go")
+}, motion.BorderTrailOptions{
+    Duration: 4 * time.Second,
 })</code></pre>
-          <div><a class="btn" href="./playground/#motion">Explore 28 Effects →</a></div>
+          <div><a class="btn" href="./playground/#motion">Explore 33 Primitives →</a></div>
         </div>
       </div>
     </section>
@@ -576,27 +575,27 @@ motion.BorderBeam(c, func() {
         <a class="btn" href="./playground/#flow">Open Flow Canvas →</a>
       </div>
       <div class="chip-grid">
+        <a class="fam-card" href="./playground/#flow/schema"><span>DB Schema ER</span><span class="fam-count">SchemaNode</span></a>
+        <a class="fam-card" href="./playground/#flow/subflows"><span>Sub-Flows &amp; Status</span><span class="fam-count">Group + Spin</span></a>
         <a class="fam-card" href="./playground/#flow/ai-agent"><span>AI Agent Graph</span><span class="fam-count">6 nodes</span></a>
         <a class="fam-card" href="./playground/#flow/etl"><span>Data ETL Pipeline</span><span class="fam-count">SmoothStep</span></a>
-        <a class="fam-card" href="./playground/#flow/cicd"><span>CI/CD Rollout</span><span class="fam-count">Cross grid</span></a>
-        <a class="fam-card" href="./playground/#flow/blank"><span>Blank Canvas</span><span class="fam-count">Build free</span></a>
       </div>
     </section>
 
     <section id="motion">
       <div class="sec-head">
         <div>
-          <h2>Motion · 28 GPU Effects</h2>
-          <p>Five categories of 60fps effects rendered inside unified coss cards.</p>
+          <h2>Motion · All 33 Motion Primitives</h2>
+          <p>1:1 port of <a href="https://github.com/ibelick/motion-primitives" target="_blank" rel="noreferrer" style="text-decoration:underline;text-underline-offset:3px">ibelick/motion-primitives</a> rendered in unified coss cards.</p>
         </div>
-        <a class="btn" href="./playground/#motion">Open All 28 Effects →</a>
+        <a class="btn" href="./playground/#motion">Open All 33 →</a>
       </div>
       <div class="chip-grid">
-        <a class="fam-card" href="./playground/#motion/cards"><span>Cards &amp; Borders</span><span class="fam-count">5</span></a>
-        <a class="fam-card" href="./playground/#motion/text"><span>Text &amp; Numbers</span><span class="fam-count">6</span></a>
-        <a class="fam-card" href="./playground/#motion/interactive"><span>Micro-Interactions</span><span class="fam-count">7</span></a>
-        <a class="fam-card" href="./playground/#motion/backgrounds"><span>Backgrounds</span><span class="fam-count">6</span></a>
-        <a class="fam-card" href="./playground/#motion/layout"><span>Layout &amp; Motion</span><span class="fam-count">4</span></a>
+        <a class="fam-card" href="./playground/#motion/surfaces"><span>Cards &amp; Surfaces</span><span class="fam-count">6</span></a>
+        <a class="fam-card" href="./playground/#motion/text"><span>Text &amp; Numbers</span><span class="fam-count">10</span></a>
+        <a class="fam-card" href="./playground/#motion/interactive"><span>Micro-Interactions</span><span class="fam-count">6</span></a>
+        <a class="fam-card" href="./playground/#motion/overlays"><span>Dialogs &amp; Panels</span><span class="fam-count">6</span></a>
+        <a class="fam-card" href="./playground/#motion/layout"><span>Scroll &amp; Layout</span><span class="fam-count">5</span></a>
       </div>
     </section>
 
@@ -615,7 +614,7 @@ motion.BorderBeam(c, func() {
   <footer>
     <div class="container foot">
       <div>Built with pure Go &amp; <a href="https://github.com/egoist/mygo" target="_blank" rel="noreferrer">MyGo v0.10.0</a> · MIT License © 2026 margbug01</div>
-      <div>UI design system inspired by <a href="https://coss.com/ui/particles" target="_blank" rel="noreferrer">coss.com/ui</a></div>
+      <div>Ported from <a href="https://coss.com/ui/particles" target="_blank" rel="noreferrer">coss.com/ui</a> · <a href="https://reactflow.dev/ui" target="_blank" rel="noreferrer">React Flow UI</a> · <a href="https://motion-primitives.com" target="_blank" rel="noreferrer">Motion Primitives</a></div>
     </div>
   </footer>
 

@@ -50,7 +50,7 @@ func newShowcaseApp() *showcaseApp {
 		page:        1,
 		openCode:    map[string]bool{},
 		copiedUntil: map[string]time.Time{},
-		flow:        newFlowState("ai-agent"),
+		flow:        newFlowState("schema"),
 		motion:      newMotionState(""),
 	}
 	app.applyHash(initialHash())
@@ -236,7 +236,7 @@ func (a *showcaseApp) suiteTopBar(c *ui.Context, t theme.Tokens, isMobile bool) 
 					Children(func() {
 						a.suiteTabButton(c, t, "UI", "530", sectionCoss, isMobile)
 						a.suiteTabButton(c, t, "Flow", "Canvas", sectionFlow, isMobile)
-						a.suiteTabButton(c, t, "Motion", "28", sectionMotion, isMobile)
+						a.suiteTabButton(c, t, "Motion", "33", sectionMotion, isMobile)
 					})
 			})
 

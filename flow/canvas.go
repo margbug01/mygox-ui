@@ -7,15 +7,16 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// CanvasOptions configures rendering and overlays of a flowgo Canvas.
+// CanvasOptions configures rendering and overlays of a flow Canvas.
 type CanvasOptions struct {
 	Theme        Theme
 	NodeRenderer func(p *ui.Painter, n *Node, r ui.Rect, zoom float32, t Theme)
 }
 
 // Canvas renders an interactive, GPU-accelerated infinite node graph canvas
-// complete with pan/zoom, grid background, animated edges, port connecting,
-// multi-node drag with alignment guides, box selection, minimap, and shortcuts.
+// modeled after React Flow UI: BaseNode, DatabaseSchemaNode, LabeledGroupNode,
+// PlaceholderNode, AnnotationNode, NodeStatusIndicator, ButtonEdge, NodeToolbar,
+// ZoomSlider, MiniMap, alignment guides, and keyboard shortcuts.
 func Canvas(c *ui.Context, g *Graph, opts ...CanvasOptions) ui.Element {
 	if g == nil {
 		return ui.Box(c)
@@ -48,7 +49,24 @@ func Canvas(c *ui.Context, g *Graph, opts ...CanvasOptions) ui.Element {
 				g.paint(p, r, t, cfg.NodeRenderer)
 			})
 
-		// Floating bottom-left zoom / fit / snap / undo controls overlay.
+		// React Flow UI NodeToolbar floating above a single selected node.
+		if !g.ReadOnly {
+			sel := g.SelectedNodes()
+			if len(sel) == 1 && sel[0].Variant != VariantGroup && sel[0].Variant != VariantPlaceholder && g.lastCanvasW > 0 {
+				n := sel[0]
+				b := n.Bounds()
+				topCenter := g.Viewport.WorldToScreen(Point{X: b.X + b.W*0.5, Y: b.Y})
+				if topCenter.Y > 46 && topCenter.Y < g.lastCanvasH-60 && topCenter.X > 90 && topCenter.X < g.lastCanvasW-90 {
+					left := clamp32(topCenter.X-84, 10, max32(10, g.lastCanvasW-180))
+					top := max32(8, topCenter.Y-38)
+					ui.Box(c).Absolute().Left(left).Top(top).Children(func() {
+						NodeToolbar(c, g, n, t)
+					})
+				}
+			}
+		}
+
+		// Floating bottom-left React Flow UI ZoomSlider + controls overlay.
 		if g.ShowControls {
 			ui.Box(c).
 				Absolute().
@@ -61,6 +79,38 @@ func Canvas(c *ui.Context, g *Graph, opts ...CanvasOptions) ui.Element {
 	})
 
 	return root
+}
+
+// NodeToolbar renders a compact floating toolbar anchored above the selected node.
+func NodeToolbar(c *ui.Context, g *Graph, n *Node, t Theme) {
+	ui.Row(c).
+		Background(t.ControlsBG).
+		Border(1, t.ControlsBorder).
+		Radius(8).
+		Padding(3, 5).
+		Gap(3).
+		AlignItems(ui.Center).
+		Shadow(0, 4, 14, 0, colorWithAlpha(ui.RGB(0, 0, 0), 0.16)).
+		Children(func() {
+			nextSt := StatusRunning
+			stLabel := "Run"
+			if n.Status == StatusRunning {
+				nextSt = StatusSuccess
+				stLabel = "Done"
+			} else if n.Status == StatusSuccess {
+				nextSt = StatusIdle
+				stLabel = "Reset"
+			}
+			ctrlBtn(c, t, stLabel, "Toggle node status", n.Status == StatusRunning, func() {
+				n.Status = nextSt
+			})
+			ctrlBtn(c, t, "Dup", "Duplicate node", false, func() {
+				g.DuplicateSelected()
+			})
+			ctrlBtn(c, t, "Del", "Delete node", false, func() {
+				g.DeleteSelected()
+			})
+		})
 }
 
 func canvasCursor(g *Graph) ui.Cursor {
@@ -82,7 +132,7 @@ func canvasCursor(g *Graph) ui.Cursor {
 	}
 }
 
-// ControlsBar renders a compact floating toolbar for zoom, fit, mode, snap, and undo/redo.
+// ControlsBar renders React Flow UI's ZoomSlider combined with Fit, Box, Snap, and Undo/Redo.
 func ControlsBar(c *ui.Context, g *Graph, t Theme) {
 	ui.Row(c).
 		Background(t.ControlsBG).
@@ -91,16 +141,20 @@ func ControlsBar(c *ui.Context, g *Graph, t Theme) {
 		Padding(4, 6).
 		Gap(4).
 		AlignItems(ui.Center).
-		Shadow(0, 6, 20, 0, colorWithAlpha(ui.RGB(0, 0, 0), 0.25)).
+		Shadow(0, 6, 20, 0, colorWithAlpha(ui.RGB(0, 0, 0), 0.18)).
 		Children(func() {
 			ctrlBtn(c, t, "-", "Zoom out", false, func() { g.ZoomOut() })
-			ui.Text(c, fmt.Sprintf("%d%%", int(math.Round(float64(g.Viewport.safeZoom()*100))))).
-				FontSize(11).
-				FontWeight(600).
-				TextColor(t.TextMuted).
-				Width(38).
-				TextAlign(ui.Center)
+
+			// Interactive ZoomSlider track (hidden on very narrow canvases to keep bar compact).
+			if g.lastCanvasW == 0 || g.lastCanvasW >= 540 {
+				zoomSliderTrack(c, g, t)
+			}
+
 			ctrlBtn(c, t, "+", "Zoom in", false, func() { g.ZoomIn() })
+			// Click percentage to reset to 100% (just like React Flow ZoomSlider).
+			ctrlBtn(c, t, fmt.Sprintf("%d%%", int(math.Round(float64(g.Viewport.safeZoom()*100)))), "Reset zoom to 100%", false, func() {
+				g.ZoomTo(1.0)
+			})
 			ctrlSep(c, t)
 			ctrlBtn(c, t, "Fit", "Fit view (0)", false, func() { g.FitView(0, 0, 56) })
 			ctrlBtn(c, t, "Box", "Box select mode", g.BoxSelectMode, func() { g.BoxSelectMode = !g.BoxSelectMode })
@@ -111,6 +165,43 @@ func ControlsBar(c *ui.Context, g *Graph, t Theme) {
 		})
 }
 
+func zoomSliderTrack(c *ui.Context, g *Graph, t Theme) {
+	const trackW = float32(84)
+	minZ := g.MinZoom
+	if minZ <= 0 {
+		minZ = 0.2
+	}
+	maxZ := g.MaxZoom
+	if maxZ <= minZ {
+		maxZ = 2.5
+	}
+	frac := clamp32((g.Viewport.safeZoom()-minZ)/(maxZ-minZ), 0, 1)
+
+	ui.Box(c).
+		Width(trackW).
+		Height(24).
+		Cursor(ui.CursorPointer).
+		HandleInput(func(ev ui.InputEvent) bool {
+			if ev.Kind == ui.InputPointerDown || (ev.Kind == ui.InputPointerMove && ev.Button == 0) {
+				f := clamp32((ev.X-6)/(trackW-12), 0, 1)
+				g.ZoomTo(minZ + f*(maxZ-minZ))
+				return true
+			}
+			return false
+		}).
+		Draw(func(p *ui.Painter, r ui.Rect) {
+			barY := r.Y + r.H*0.5 - 1.5
+			innerW := r.W - 12
+			p.Fill(ui.Rect{X: r.X + 6, Y: barY, W: innerW, H: 3}, t.ControlsBorder, 1.5)
+			p.Fill(ui.Rect{X: r.X + 6, Y: barY, W: innerW * frac, H: 3}, t.ControlsActiveBG, 1.5)
+			kx := r.X + 6 + innerW*frac
+			ky := r.Y + r.H*0.5
+			kr := ui.Rect{X: kx - 5, Y: ky - 5, W: 10, H: 10}
+			p.Fill(kr, t.ControlsBG, 5)
+			p.Stroke(kr, t.ControlsActiveBG, 5, 1.8)
+		})
+}
+
 func ctrlSep(c *ui.Context, t Theme) {
 	ui.Box(c).Width(1).Height(16).Background(t.ControlsBorder).Margin(0, 2)
 }
@@ -118,7 +209,7 @@ func ctrlSep(c *ui.Context, t Theme) {
 func ctrlBtn(c *ui.Context, t Theme, label, tip string, active bool, onClick func()) {
 	b := ui.ButtonBase(c).
 		Height(26).
-		Padding(0, 8).
+		Padding(0, 7).
 		Radius(6).
 		Center().
 		Cursor(ui.CursorPointer)
@@ -152,7 +243,6 @@ func (g *Graph) handleInput(ev ui.InputEvent) bool {
 			g.Viewport.ZoomAt(Point{X: ev.X, Y: ev.Y}, factor, g.MinZoom, g.MaxZoom)
 			return true
 		}
-		// Mouse wheel (non-precise) zooms; smooth trackpad scrolls pan cleanly.
 		if !ev.Precise && ev.DX == 0 && ev.DY != 0 {
 			factor := float32(math.Exp(float64(-ev.DY) * 0.0022))
 			g.Viewport.ZoomAt(Point{X: ev.X, Y: ev.Y}, factor, g.MinZoom, g.MaxZoom)
@@ -228,14 +318,23 @@ func (g *Graph) handlePointerDown(ev ui.InputEvent) bool {
 	g.pressWorld = ptWorld
 	g.guides = nil
 
-	// Check MiniMap hit first.
+	// 0. Check MiniMap hit first.
 	if g.ShowMiniMap && g.miniMapRect.W > 0 && g.miniMapRect.Contains(ptScreen) {
 		g.mode = modeMiniMap
 		g.panToMiniMapPoint(ptScreen)
 		return true
 	}
 
-	// Middle or right mouse button always pans.
+	// 0b. Check ButtonEdge midpoint delete button.
+	if !g.ReadOnly && ev.Button == 0 {
+		for _, btn := range g.edgeBtnHits {
+			if dist2D(ptScreen, btn.Center) <= btn.Radius+2 {
+				g.RemoveEdge(btn.EdgeID)
+				return true
+			}
+		}
+	}
+
 	if ev.Button != 0 {
 		g.mode = modePan
 		return true
@@ -266,8 +365,12 @@ func (g *Graph) handlePointerDown(ev ui.InputEvent) bool {
 		}
 	}
 
-	// 2. Check Node hit to select and drag.
+	// 2. Check Node hit (PlaceholderNode promotes on click; GroupNode drags contained children).
 	if n := g.HitTestNode(ptWorld); n != nil {
+		if n.Variant == VariantPlaceholder && !g.ReadOnly {
+			g.PromotePlaceholder(n.ID)
+			return true
+		}
 		shift := ev.Mods&ui.Shift != 0
 		if shift {
 			g.SelectNode(n.ID, true)
@@ -280,8 +383,9 @@ func (g *Graph) handlePointerDown(ev ui.InputEvent) bool {
 			g.OnDoubleClick(n)
 			return true
 		}
-		// Raise clicked node to top of z-order.
-		g.bringToFront(n.ID)
+		if n.Variant != VariantGroup {
+			g.bringToFront(n.ID)
+		}
 		if !g.ReadOnly && !n.Locked {
 			g.mode = modeDragNodes
 			g.dragMoved = false
@@ -289,6 +393,20 @@ func (g *Graph) handlePointerDown(ev ui.InputEvent) bool {
 			for _, sel := range g.SelectedNodes() {
 				if !sel.Locked {
 					g.dragStartPos[sel.ID] = Point{X: sel.X, Y: sel.Y}
+					// Dragging a LabeledGroupNode moves all non-group nodes enclosed within it.
+					if sel.Variant == VariantGroup {
+						gb := sel.Bounds()
+						for _, child := range g.Nodes {
+							if child.ID == sel.ID || child.Variant == VariantGroup || child.Locked {
+								continue
+							}
+							cb := child.Bounds()
+							center := Point{X: cb.X + cb.W*0.5, Y: cb.Y + cb.H*0.5}
+							if gb.Contains(center) {
+								g.dragStartPos[child.ID] = Point{X: child.X, Y: child.Y}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -301,7 +419,7 @@ func (g *Graph) handlePointerDown(ev ui.InputEvent) bool {
 		return true
 	}
 
-	// 4. Empty background: box-select (Shift or BoxSelectMode) or pan.
+	// 4. Empty background: box-select or pan.
 	if ev.Mods&ui.Shift != 0 || g.BoxSelectMode {
 		g.ClearSelection()
 		g.mode = modeBoxSelect
@@ -334,6 +452,9 @@ func (g *Graph) handlePointerMove(ev ui.InputEvent) bool {
 		g.boxCurWorld = ptWorld
 		selRect := normalizedRect(g.pressWorld, g.boxCurWorld)
 		for _, n := range g.Nodes {
+			if n.Variant == VariantGroup {
+				continue
+			}
 			n.Selected = selRect.Intersects(n.Bounds())
 		}
 		g.lastScreen = ptScreen
@@ -352,7 +473,6 @@ func (g *Graph) handlePointerMove(ev ui.InputEvent) bool {
 			if grid <= 0 {
 				grid = 20
 			}
-			// Compute optional alignment snapping against unselected nodes when single node dragged.
 			var snapDX, snapDY float32
 			if len(g.dragStartPos) == 1 {
 				for id, start := range g.dragStartPos {
@@ -369,7 +489,7 @@ func (g *Graph) handlePointerMove(ev ui.InputEvent) bool {
 					b := n.Bounds()
 					const alignTol = float32(7)
 					for _, other := range g.Nodes {
-						if other.ID == id {
+						if other.ID == id || other.Variant == VariantGroup {
 							continue
 						}
 						ob := other.Bounds()
@@ -429,7 +549,6 @@ func (g *Graph) handlePointerMove(ev ui.InputEvent) bool {
 		return true
 
 	default:
-		// Idle hover hit-testing for crisp cursor & port feedback.
 		g.hoverPortNode = ""
 		g.hoverPortID = ""
 		g.hoverNodeID = ""
@@ -502,7 +621,16 @@ func (g *Graph) paint(p *ui.Painter, r ui.Rect, t Theme, customNode func(*ui.Pai
 	// 1. Background pattern.
 	g.paintBackground(p, r, t)
 
-	// 2. Alignment guides during drag.
+	// 2. Group backdrops (LabeledGroupNode sits underneath edges & child nodes).
+	needsAnim := false
+	nowSec := float64(p.Now().UnixNano()) / 1e9
+	for _, n := range g.Nodes {
+		if n.Variant == VariantGroup {
+			g.paintGroupNode(p, r, n, t)
+		}
+	}
+
+	// 3. Alignment guides during drag.
 	for _, guide := range g.guides {
 		if guide.Vertical {
 			sp := g.Viewport.WorldToScreen(Point{X: guide.Pos, Y: 0})
@@ -513,9 +641,8 @@ func (g *Graph) paint(p *ui.Painter, r ui.Rect, t Theme, customNode func(*ui.Pai
 		}
 	}
 
-	// 3. Edges (with animated flowing dashes when Animated == true).
-	needsAnim := false
-	nowSec := float64(p.Now().UnixNano()) / 1e9
+	// 4. Edges + ButtonEdge midpoint controls.
+	g.edgeBtnHits = g.edgeBtnHits[:0]
 	for _, e := range g.Edges {
 		if e.Animated {
 			needsAnim = true
@@ -523,21 +650,24 @@ func (g *Graph) paint(p *ui.Painter, r ui.Rect, t Theme, customNode func(*ui.Pai
 		g.paintEdge(p, r, e, t, nowSec)
 	}
 
-	// 4. Live connection preview wire.
+	// 5. Live connection preview wire.
 	if g.mode == modeConnect {
 		needsAnim = true
 		g.paintConnectPreview(p, r, t, nowSec)
 	}
 
-	// 5. Nodes.
+	// 6. Regular, Schema, Placeholder & Annotation nodes.
 	for _, n := range g.Nodes {
+		if n.Variant == VariantGroup {
+			continue
+		}
 		if n.Status == StatusRunning {
 			needsAnim = true
 		}
 		g.paintNode(p, r, n, t, nowSec, customNode)
 	}
 
-	// 6. Box selection marquee.
+	// 7. Box selection marquee.
 	if g.mode == modeBoxSelect {
 		wRect := normalizedRect(g.pressWorld, g.boxCurWorld)
 		tl := g.Viewport.WorldToScreen(Point{X: wRect.X, Y: wRect.Y})
@@ -547,8 +677,8 @@ func (g *Graph) paint(p *ui.Painter, r ui.Rect, t Theme, customNode func(*ui.Pai
 		p.Stroke(sr, t.SelectionBorder, 4, 1.25)
 	}
 
-	// 7. Interactive MiniMap (bottom-right corner; hidden on narrow viewports so it never overlaps ControlsBar).
-	if g.ShowMiniMap && r.W >= 560 && r.H >= 280 {
+	// 8. Interactive MiniMap (hidden on narrow viewports to avoid overlapping ZoomSlider).
+	if g.ShowMiniMap && r.W >= 620 && r.H >= 280 {
 		g.paintMiniMap(p, r, t)
 	} else {
 		g.miniMapRect = Rect{}
@@ -601,8 +731,8 @@ func (g *Graph) paintBackground(p *ui.Painter, r ui.Rect, t Theme) {
 				p.Line(r.X+x, r.Y+y-arm, r.X+x, r.Y+y+arm, 1, t.GridColor)
 			}
 		}
-	default: // BackgroundDots
-		dotSize := clamp32(2.0*z, 1.5, 3.2)
+	default:
+		dotSize := clamp32(2.0*z, 1.5, 3.0)
 		half := dotSize * 0.5
 		for x := offX; x < r.W; x += screenStep {
 			for y := offY; y < r.H; y += screenStep {
@@ -637,47 +767,62 @@ func (g *Graph) paintEdge(p *ui.Painter, r ui.Rect, e *Edge, t Theme, nowSec flo
 	if e.ColorHex != 0 {
 		col = RGBHex(e.ColorHex)
 	}
-	width := clamp32(2.0*g.Viewport.safeZoom(), 1.3, 3.2)
+	width := clamp32(1.8*g.Viewport.safeZoom(), 1.25, 2.8)
 	if e.ID == g.hoverEdgeID {
 		col = t.EdgeHover
-		width += 0.6
+		width += 0.5
 	}
 	if e.Selected {
 		col = t.EdgeSelected
-		width += 0.9
-		// Subtle selection glow halo.
-		p.StrokePath(geom.Path, width+5, colorWithAlpha(t.EdgeSelected, 0.25))
+		width += 0.75
+		p.StrokePath(geom.Path, width+4.5, colorWithAlpha(t.EdgeSelected, 0.18))
 	}
 
 	if e.Animated {
-		// Base track + animated flowing dashed highlight.
-		p.StrokePath(geom.Path, width, colorWithAlpha(col, 0.35))
+		p.StrokePath(geom.Path, width, colorWithAlpha(col, 0.30))
 		animPath := BuildEdgeGeometry(sp, dp, spSide, dpSide, kind).Path
 		dashOffset := float32(-math.Mod(nowSec*36, 16))
-		animPath.Dash(dashOffset, 8, 8)
+		animPath.Dash(dashOffset, 7, 7)
 		animCol := col
 		if !e.Selected && e.ColorHex == 0 {
 			animCol = t.NodeSelected
 		}
-		p.StrokePath(animPath, width+0.3, animCol)
+		p.StrokePath(animPath, width+0.25, animCol)
 	} else {
 		p.StrokePath(geom.Path, width, col)
 	}
 
-	// Arrowhead right outside destination port.
-	arrowSize := clamp32(8.5*g.Viewport.safeZoom(), 5, 11)
-	tipBack := clamp32(6.5*g.Viewport.safeZoom(), 4, 9)
+	arrowSize := clamp32(7.5*g.Viewport.safeZoom(), 4.5, 10)
+	tipBack := clamp32(6.0*g.Viewport.safeZoom(), 4, 8.5)
 	tip := Point{
 		X: geom.Tip.X - float32(math.Cos(float64(geom.Angle)))*tipBack,
 		Y: geom.Tip.Y - float32(math.Sin(float64(geom.Angle)))*tipBack,
 	}
 	p.FillPath(ArrowPath(tip, geom.Angle, arrowSize), col)
 
-	// Centered edge label pill.
+	// ButtonEdge: show clickable delete button on selected or hovered edges.
+	if (e.Selected || e.ID == g.hoverEdgeID) && !g.ReadOnly {
+		rad := float32(10)
+		bx, by := geom.LabelPos.X, geom.LabelPos.Y
+		br := ui.Rect{X: bx - rad, Y: by - rad, W: rad * 2, H: rad * 2}
+		p.Shadow(br, rad, 0, 2, 8, 0, colorWithAlpha(ui.RGB(0, 0, 0), 0.18))
+		p.Fill(br, t.EdgeLabelBG, rad)
+		p.Stroke(br, t.EdgeSelected, rad, 1.25)
+		p.Line(bx-3.2, by-3.2, bx+3.2, by+3.2, 1.4, t.EdgeLabelText)
+		p.Line(bx+3.2, by-3.2, bx-3.2, by+3.2, 1.4, t.EdgeLabelText)
+		g.edgeBtnHits = append(g.edgeBtnHits, edgeButtonHit{
+			EdgeID: e.ID,
+			Center: Point{X: bx - r.X, Y: by - r.Y},
+			Radius: rad,
+		})
+		return
+	}
+
+	// Centered DataEdge label pill.
 	if e.Label != "" && g.Viewport.safeZoom() >= 0.45 {
-		fontSize := clamp32(10.5*g.Viewport.safeZoom(), 8.5, 13)
-		pillW := float32(len(e.Label))*fontSize*0.62 + 16
-		pillH := fontSize + 10
+		fontSize := clamp32(10*g.Viewport.safeZoom(), 8.5, 12.5)
+		pillW := float32(len(e.Label))*fontSize*0.60 + 14
+		pillH := fontSize + 9
 		lr := ui.Rect{
 			X: geom.LabelPos.X - pillW*0.5,
 			Y: geom.LabelPos.Y - pillH*0.5,
@@ -686,7 +831,7 @@ func (g *Graph) paintEdge(p *ui.Painter, r ui.Rect, e *Edge, t Theme, nowSec flo
 		}
 		p.Fill(lr, t.EdgeLabelBG, pillH*0.5)
 		p.Stroke(lr, t.EdgeLabelBorder, pillH*0.5, 1)
-		p.Text(lr.X+8, lr.Y+(pillH-fontSize)*0.5-1, e.Label, fontSize, t.EdgeLabelText)
+		p.Text(lr.X+7, lr.Y+(pillH-fontSize)*0.5-1, e.Label, fontSize, t.EdgeLabelText)
 	}
 }
 
@@ -717,7 +862,46 @@ func (g *Graph) paintConnectPreview(p *ui.Painter, r ui.Rect, t Theme, nowSec fl
 		p.Fill(ring, colorWithAlpha(t.PortSnap, 0.22), 11)
 		p.Stroke(ring, t.PortSnap, 11, 1.8)
 	}
-	p.StrokePath(geom.Path, 2.2, wireCol)
+	p.StrokePath(geom.Path, 2.0, wireCol)
+}
+
+func (g *Graph) paintGroupNode(p *ui.Painter, r ui.Rect, n *Node, t Theme) {
+	b := n.Bounds()
+	tl := g.Viewport.WorldToScreen(Point{X: b.X, Y: b.Y})
+	z := g.Viewport.safeZoom()
+	nr := ui.Rect{X: r.X + tl.X, Y: r.Y + tl.Y, W: b.W * z, H: b.H * z}
+	if nr.X+nr.W < r.X-40 || nr.Y+nr.H < r.Y-40 || nr.X > r.X+r.W+40 || nr.Y > r.Y+r.H+40 {
+		return
+	}
+
+	rad := clamp32(10*z, 4, 14)
+	bg := colorWithAlpha(t.NodeHeaderBG, 0.52)
+	if !t.Dark {
+		bg = colorWithAlpha(t.NodeHeaderBG, 0.72)
+	}
+	p.Fill(nr, bg, rad)
+
+	borderCol := t.NodeBorder
+	borderW := float32(1)
+	if n.Selected {
+		borderCol = t.NodeSelected
+		borderW = 1.5
+	}
+	p.Stroke(nr, borderCol, rad, borderW)
+
+	// React Flow LabeledGroupNode top-left corner pill tag.
+	if n.Title != "" && z >= 0.4 {
+		fs := clamp32(11*z, 8, 13)
+		lw := float32(len(n.Title))*fs*0.60 + 18*z
+		lh := fs + 10*z
+		p.Clip(nr, rad, func() {
+			tagR := ui.Rect{X: nr.X, Y: nr.Y, W: lw, H: lh}
+			p.Fill(tagR, t.BadgeBG, 0)
+			p.Line(nr.X, nr.Y+lh, nr.X+lw, nr.Y+lh, 1, t.NodeBorder)
+			p.Line(nr.X+lw, nr.Y, nr.X+lw, nr.Y+lh, 1, t.NodeBorder)
+			p.Text(nr.X+9*z, nr.Y+(lh-fs)*0.5-0.5, n.Title, fs, t.TextPrimary)
+		})
+	}
 }
 
 func (g *Graph) paintNode(p *ui.Painter, r ui.Rect, n *Node, t Theme, nowSec float64, custom func(*ui.Painter, *Node, ui.Rect, float32, Theme)) {
@@ -730,7 +914,6 @@ func (g *Graph) paintNode(p *ui.Painter, r ui.Rect, n *Node, t Theme, nowSec flo
 		W: b.W * z,
 		H: b.H * z,
 	}
-	// Frustum cull off-screen nodes.
 	if nr.X+nr.W < r.X-40 || nr.Y+nr.H < r.Y-40 || nr.X > r.X+r.W+40 || nr.Y > r.Y+r.H+40 {
 		return
 	}
@@ -741,66 +924,67 @@ func (g *Graph) paintNode(p *ui.Painter, r ui.Rect, n *Node, t Theme, nowSec flo
 		return
 	}
 
-	rad := clamp32(12*z, 5, 16)
-	accent := t.NodeSelected
-	if n.AccentHex != 0 {
-		accent = RGBHex(n.AccentHex)
+	switch n.Variant {
+	case VariantPlaceholder:
+		g.paintPlaceholderNode(p, nr, n, t, z)
+		return
+	case VariantAnnotation:
+		g.paintAnnotationNode(p, nr, n, t, z)
+		return
+	case VariantSchema:
+		g.paintSchemaNode(p, r, nr, n, t, z, nowSec)
+		return
 	}
 
-	// Elevation shadow.
-	p.Shadow(nr, rad, 0, clamp32(6*z, 2, 12), clamp32(18*z, 6, 28), 0, t.NodeShadow)
-
-	// Selected / Running halo ring.
-	if n.Status == StatusRunning {
-		pulse := float32(0.5 + 0.5*math.Sin(nowSec*6.0))
-		halo := ui.Rect{X: nr.X - 3, Y: nr.Y - 3, W: nr.W + 6, H: nr.H + 6}
-		p.Stroke(halo, colorWithAlpha(t.StatusRunning, 0.35+0.45*pulse), rad+3, 2.2)
-	} else if n.Selected {
-		halo := ui.Rect{X: nr.X - 2.5, Y: nr.Y - 2.5, W: nr.W + 5, H: nr.H + 5}
-		p.Stroke(halo, colorWithAlpha(t.NodeSelected, 0.32), rad+2.5, 3.0)
-	}
+	// React Flow UI BaseNode + NodeStatusIndicator.
+	rad := clamp32(10*z, 5, 14)
+	g.paintNodeStatusFrame(p, nr, rad, n, t, z, nowSec)
 
 	// Card body.
 	p.Fill(nr, t.NodeBG, rad)
 
-	// Header strip + top accent bar inside clipped card.
-	headerH := clamp32(34*z, 18, 44)
+	headerH := clamp32(34*z, 18, 42)
 	p.Clip(nr, rad, func() {
+		// Subtle coss-style header strip (no loud thick bar; clean hairline border).
 		p.Fill(ui.Rect{X: nr.X, Y: nr.Y, W: nr.W, H: headerH}, t.NodeHeaderBG, 0)
-		p.Fill(ui.Rect{X: nr.X, Y: nr.Y, W: nr.W, H: clamp32(3*z, 2, 4)}, accent, 0)
 		p.Line(nr.X, nr.Y+headerH, nr.X+nr.W, nr.Y+headerH, 1, t.NodeBorder)
 
 		if z >= 0.42 {
-			// Status dot.
+			// Subtle accent/status indicator dot.
 			dotCol := statusColor(n.Status, t)
-			dotD := clamp32(7.5*z, 4, 9)
+			if n.Status == "" || n.Status == StatusIdle {
+				if n.AccentHex != 0 {
+					dotCol = RGBHex(n.AccentHex)
+				}
+			}
+			dotD := clamp32(7.0*z, 4, 8.5)
 			p.Fill(ui.Rect{
 				X: nr.X + 11*z,
-				Y: nr.Y + headerH*0.5 - dotD*0.5 + 1,
+				Y: nr.Y + headerH*0.5 - dotD*0.5,
 				W: dotD,
 				H: dotD,
 			}, dotCol, dotD*0.5)
 
 			// Title.
-			titleSize := clamp32(12.5*z, 8, 16)
-			p.Text(nr.X+24*z, nr.Y+(headerH-titleSize)*0.5+0.5, truncateStr(n.Title, 22), titleSize, t.TextPrimary)
+			titleSize := clamp32(12.5*z, 8, 15.5)
+			p.Text(nr.X+23*z, nr.Y+(headerH-titleSize)*0.5-0.5, truncateStr(n.Title, 22), titleSize, t.TextPrimary)
 
-			// Badge pill on top-right of header.
+			// Right-aligned restrained badge pill.
 			if n.Badge != "" && nr.W >= 92 {
-				bs := clamp32(9.5*z, 7.5, 11.5)
-				bw := float32(len(n.Badge))*bs*0.62 + 12*z
+				bs := clamp32(9.2*z, 7.2, 11)
+				bw := float32(len(n.Badge))*bs*0.62 + 11*z
 				bh := bs + 6*z
 				br := ui.Rect{
 					X: nr.X + nr.W - bw - 8*z,
-					Y: nr.Y + (headerH-bh)*0.5 + 1,
+					Y: nr.Y + (headerH-bh)*0.5,
 					W: bw,
 					H: bh,
 				}
-				p.Fill(br, colorWithAlpha(accent, 0.18), bh*0.5)
-				p.Text(br.X+6*z, br.Y+(bh-bs)*0.5-0.5, n.Badge, bs, accent)
+				p.Fill(br, t.BadgeBG, bh*0.5)
+				p.Text(br.X+5.5*z, br.Y+(bh-bs)*0.5-0.5, n.Badge, bs, t.BadgeText)
 			}
 
-			// Body subtitle & fields.
+			// BaseNodeContent: subtitle + structured fields.
 			curY := nr.Y + headerH + 9*z
 			subSize := clamp32(10.5*z, 7.5, 13)
 			if n.Subtitle != "" {
@@ -816,23 +1000,155 @@ func (g *Graph) paintNode(p *ui.Painter, r ui.Rect, n *Node, t Theme, nowSec flo
 				p.Text(valX, curY, truncateStr(f.Value, 18), subSize, t.TextPrimary)
 				curY += subSize + 5*z
 			}
+
+			// Optional BaseNodeFooter.
+			if n.Footer != "" && nr.H >= 96*z {
+				footH := clamp32(24*z, 16, 28)
+				fy := nr.Y + nr.H - footH
+				p.Line(nr.X, fy, nr.X+nr.W, fy, 1, t.NodeBorder)
+				p.Text(nr.X+12*z, fy+(footH-subSize)*0.5-0.5, truncateStr(n.Footer, 26), clamp32(9.5*z, 7.5, 11.5), t.TextMuted)
+			}
 		}
 	})
 
-	// Outer border.
+	// Outer crisp border.
+	g.paintNodeOuterBorder(p, nr, rad, n, t)
+
+	// Handles.
+	g.paintNodePorts(p, r, n, t, z)
+}
+
+func (g *Graph) paintSchemaNode(p *ui.Painter, r, nr ui.Rect, n *Node, t Theme, z float32, nowSec float64) {
+	rad := clamp32(9*z, 4, 12)
+	g.paintNodeStatusFrame(p, nr, rad, n, t, z, nowSec)
+	p.Fill(nr, t.NodeBG, rad)
+
+	headerH := 34 * z
+	rowH := 26 * z
+
+	p.Clip(nr, rad, func() {
+		// DatabaseSchemaNodeHeader: centered title on secondary header strip.
+		p.Fill(ui.Rect{X: nr.X, Y: nr.Y, W: nr.W, H: headerH}, t.NodeHeaderBG, 0)
+		p.Line(nr.X, nr.Y+headerH, nr.X+nr.W, nr.Y+headerH, 1, t.NodeBorder)
+
+		if z >= 0.42 {
+			ts := clamp32(12.5*z, 8.5, 15)
+			tw := float32(len(n.Title)) * ts * 0.58
+			tx := nr.X + max32(10*z, (nr.W-tw)*0.5)
+			p.Text(tx, nr.Y+(headerH-ts)*0.5-0.5, n.Title, ts, t.TextPrimary)
+
+			// DatabaseSchemaTableRow entries: left column name, right column muted type.
+			fs := clamp32(10.8*z, 7.5, 13)
+			for idx, row := range n.SchemaRows {
+				ry := nr.Y + headerH + float32(idx)*rowH + 2*z
+				if idx > 0 {
+					p.Line(nr.X, ry, nr.X+nr.W, ry, 1, colorWithAlpha(t.NodeBorder, 0.7))
+				}
+				nameCol := t.TextPrimary
+				if row.IsKey {
+					p.Fill(ui.Rect{X: nr.X, Y: ry, W: nr.W, H: rowH}, colorWithAlpha(t.BadgeBG, 0.55), 0)
+				}
+				p.Text(nr.X+13*z, ry+(rowH-fs)*0.5-0.5, row.Name, fs, nameCol)
+				typeW := float32(len(row.Type)) * fs * 0.58
+				p.Text(nr.X+nr.W-typeW-13*z, ry+(rowH-fs)*0.5-0.5, row.Type, clamp32(fs*0.92, 7, 12), t.TextMuted)
+			}
+		}
+	})
+
+	g.paintNodeOuterBorder(p, nr, rad, n, t)
+	g.paintNodePorts(p, r, n, t, z)
+}
+
+func (g *Graph) paintPlaceholderNode(p *ui.Painter, nr ui.Rect, n *Node, t Theme, z float32) {
+	rad := clamp32(9*z, 4, 12)
+	fill := colorWithAlpha(t.NodeBG, 0.72)
+	if n.ID == g.hoverNodeID {
+		fill = t.NodeHeaderBG
+	}
+	p.Fill(nr, fill, rad)
+	borderCol := t.TextMuted
+	if n.ID == g.hoverNodeID || n.Selected {
+		borderCol = t.NodeSelected
+	}
+	p.StrokeDashed(nr, borderCol, rad, 1.3)
+
+	if z >= 0.42 {
+		label := n.Title
+		if label == "" {
+			label = "+ Add node"
+		}
+		fs := clamp32(11.5*z, 8, 14)
+		lw := float32(len(label)) * fs * 0.56
+		p.Text(nr.X+(nr.W-lw)*0.5, nr.Y+(nr.H-fs)*0.5-1, label, fs, t.TextMuted)
+	}
+}
+
+func (g *Graph) paintAnnotationNode(p *ui.Painter, nr ui.Rect, n *Node, t Theme, z float32) {
+	if z < 0.35 {
+		return
+	}
+	if n.Selected {
+		p.StrokeDashed(nr, t.NodeSelected, 8, 1)
+	}
+	numSize := clamp32(10.5*z, 8, 12.5)
+	textSize := clamp32(11.5*z, 8.5, 13.5)
+	if n.Badge != "" {
+		p.Text(nr.X+4*z, nr.Y+4*z, n.Badge, numSize, t.TextMuted)
+	}
+	p.Text(nr.X+4*z, nr.Y+20*z, n.Title, textSize, t.TextPrimary)
+	if n.Subtitle != "" {
+		p.Text(nr.X+4*z, nr.Y+38*z, n.Subtitle, clamp32(10.5*z, 7.5, 12), t.TextMuted)
+	}
+}
+
+func (g *Graph) paintNodeStatusFrame(p *ui.Painter, nr ui.Rect, rad float32, n *Node, t Theme, z float32, nowSec float64) {
+	// Elevation shadow (stronger when selected, matching React Flow BaseNode).
+	shadowAlpha := float32(1.0)
+	blur := clamp32(14*z, 5, 22)
+	if n.Selected {
+		blur = clamp32(22*z, 8, 30)
+		shadowAlpha = 1.35
+	}
+	p.Shadow(nr, rad, 0, clamp32(5*z, 2, 10), blur, 0, colorWithAlpha(t.NodeShadow, shadowAlpha))
+
+	// React Flow UI NodeStatusIndicator: 2s rotating conic-gradient spinning border when Running.
+	if n.Status == StatusRunning {
+		outer := ui.Rect{X: nr.X - 2.2, Y: nr.Y - 2.2, W: nr.W + 4.4, H: nr.H + 4.4}
+		angle := float32(math.Mod(nowSec*180.0, 360.0)) // 2s per revolution
+		p.FillConicGradient(outer, ui.ConicGradient{
+			Angle: angle,
+			Stops: []ui.GradientStop{
+				{Color: ui.RGBA(59, 130, 246, 0.95), At: 0.0},
+				{Color: ui.RGBA(99, 102, 241, 0.55), At: 0.25},
+				{Color: ui.RGBA(59, 130, 246, 0.0), At: 0.65},
+				{Color: ui.RGBA(59, 130, 246, 0.0), At: 1.0},
+			},
+		}, rad+2.2)
+	} else if n.Selected {
+		halo := ui.Rect{X: nr.X - 2, Y: nr.Y - 2, W: nr.W + 4, H: nr.H + 4}
+		p.Stroke(halo, colorWithAlpha(t.NodeSelected, 0.22), rad+2, 2.5)
+	}
+}
+
+func (g *Graph) paintNodeOuterBorder(p *ui.Painter, nr ui.Rect, rad float32, n *Node, t Theme) {
 	borderCol := t.NodeBorder
 	borderW := float32(1)
+	switch n.Status {
+	case StatusSuccess:
+		borderCol = t.StatusSuccess
+		borderW = 1.5
+	case StatusError:
+		borderCol = t.StatusError
+		borderW = 1.5
+	}
 	if n.Selected {
 		borderCol = t.NodeSelected
 		borderW = 1.6
-	} else if n.ID == g.hoverNodeID {
-		borderCol = colorWithAlpha(accent, 0.65)
+	} else if n.ID == g.hoverNodeID && n.Status != StatusSuccess && n.Status != StatusError {
+		borderCol = colorWithAlpha(t.NodeSelected, 0.5)
 		borderW = 1.25
 	}
 	p.Stroke(nr, borderCol, rad, borderW)
-
-	// Ports.
-	g.paintNodePorts(p, r, n, t, z)
 }
 
 func (g *Graph) paintNodePorts(p *ui.Painter, r ui.Rect, n *Node, t Theme, z float32) {
@@ -844,9 +1160,9 @@ func (g *Graph) paintNodePorts(p *ui.Painter, r ui.Rect, n *Node, t Theme, z flo
 
 		hovered := g.hoverPortNode == n.ID && g.hoverPortID == port.ID
 		snapped := g.mode == modeConnect && g.connect.HasSnap && g.connect.SnapNode == n.ID && g.connect.SnapPort == port.ID
-		pr := clamp32(5.2*z, 3.2, 7)
+		pr := clamp32(4.6*z, 3.0, 6.2)
 		if hovered || snapped {
-			pr += 1.8
+			pr += 1.6
 		}
 		borderCol := t.PortBorder
 		if port.ColorHex != 0 {
@@ -857,9 +1173,10 @@ func (g *Graph) paintNodePorts(p *ui.Painter, r ui.Rect, n *Node, t Theme, z flo
 		}
 		prRect := ui.Rect{X: sx - pr, Y: sy - pr, W: pr * 2, H: pr * 2}
 		p.Fill(prRect, t.PortFill, pr)
-		p.Stroke(prRect, borderCol, pr, 2.0)
+		p.Stroke(prRect, borderCol, pr, 1.8)
 
-		if port.Label != "" && z >= 0.72 && (side == PortLeft || side == PortRight) {
+		// For BaseNode (not SchemaNode which already shows column names inline), show crisp handle labels outside.
+		if n.Variant != VariantSchema && port.Label != "" && z >= 0.72 && (side == PortLeft || side == PortRight) {
 			ls := clamp32(8.5*z, 7.5, 10.5)
 			if side == PortLeft {
 				lw := float32(len(port.Label)) * ls * 0.56
@@ -873,8 +1190,8 @@ func (g *Graph) paintNodePorts(p *ui.Painter, r ui.Rect, n *Node, t Theme, z flo
 
 func (g *Graph) paintMiniMap(p *ui.Painter, r ui.Rect, t Theme) {
 	const (
-		mw     = float32(178)
-		mh     = float32(114)
+		mw     = float32(174)
+		mh     = float32(110)
 		margin = float32(14)
 	)
 	mr := ui.Rect{
@@ -885,15 +1202,13 @@ func (g *Graph) paintMiniMap(p *ui.Painter, r ui.Rect, t Theme) {
 	}
 	g.miniMapRect = Rect{X: mr.X - r.X, Y: mr.Y - r.Y, W: mw, H: mh}
 
-	p.Shadow(mr, 10, 0, 6, 18, 0, colorWithAlpha(ui.RGB(0, 0, 0), 0.25))
+	p.Shadow(mr, 10, 0, 6, 18, 0, colorWithAlpha(ui.RGB(0, 0, 0), 0.18))
 	p.Fill(mr, t.MiniMapBG, 10)
 	p.Stroke(mr, t.MiniMapBorder, 10, 1)
 
-	worldB, scale, offX, offY := g.miniMapTransform(r, mr)
-	_ = worldB
+	_, scale, offX, offY := g.miniMapTransform(r, mr)
 
 	p.Clip(mr, 10, func() {
-		// Mini edges.
 		for _, e := range g.Edges {
 			sn := g.NodeByID(e.Source)
 			dn := g.NodeByID(e.Target)
@@ -907,11 +1222,12 @@ func (g *Graph) paintMiniMap(p *ui.Painter, r ui.Rect, t Theme) {
 			y1 := mr.Y + offY + (db.Y+db.H*0.5)*scale
 			p.Line(x0, y0, x1, y1, 1, colorWithAlpha(t.EdgeDefault, 0.55))
 		}
-		// Mini nodes.
 		for _, n := range g.Nodes {
 			b := n.Bounds()
 			col := t.MiniMapNode
-			if n.Selected {
+			if n.Variant == VariantGroup {
+				col = colorWithAlpha(t.MiniMapNode, 0.25)
+			} else if n.Selected {
 				col = t.MiniMapNodeSel
 			} else if n.AccentHex != 0 {
 				col = colorWithAlpha(RGBHex(n.AccentHex), 0.72)
@@ -924,7 +1240,6 @@ func (g *Graph) paintMiniMap(p *ui.Painter, r ui.Rect, t Theme) {
 			}
 			p.Fill(nr, col, 2)
 		}
-		// Current viewport rectangle.
 		vTL := g.Viewport.ScreenToWorld(Point{X: 0, Y: 0})
 		vBR := g.Viewport.ScreenToWorld(Point{X: r.W, Y: r.H})
 		vr := ui.Rect{

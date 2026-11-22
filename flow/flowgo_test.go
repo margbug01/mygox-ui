@@ -142,3 +142,48 @@ func TestCanvasRenderDragAndConnectInteraction(t *testing.T) {
 		t.Fatalf("expected delete to remove duplicated node, total=%d", len(g.Nodes))
 	}
 }
+
+func TestReactFlowUISchemaPlaceholderAndGroupNodes(t *testing.T) {
+	// 1. DatabaseSchemaNode row-level handles align monotonically down table rows.
+	sg := flow.PresetDatabaseSchema()
+	prod := sg.NodeByID("products")
+	p1, s1, ok1 := flow.PortPosition(prod, "id")
+	p2, s2, ok2 := flow.PortPosition(prod, "warehouse_id")
+	p3, s3, ok3 := flow.PortPosition(prod, "supplier_id")
+	if !ok1 || !ok2 || !ok3 || s1 != flow.PortRight || s2 != flow.PortRight || s3 != flow.PortRight {
+		t.Fatalf("expected right-side schema row handles, got ok=(%v,%v,%v)", ok1, ok2, ok3)
+	}
+	if !(p1.Y < p2.Y && p2.Y < p3.Y) {
+		t.Fatalf("expected schema handles ordered top-to-bottom: %.1f, %.1f, %.1f", p1.Y, p2.Y, p3.Y)
+	}
+
+	// 2. PlaceholderNode promotes to BaseNode on click & clears incoming animated dash.
+	fg := flow.PresetSubFlows()
+	ph := fg.NodeByID("placeholder-next")
+	if ph == nil || ph.Variant != flow.VariantPlaceholder {
+		t.Fatalf("expected placeholder node in SubFlows preset")
+	}
+	if !fg.PromotePlaceholder(ph.ID) || ph.Variant != flow.VariantBase {
+		t.Fatalf("expected PromotePlaceholder to convert to VariantBase, got %v", ph.Variant)
+	}
+
+	// 3. RemoveEdge deletes a single edge cleanly and supports Undo.
+	eCount := len(fg.Edges)
+	if !fg.RemoveEdge("s1") || len(fg.Edges) != eCount-1 {
+		t.Fatalf("expected RemoveEdge to remove s1, count=%d", len(fg.Edges))
+	}
+	if !fg.Undo() || len(fg.Edges) != eCount {
+		t.Fatalf("expected Undo to restore removed edge, count=%d", len(fg.Edges))
+	}
+
+	// 4. Headless render both new React Flow UI presets cleanly.
+	for _, g := range []*flow.Graph{sg, fg} {
+		g.FitView(1100, 720, 48)
+		tt := ui.NewTester(func(c *ui.Context) {
+			flow.Canvas(c, g, flow.CanvasOptions{Theme: flow.LightTheme()})
+		}, 1100, 720)
+		tt.Frame()
+		tt.Advance(60 * time.Millisecond)
+		tt.Frame()
+	}
+}

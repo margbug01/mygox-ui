@@ -9,220 +9,807 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// NumberTickerOptions configures NumberTicker.
-type NumberTickerOptions struct {
-	StartValue   float64
-	Prefix       string
-	Suffix       string
-	Decimals     int
-	NoCommas     bool
-	Duration     time.Duration
-	FontSize     float32
-	FontWeight   int
-	Color        ui.Color
-	Trigger      int
+// ============================================================================
+// 1. AnimatedNumber
+// ============================================================================
+
+// AnimatedNumberOptions configures AnimatedNumber.
+type AnimatedNumberOptions struct {
+	Prefix     string
+	Suffix     string
+	Decimals   int
+	FontSize   float32
+	FontWeight int
+	Color      ui.Color
+	Spring     ui.SpringOptions
 }
 
-type tickerState struct {
-	initialized bool
-	lastTrigger int
-	lastTarget  float64
-	from        float64
-	to          float64
-	startTime   time.Time
-}
-
-// NumberTicker smoothly animates a numeric value from StartValue (or its
-// previous target) to target with eased rolling digits.
-func NumberTicker(c *ui.Context, target float64, opts ...NumberTickerOptions) ui.Element {
-	var o NumberTickerOptions
+// AnimatedNumber smoothly spring-interpolates a numeric value with tabular numerals.
+func AnimatedNumber(c *ui.Context, value float64, opts ...AnimatedNumberOptions) ui.Element {
+	var o AnimatedNumberOptions
 	if len(opts) > 0 {
 		o = opts[0]
 	}
 	t := ThemeFrom(c)
-	if o.Duration <= 0 {
-		o.Duration = 1200 * time.Millisecond
-	}
 	if o.FontSize <= 0 {
-		o.FontSize = 36
+		o.FontSize = 28
 	}
 	if o.FontWeight <= 0 {
-		o.FontWeight = 700
+		o.FontWeight = 600
 	}
 	col := colorOr(o.Color, t.Text)
+	spring := resolveSpring(o.Spring, ui.SpringOptions{Stiffness: 120, Damping: 20, Mass: 0.8})
 
-	wrap := ui.Box(c)
-	st := ui.Local(wrap, "ticker", func() tickerState {
-		return tickerState{}
-	})
-	now := c.Now()
-	if !st.initialized {
-		st.initialized = true
-		st.lastTrigger = o.Trigger
-		st.lastTarget = target
-		st.from = o.StartValue
-		st.to = target
-		st.startTime = now
-	} else if o.Trigger != st.lastTrigger {
-		st.lastTrigger = o.Trigger
-		st.lastTarget = target
-		st.from = o.StartValue
-		st.to = target
-		st.startTime = now
-	} else if target != st.lastTarget {
-		elapsed := now.Sub(st.startTime)
-		p := easeOutCubic(elapsed.Seconds() / o.Duration.Seconds())
-		st.from = st.from + (st.to-st.from)*p
-		st.to = target
-		st.lastTarget = target
-		st.startTime = now
-	}
-
-	elapsed := now.Sub(st.startTime)
-	frac := elapsed.Seconds() / o.Duration.Seconds()
-	if frac < 1 {
-		c.AnimationFrame()
-	}
-	eased := easeOutCubic(frac)
-	cur := st.from + (st.to-st.from)*eased
-	formatted := formatTickerNumber(cur, o.Decimals, !o.NoCommas)
-
-	wrap.Children(func() {
+	box := ui.Box(c)
+	cur := float64(box.Spring("mp-anim-num", float32(value), spring))
+	formatted := formatGroupedNumber(cur, o.Decimals)
+	box.Children(func() {
 		ui.Text(c, o.Prefix+formatted+o.Suffix).
 			FontSize(o.FontSize).
 			FontWeight(o.FontWeight).
+			FontFeatures("tnum").
 			TextColor(col).
-			FontFeatures("tnum")
+			SingleLine()
 	})
-	return wrap
+	return box
 }
 
-func formatTickerNumber(v float64, decimals int, commas bool) string {
-	if decimals < 0 {
-		decimals = 0
-	}
+func formatGroupedNumber(v float64, decimals int) string {
 	neg := v < 0
 	if neg {
 		v = -v
 	}
-	raw := fmt.Sprintf("%.*f", decimals, v)
+	var raw string
+	if decimals <= 0 {
+		raw = fmt.Sprintf("%d", int64(math.Round(v)))
+	} else {
+		raw = fmt.Sprintf("%.*f", decimals, v)
+	}
 	intPart := raw
 	fracPart := ""
 	if idx := strings.IndexByte(raw, '.'); idx >= 0 {
 		intPart = raw[:idx]
 		fracPart = raw[idx:]
 	}
-	if commas && len(intPart) > 3 {
-		var b strings.Builder
-		rem := len(intPart) % 3
-		if rem > 0 {
-			b.WriteString(intPart[:rem])
-			if len(intPart) > rem {
-				b.WriteByte(',')
-			}
-		}
-		for i := rem; i < len(intPart); i += 3 {
-			if i > rem {
-				b.WriteByte(',')
-			}
-			b.WriteString(intPart[i : i+3])
-		}
-		intPart = b.String()
-	}
+	n := len(intPart)
+	var b strings.Builder
 	if neg {
-		return "-" + intPart + fracPart
+		b.WriteByte('-')
 	}
-	return intPart + fracPart
+	for i := 0; i < n; i++ {
+		if i > 0 && (n-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteByte(intPart[i])
+	}
+	b.WriteString(fracPart)
+	return b.String()
 }
 
-// TextShimmerOptions configures TextShimmer.
-type TextShimmerOptions struct {
-	Duration     time.Duration
-	Spread       float32
-	FontSize     float32
-	FontWeight   int
-	BaseColor    ui.Color
-	ShimmerColor ui.Color
+// ============================================================================
+// 2. SlidingNumber
+// ============================================================================
+
+// SlidingNumberOptions configures SlidingNumber.
+type SlidingNumberOptions struct {
+	PadStart         bool
+	DecimalSeparator string
+	Decimals         int
+	FontSize         float32
+	FontWeight       int
+	Color            ui.Color
+	Spring           ui.SpringOptions
 }
 
-// TextShimmer renders headline text with a luminous animated shimmer wave
-// sweeping continuously across its glyphs.
-func TextShimmer(c *ui.Context, text string, opts ...TextShimmerOptions) ui.Element {
-	var o TextShimmerOptions
+// SlidingNumber renders a vertical digit-by-digit odometer counter where each
+// place value springs smoothly along the shortest cyclic distance (0..9).
+func SlidingNumber(c *ui.Context, value float64, opts ...SlidingNumberOptions) ui.Element {
+	var o SlidingNumberOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.FontSize <= 0 {
+		o.FontSize = 26
+	}
+	if o.FontWeight <= 0 {
+		o.FontWeight = 600
+	}
+	if o.DecimalSeparator == "" {
+		o.DecimalSeparator = "."
+	}
+	col := colorOr(o.Color, t.Text)
+	spring := resolveSpring(o.Spring, ui.SpringOptions{Stiffness: 280, Damping: 18, Mass: 0.3})
+
+	neg := value < 0
+	absVal := math.Abs(value)
+
+	var intStr, decStr string
+	if o.Decimals > 0 {
+		formatted := fmt.Sprintf("%.*f", o.Decimals, absVal)
+		parts := strings.SplitN(formatted, ".", 2)
+		intStr = parts[0]
+		if len(parts) > 1 {
+			decStr = parts[1]
+		}
+	} else {
+		intStr = fmt.Sprintf("%d", int64(math.Round(absVal)))
+	}
+	if o.PadStart && len(intStr) < 2 {
+		intStr = "0" + intStr
+	}
+
+	lineH := float32(math.Round(float64(o.FontSize) * 1.25))
+	digitW := float32(math.Round(float64(o.FontSize) * 0.64))
+
+	row := ui.Row(c).AlignItems(ui.Center)
+	row.Children(func() {
+		if neg {
+			ui.Text(c, "-").FontSize(o.FontSize).FontWeight(o.FontWeight).TextColor(col).SingleLine()
+		}
+		for i := 0; i < len(intStr); i++ {
+			digit := int(intStr[i] - '0')
+			place := len(intStr) - 1 - i
+			slidingDigitCell(c, fmt.Sprintf("i-%d", place), digit, digitW, lineH, o.FontSize, o.FontWeight, col, spring)
+		}
+		if decStr != "" {
+			ui.Text(c, o.DecimalSeparator).FontSize(o.FontSize).FontWeight(o.FontWeight).TextColor(col).SingleLine()
+			for i := 0; i < len(decStr); i++ {
+				digit := int(decStr[i] - '0')
+				slidingDigitCell(c, fmt.Sprintf("d-%d", i), digit, digitW, lineH, o.FontSize, o.FontWeight, col, spring)
+			}
+		}
+	})
+	return row
+}
+
+func slidingDigitCell(c *ui.Context, key string, targetDigit int, w, h, fontSize float32, weight int, col ui.Color, spring ui.SpringOptions) {
+	cell := ui.Box(c).Key(key).Width(w).Height(h).Clip()
+	cur := cell.Spring("digit", float32(targetDigit), spring)
+	cell.Children(func() {
+		for d := 0; d < 10; d++ {
+			offset := math.Mod(float64(10+d)-float64(cur), 10)
+			if offset < 0 {
+				offset += 10
+			}
+			if offset > 5 {
+				offset -= 10
+			}
+			// Only emit visible neighbors so we keep node count minimal.
+			if offset < -1.4 || offset > 1.4 {
+				continue
+			}
+			y := float32(offset) * h
+			ui.Box(c).
+				Key(d).
+				Absolute().
+				Top(0).
+				Left(0).
+				Width(w).
+				Height(h).
+				Center().
+				Translate(0, y).
+				Children(func() {
+					ui.Text(c, string(rune('0'+d))).
+						FontSize(fontSize).
+						FontWeight(weight).
+						FontFeatures("tnum").
+						TextColor(col).
+						SingleLine()
+				})
+		}
+	})
+}
+
+// ============================================================================
+// 3. SpinningText
+// ============================================================================
+
+// SpinningTextOptions configures SpinningText.
+type SpinningTextOptions struct {
+	Duration   time.Duration
+	Radius     float32
+	FontSize   float32
+	FontWeight int
+	Color      ui.Color
+	Reverse    bool
+}
+
+// SpinningText arranges characters along a circular path and rotates them continuously.
+func SpinningText(c *ui.Context, text string, opts ...SpinningTextOptions) ui.Element {
+	var o SpinningTextOptions
 	if len(opts) > 0 {
 		o = opts[0]
 	}
 	t := ThemeFrom(c)
 	if o.Duration <= 0 {
-		o.Duration = 2400 * time.Millisecond
+		o.Duration = 10 * time.Second
 	}
-	if o.Spread <= 0 {
-		o.Spread = 0.22
+	if o.Radius <= 0 {
+		o.Radius = 46
+	}
+	if o.FontSize <= 0 {
+		o.FontSize = 12
+	}
+	if o.FontWeight <= 0 {
+		o.FontWeight = 500
+	}
+	col := colorOr(o.Color, t.Text)
+
+	c.AnimationFrame()
+	frac := mod1(phaseSeconds(c.Now()) / o.Duration.Seconds())
+	if o.Reverse {
+		frac = -frac
+	}
+	baseAngle := frac * 360.0
+
+	runes := []rune(text)
+	n := len(runes)
+	cellSize := o.FontSize * 1.4
+	diameter := o.Radius*2 + cellSize*2
+	center := diameter / 2
+
+	stage := ui.Box(c).Width(diameter).Height(diameter)
+	stage.Children(func() {
+		for i, r := range runes {
+			if r == ' ' {
+				continue
+			}
+			deg := baseAngle + (float64(i)/float64(max(n, 1)))*360.0
+			rad := (deg - 90.0) * math.Pi / 180.0
+			x := center + o.Radius*float32(math.Cos(rad)) - cellSize/2
+			y := center + o.Radius*float32(math.Sin(rad)) - cellSize/2
+			ui.Box(c).
+				Key(i).
+				Absolute().
+				Left(x).
+				Top(y).
+				Width(cellSize).
+				Height(cellSize).
+				Center().
+				Rotate(float32(deg)).
+				Children(func() {
+					ui.Text(c, string(r)).
+						FontSize(o.FontSize).
+						FontWeight(o.FontWeight).
+						TextColor(col).
+						SingleLine()
+				})
+		}
+	})
+	return stage
+}
+
+// ============================================================================
+// 4. TextEffect
+// ============================================================================
+
+// TextEffectPer controls the segmentation granularity of TextEffect.
+type TextEffectPer string
+
+const (
+	PerWord TextEffectPer = "word"
+	PerChar TextEffectPer = "char"
+	PerLine TextEffectPer = "line"
+)
+
+// TextEffectOptions configures TextEffect.
+type TextEffectOptions struct {
+	Per        TextEffectPer
+	Preset     Preset
+	Trigger    int
+	Delay      time.Duration
+	Stagger    time.Duration
+	Duration   time.Duration
+	FontSize   float32
+	FontWeight int
+	Color      ui.Color
+}
+
+type triggerTimerState struct {
+	trigger int
+	start   time.Time
+}
+
+// TextEffect animates text segments (per word, per char, or per line) with
+// fade, slide, scale, or blur presets. Incrementing Trigger replays the reveal.
+func TextEffect(c *ui.Context, text string, opts ...TextEffectOptions) ui.Element {
+	var o TextEffectOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.Per == "" {
+		o.Per = PerWord
+	}
+	if o.Preset == "" {
+		o.Preset = PresetBlurSlide
+	}
+	if o.Duration <= 0 {
+		o.Duration = 420 * time.Millisecond
+	}
+	if o.Stagger <= 0 {
+		if o.Per == PerChar {
+			o.Stagger = 28 * time.Millisecond
+		} else {
+			o.Stagger = 65 * time.Millisecond
+		}
+	}
+	if o.FontSize <= 0 {
+		o.FontSize = 18
+	}
+	if o.FontWeight <= 0 {
+		o.FontWeight = 500
+	}
+	col := colorOr(o.Color, t.Text)
+
+	var segments []string
+	switch o.Per {
+	case PerChar:
+		for _, r := range []rune(text) {
+			segments = append(segments, string(r))
+		}
+	case PerLine:
+		segments = strings.Split(text, "\n")
+	default:
+		segments = strings.Fields(text)
+	}
+
+	var container ui.Element
+	if o.Per == PerLine {
+		container = ui.Column(c).Gap(4)
+	} else if o.Per == PerChar {
+		container = ui.Row(c).Wrap().AlignItems(ui.Center)
+	} else {
+		container = ui.Row(c).Wrap().AlignItems(ui.Center).GapX(o.FontSize * 0.28).GapY(2)
+	}
+
+	st := ui.Local(container, "te-state", func() triggerTimerState {
+		return triggerTimerState{trigger: o.Trigger, start: c.Now()}
+	})
+	if st.trigger != o.Trigger {
+		st.trigger = o.Trigger
+		st.start = c.Now()
+	}
+
+	elapsed := c.Now().Sub(st.start)
+	totalDur := o.Delay + time.Duration(len(segments))*o.Stagger + o.Duration
+	if elapsed < totalDur {
+		c.AnimationFrame()
+	}
+
+	container.Children(func() {
+		for i, seg := range segments {
+			if seg == " " {
+				ui.Box(c).Key(i).Width(o.FontSize * 0.30)
+				continue
+			}
+			segStart := o.Delay + time.Duration(i)*o.Stagger
+			raw := float64(elapsed-segStart) / float64(o.Duration)
+			p := float32(easeOutCubic(raw))
+			el := ui.Text(c, seg).
+				Key(i).
+				FontSize(o.FontSize).
+				FontWeight(o.FontWeight).
+				TextColor(col).
+				SingleLine()
+			applyPreset(el, o.Preset, p)
+		}
+	})
+	return container
+}
+
+// ============================================================================
+// 5. TextLoop
+// ============================================================================
+
+// TextLoopOptions configures TextLoop.
+type TextLoopOptions struct {
+	Interval   time.Duration
+	Duration   time.Duration
+	FontSize   float32
+	FontWeight int
+	Color      ui.Color
+}
+
+type textLoopState struct {
+	index    int
+	prev     int
+	lastStep time.Time
+	started  bool
+}
+
+// TextLoop smoothly cycles through phrases with a vertical slide-and-fade transition.
+func TextLoop(c *ui.Context, items []string, opts ...TextLoopOptions) ui.Element {
+	var o TextLoopOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.Interval <= 0 {
+		o.Interval = 2200 * time.Millisecond
+	}
+	if o.Duration <= 0 {
+		o.Duration = 320 * time.Millisecond
+	}
+	if o.FontSize <= 0 {
+		o.FontSize = 15
+	}
+	if o.FontWeight <= 0 {
+		o.FontWeight = 500
+	}
+	col := colorOr(o.Color, t.Text)
+
+	lineH := float32(math.Round(float64(o.FontSize) * 1.6))
+	stage := ui.Box(c).Height(lineH).Clip().AlignItems(ui.Center)
+	if len(items) == 0 {
+		return stage
+	}
+
+	now := c.Now()
+	st := ui.Local(stage, "tl-state", func() textLoopState {
+		return textLoopState{index: 0, prev: 0, lastStep: now, started: false}
+	})
+	if len(items) > 1 {
+		if now.Sub(st.lastStep) >= o.Interval {
+			steps := int(now.Sub(st.lastStep) / o.Interval)
+			st.prev = st.index % len(items)
+			st.index = (st.index + steps) % len(items)
+			st.lastStep = now
+			st.started = true
+		}
+		since := now.Sub(st.lastStep)
+		if st.started && since < o.Duration {
+			c.AnimationFrame()
+		} else {
+			rem := o.Interval - since
+			if rem < 16*time.Millisecond {
+				rem = 16 * time.Millisecond
+			}
+			c.After(rem)
+		}
+	}
+
+	curIdx := st.index % len(items)
+	prevIdx := st.prev % len(items)
+	p := float32(1)
+	if st.started {
+		p = float32(easeOutCubic(float64(now.Sub(st.lastStep)) / float64(o.Duration)))
+	}
+
+	// Measure max width across items so container does not jump horizontally.
+	maxW := float32(0)
+	for _, it := range items {
+		w, _ := c.MeasureText(0, ui.Span{Text: it, Size: o.FontSize, Weight: o.FontWeight})
+		if w > maxW {
+			maxW = w
+		}
+	}
+	stage.MinWidth(maxW + 8)
+
+	stage.Children(func() {
+		if st.started && p < 1 && prevIdx != curIdx {
+			ui.Box(c).
+				Key("out").
+				Absolute().
+				Left(0).
+				Top(0).
+				Height(lineH).
+				AlignItems(ui.Center).
+				Opacity(1 - p).
+				Translate(0, -p*lineH*0.75).
+				Children(func() {
+					ui.Text(c, items[prevIdx]).
+						FontSize(o.FontSize).
+						FontWeight(o.FontWeight).
+						TextColor(col).
+						SingleLine()
+				})
+		}
+		inY := (1 - p) * lineH * 0.75
+		inOp := p
+		if !st.started {
+			inY = 0
+			inOp = 1
+		}
+		ui.Box(c).
+			Key("in").
+			Height(lineH).
+			AlignItems(ui.Center).
+			Opacity(inOp).
+			Translate(0, inY).
+			Children(func() {
+				ui.Text(c, items[curIdx]).
+					FontSize(o.FontSize).
+					FontWeight(o.FontWeight).
+					TextColor(col).
+					SingleLine()
+			})
+	})
+	return stage
+}
+
+// ============================================================================
+// 6. TextMorph
+// ============================================================================
+
+// TextMorphOptions configures TextMorph.
+type TextMorphOptions struct {
+	Duration   time.Duration
+	FontSize   float32
+	FontWeight int
+	Color      ui.Color
+}
+
+type textMorphState struct {
+	current string
+	prev    string
+	changed time.Time
+}
+
+// TextMorph smoothly cross-morphs shared characters horizontally between two strings
+// while fading out removed characters and fading in added characters.
+func TextMorph(c *ui.Context, text string, opts ...TextMorphOptions) ui.Element {
+	var o TextMorphOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.Duration <= 0 {
+		o.Duration = 280 * time.Millisecond
+	}
+	if o.FontSize <= 0 {
+		o.FontSize = 15
+	}
+	if o.FontWeight <= 0 {
+		o.FontWeight = 500
+	}
+	col := colorOr(o.Color, t.Text)
+
+	lineH := float32(math.Round(float64(o.FontSize) * 1.4))
+	box := ui.Box(c).Height(lineH)
+
+	now := c.Now()
+	st := ui.Local(box, "tm-state", func() textMorphState {
+		return textMorphState{current: text, prev: text, changed: now.Add(-time.Second)}
+	})
+	if st.current != text {
+		st.prev = st.current
+		st.current = text
+		st.changed = now
+	}
+
+	elapsed := now.Sub(st.changed)
+	p := float32(1)
+	if elapsed < o.Duration {
+		c.AnimationFrame()
+		p = float32(easeInOutCubic(float64(elapsed) / float64(o.Duration)))
+	}
+
+	curRunes := []rune(st.current)
+	prevRunes := []rune(st.prev)
+
+	measurePositions := func(rs []rune) ([]float32, float32) {
+		xs := make([]float32, len(rs))
+		var x float32
+		for i, r := range rs {
+			xs[i] = x
+			if r == ' ' {
+				x += o.FontSize * 0.30
+				continue
+			}
+			w, _ := c.MeasureText(0, ui.Span{Text: string(r), Size: o.FontSize, Weight: o.FontWeight})
+			if w <= 0 {
+				w = o.FontSize * 0.55
+			}
+			x += w
+		}
+		return xs, x
+	}
+
+	curXs, curW := measurePositions(curRunes)
+	prevXs, prevW := measurePositions(prevRunes)
+	boxW := lerp32(prevW, curW, p)
+	box.Width(boxW)
+
+	// Match shared runes by occurrence index (just like upstream unique char IDs).
+	prevUsed := make([]bool, len(prevRunes))
+	curMatch := make([]int, len(curRunes))
+	for i := range curMatch {
+		curMatch[i] = -1
+	}
+	for i, r := range curRunes {
+		for j, pr := range prevRunes {
+			if !prevUsed[j] && pr == r {
+				prevUsed[j] = true
+				curMatch[i] = j
+				break
+			}
+		}
+	}
+
+	box.Children(func() {
+		// Exiting characters from prev that were not matched.
+		if p < 0.99 {
+			for j, pr := range prevRunes {
+				if prevUsed[j] {
+					continue
+				}
+				sc := lerp32(1, 0.72, p)
+				ui.Box(c).
+					Key(fmt.Sprintf("ex-%d", j)).
+					Absolute().
+					Left(prevXs[j]).
+					Top(0).
+					Height(lineH).
+					AlignItems(ui.Center).
+					Opacity(1 - p).
+					Scale(sc, sc).
+					Children(func() {
+						ui.Text(c, string(pr)).FontSize(o.FontSize).FontWeight(o.FontWeight).TextColor(col).SingleLine()
+					})
+			}
+		}
+		// Entering and shared-morphing characters.
+		for i, r := range curRunes {
+			var x float32
+			op := float32(1)
+			sc := float32(1)
+			if mj := curMatch[i]; mj >= 0 {
+				x = lerp32(prevXs[mj], curXs[i], p)
+			} else {
+				x = curXs[i]
+				op = p
+				sc = lerp32(0.72, 1, p)
+			}
+			ui.Box(c).
+				Key(fmt.Sprintf("cur-%d", i)).
+				Absolute().
+				Left(x).
+				Top(0).
+				Height(lineH).
+				AlignItems(ui.Center).
+				Opacity(op).
+				Scale(sc, sc).
+				Children(func() {
+					ui.Text(c, string(r)).FontSize(o.FontSize).FontWeight(o.FontWeight).TextColor(col).SingleLine()
+				})
+		}
+	})
+	return box
+}
+
+// ============================================================================
+// 7. TextRoll
+// ============================================================================
+
+// TextRollOptions configures TextRoll.
+type TextRollOptions struct {
+	Duration   time.Duration
+	Stagger    time.Duration
+	Trigger    int
+	FontSize   float32
+	FontWeight int
+	Color      ui.Color
+}
+
+type textRollState struct {
+	trigger    int
+	wasHovered bool
+	start      time.Time
+}
+
+// TextRoll performs a dual-layer staggered vertical rolling character wave
+// on mount, hover, or when Trigger increments.
+func TextRoll(c *ui.Context, text string, opts ...TextRollOptions) ui.Element {
+	var o TextRollOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.Duration <= 0 {
+		o.Duration = 420 * time.Millisecond
+	}
+	if o.Stagger <= 0 {
+		o.Stagger = 32 * time.Millisecond
 	}
 	if o.FontSize <= 0 {
 		o.FontSize = 24
 	}
 	if o.FontWeight <= 0 {
-		o.FontWeight = 700
+		o.FontWeight = 600
 	}
-	baseCol := colorOr(o.BaseColor, t.TextSubtle)
-	shimmerCol := colorOr(o.ShimmerColor, ui.Hex("#ffffff"))
-	if !t.Dark {
-		baseCol = colorOr(o.BaseColor, ui.Hex("#71717a"))
-		shimmerCol = colorOr(o.ShimmerColor, t.Accent)
-	}
-
-	c.AnimationFrame()
-	phase := mod1(phaseSeconds(c.Now()) / o.Duration.Seconds())
-	waveCenter := float32(-0.25 + phase*1.50)
+	col := colorOr(o.Color, t.Text)
 
 	runes := []rune(text)
-	if len(runes) == 0 {
-		return ui.Text(c, "").FontSize(o.FontSize).FontWeight(o.FontWeight)
+	lineH := float32(math.Round(float64(o.FontSize) * 1.25))
+
+	row := ui.Row(c).AlignItems(ui.Center).Cursor(ui.CursorPointer)
+	st := ui.Local(row, "tr-state", func() textRollState {
+		return textRollState{trigger: o.Trigger, start: c.Now()}
+	})
+	hov := row.Hovered()
+	if st.trigger != o.Trigger || (hov && !st.wasHovered) {
+		st.trigger = o.Trigger
+		st.start = c.Now()
 	}
-	spans := make([]ui.Span, len(runes))
-	denom := float32(max(len(runes)-1, 1))
-	for i, r := range runes {
-		pos := float32(i) / denom
-		dist := (pos - waveCenter) / o.Spread
-		intensity := float32(math.Exp(-float64(dist * dist * 1.8)))
-		col := lerpColor(baseCol, shimmerCol, intensity)
-		spans[i] = ui.Span{
-			Text:   string(r),
-			Size:   o.FontSize,
-			Weight: o.FontWeight,
-			Color:  col,
-		}
+	st.wasHovered = hov
+
+	elapsed := c.Now().Sub(st.start)
+	total := time.Duration(len(runes))*o.Stagger + o.Duration
+	if elapsed < total {
+		c.AnimationFrame()
 	}
 
-	return ui.RichText(c, spans...).
-		FontSize(o.FontSize).
-		FontWeight(o.FontWeight).
-		TextColor(baseCol)
+	row.Children(func() {
+		for i, r := range runes {
+			ch := string(r)
+			if r == ' ' {
+				ui.Box(c).Key(i).Width(o.FontSize * 0.32).Height(lineH)
+				continue
+			}
+			charStart := time.Duration(i) * o.Stagger
+			p := float32(easeInOutCubic(float64(elapsed-charStart) / float64(o.Duration)))
+			w, _ := c.MeasureText(0, ui.Span{Text: ch, Size: o.FontSize, Weight: o.FontWeight})
+			if w <= 0 {
+				w = o.FontSize * 0.58
+			}
+			ui.Box(c).Key(i).Width(w).Height(lineH).Clip().Children(func() {
+				// Outgoing top face rolling upward
+				if p < 1 {
+					ui.Box(c).
+						Key("top").
+						Absolute().
+						Left(0).
+						Top(0).
+						Width(w).
+						Height(lineH).
+						Center().
+						Translate(0, -p*lineH).
+						Opacity(1 - p*0.75).
+						Children(func() {
+							ui.Text(c, ch).FontSize(o.FontSize).FontWeight(o.FontWeight).TextColor(col).SingleLine()
+						})
+				}
+				// Incoming bottom face rolling into place
+				ui.Box(c).
+					Key("bot").
+					Absolute().
+					Left(0).
+					Top(0).
+					Width(w).
+					Height(lineH).
+					Center().
+					Translate(0, (1-p)*lineH).
+					Opacity(0.25 + 0.75*p).
+					Children(func() {
+						ui.Text(c, ch).FontSize(o.FontSize).FontWeight(o.FontWeight).TextColor(col).SingleLine()
+					})
+			})
+		}
+	})
+	return row
 }
+
+// ============================================================================
+// 8. TextScramble
+// ============================================================================
 
 // TextScrambleOptions configures TextScramble.
 type TextScrambleOptions struct {
-	Duration       time.Duration
-	Charset        string
-	FontSize       float32
-	FontWeight     int
-	Color          ui.Color
-	ScrambleColor  ui.Color
-	Trigger        int
-	DisableOnHover bool
+	Duration     time.Duration
+	Speed        time.Duration
+	CharacterSet string
+	Trigger      int
+	FontSize     float32
+	FontWeight   int
+	Color        ui.Color
+	ScrambleCol  ui.Color
 }
 
-type scrambleState struct {
-	initialized bool
-	lastTrigger int
-	lastText    string
-	wasHovered  bool
-	startTime   time.Time
-}
+const defaultScrambleChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
-// TextScramble decodes text character-by-character with a cryptographic cipher
-// reveal when mounted, hovered, or re-triggered.
+// TextScramble decodes text character by character from randomized glyph noise.
 func TextScramble(c *ui.Context, text string, opts ...TextScrambleOptions) ui.Element {
 	var o TextScrambleOptions
 	if len(opts) > 0 {
@@ -230,360 +817,217 @@ func TextScramble(c *ui.Context, text string, opts ...TextScrambleOptions) ui.El
 	}
 	t := ThemeFrom(c)
 	if o.Duration <= 0 {
-		o.Duration = 950 * time.Millisecond
+		o.Duration = 800 * time.Millisecond
 	}
-	if o.Charset == "" {
-		o.Charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%&*<>/_"
+	if o.Speed <= 0 {
+		o.Speed = 40 * time.Millisecond
+	}
+	if o.CharacterSet == "" {
+		o.CharacterSet = defaultScrambleChars
 	}
 	if o.FontSize <= 0 {
-		o.FontSize = 20
+		o.FontSize = 14
 	}
 	if o.FontWeight <= 0 {
-		o.FontWeight = 600
+		o.FontWeight = 500
 	}
 	col := colorOr(o.Color, t.Text)
-	scramCol := colorOr(o.ScrambleColor, t.AccentSecondary)
+	scCol := colorOr(o.ScrambleCol, t.TextSubtle)
 
-	wrap := ui.Box(c).Cursor(ui.CursorPointer)
-	st := ui.Local(wrap, "scramble", func() scrambleState {
-		return scrambleState{}
+	runes := []rune(text)
+	glyphs := []rune(o.CharacterSet)
+
+	row := ui.Row(c).AlignItems(ui.Center)
+	st := ui.Local(row, "ts-state", func() triggerTimerState {
+		return triggerTimerState{trigger: o.Trigger, start: c.Now()}
 	})
-	now := c.Now()
-	hovered := wrap.Hovered()
-
-	if !st.initialized || o.Trigger != st.lastTrigger || text != st.lastText {
-		st.initialized = true
-		st.lastTrigger = o.Trigger
-		st.lastText = text
-		st.startTime = now
+	if st.trigger != o.Trigger {
+		st.trigger = o.Trigger
+		st.start = c.Now()
 	}
-	if !o.DisableOnHover && hovered && !st.wasHovered {
-		st.startTime = now
-	}
-	st.wasHovered = hovered
 
-	elapsed := now.Sub(st.startTime)
-	progress := clamp64(elapsed.Seconds()/o.Duration.Seconds(), 0, 1)
+	elapsed := c.Now().Sub(st.start)
+	progress := clamp64(float64(elapsed)/float64(o.Duration), 0, 1)
 	if progress < 1 {
 		c.AnimationFrame()
 	}
 
-	runes := []rune(text)
-	charset := []rune(o.Charset)
-	locked := int(math.Floor(progress * float64(len(runes))))
-	tick := int(elapsed / (42 * time.Millisecond))
+	revealed := int(math.Floor(progress * float64(len(runes))))
+	tick := uint64(elapsed / o.Speed)
 
-	spans := make([]ui.Span, len(runes))
-	for i, r := range runes {
-		if r == ' ' || i < locked || progress >= 1 {
-			spans[i] = ui.Span{
-				Text:   string(r),
-				Size:   o.FontSize,
-				Weight: o.FontWeight,
-				Color:  col,
+	row.Children(func() {
+		for i, r := range runes {
+			if r == ' ' {
+				ui.Box(c).Key(i).Width(o.FontSize * 0.32)
+				continue
 			}
-		} else {
-			idx := (i*7 + tick*13 + int(r)) % len(charset)
-			if idx < 0 {
-				idx = -idx
-			}
-			spans[i] = ui.Span{
-				Text:   string(charset[idx]),
-				Size:   o.FontSize,
-				Weight: o.FontWeight,
-				Color:  scramCol,
+			if i < revealed {
+				ui.Text(c, string(r)).
+					Key(i).
+					FontSize(o.FontSize).
+					FontWeight(o.FontWeight).
+					TextColor(col).
+					SingleLine()
+			} else {
+				h := (tick*31 + uint64(i)*17 + 13) % uint64(len(glyphs))
+				ui.Text(c, string(glyphs[h])).
+					Key(i).
+					FontSize(o.FontSize).
+					FontWeight(o.FontWeight).
+					TextColor(scCol).
+					SingleLine()
 			}
 		}
-	}
-
-	wrap.Children(func() {
-		ui.RichText(c, spans...).
-			FontSize(o.FontSize).
-			FontWeight(o.FontWeight).
-			TextColor(col)
 	})
-	return wrap
+	return row
 }
 
-// TypewriterOptions configures Typewriter.
-type TypewriterOptions struct {
-	TypeSpeed     time.Duration
-	DeleteSpeed   time.Duration
-	PauseDuration time.Duration
-	FontSize      float32
-	FontWeight    int
-	Color         ui.Color
-	CursorColor   ui.Color
+// ============================================================================
+// 9. TextShimmer
+// ============================================================================
+
+// TextShimmerOptions configures TextShimmer.
+type TextShimmerOptions struct {
+	Duration       time.Duration
+	Spread         float32
+	FontSize       float32
+	FontWeight     int
+	BaseColor      ui.Color
+	HighlightColor ui.Color
 }
 
-// Typewriter cycles smoothly through phrases with typing, pausing, deleting,
-// and a softly pulsing vertical caret.
-func Typewriter(c *ui.Context, phrases []string, opts ...TypewriterOptions) ui.Element {
-	var o TypewriterOptions
+// TextShimmer sweeps a restrained luminous highlight across subtle muted text.
+func TextShimmer(c *ui.Context, text string, opts ...TextShimmerOptions) ui.Element {
+	var o TextShimmerOptions
 	if len(opts) > 0 {
 		o = opts[0]
 	}
 	t := ThemeFrom(c)
-	if len(phrases) == 0 {
-		phrases = []string{"GPU-accelerated motion"}
-	}
-	if o.TypeSpeed <= 0 {
-		o.TypeSpeed = 70 * time.Millisecond
-	}
-	if o.DeleteSpeed <= 0 {
-		o.DeleteSpeed = 38 * time.Millisecond
-	}
-	if o.PauseDuration <= 0 {
-		o.PauseDuration = 1400 * time.Millisecond
-	}
-	if o.FontSize <= 0 {
-		o.FontSize = 22
-	}
-	if o.FontWeight <= 0 {
-		o.FontWeight = 600
-	}
-	col := colorOr(o.Color, t.Text)
-	curCol := colorOr(o.CursorColor, t.Accent)
-
-	c.AnimationFrame()
-	sec := phaseSeconds(c.Now())
-
-	// Compute total cycle duration across all phrases.
-	typeSeg := make([]float64, len(phrases))
-	total := 0.0
-	runePhrases := make([][]rune, len(phrases))
-	for i, ph := range phrases {
-		rp := []rune(ph)
-		runePhrases[i] = rp
-		d := float64(len(rp))*o.TypeSpeed.Seconds() +
-			o.PauseDuration.Seconds() +
-			float64(len(rp))*o.DeleteSpeed.Seconds() +
-			0.28
-		typeSeg[i] = d
-		total += d
-	}
-
-	pos := math.Mod(sec, total)
-	if pos < 0 {
-		pos += total
-	}
-	shown := ""
-	for i, rp := range runePhrases {
-		if pos < typeSeg[i] {
-			typeDur := float64(len(rp)) * o.TypeSpeed.Seconds()
-			pauseEnd := typeDur + o.PauseDuration.Seconds()
-			delDur := float64(len(rp)) * o.DeleteSpeed.Seconds()
-			switch {
-			case pos < typeDur:
-				n := int(pos / o.TypeSpeed.Seconds())
-				if n > len(rp) {
-					n = len(rp)
-				}
-				shown = string(rp[:n])
-			case pos < pauseEnd:
-				shown = string(rp)
-			case pos < pauseEnd+delDur:
-				rem := (pos - pauseEnd) / o.DeleteSpeed.Seconds()
-				n := len(rp) - int(rem)
-				if n < 0 {
-					n = 0
-				}
-				shown = string(rp[:n])
-			default:
-				shown = ""
-			}
-			break
-		}
-		pos -= typeSeg[i]
-	}
-
-	blink := float32(0.5 + 0.5*math.Sin(sec*7.5))
-	if blink > 0.35 {
-		blink = 1
-	} else {
-		blink = 0.12
-	}
-
-	return ui.Row(c).AlignItems(ui.Center).Gap(3).Children(func() {
-		ui.Text(c, shown).
-			FontSize(o.FontSize).
-			FontWeight(o.FontWeight).
-			TextColor(col)
-		ui.Box(c).
-			Width(2.5).
-			Height(o.FontSize * 1.05).
-			Radius(2).
-			Background(curCol).
-			Opacity(blink)
-	})
-}
-
-// BlurRevealOptions configures BlurReveal.
-type BlurRevealOptions struct {
-	Stagger    time.Duration
-	Duration   time.Duration
-	FontSize   float32
-	FontWeight int
-	Color      ui.Color
-	Trigger    int
-}
-
-type revealState struct {
-	initialized bool
-	lastTrigger int
-	lastText    string
-	startTime   time.Time
-}
-
-// BlurReveal staggers words into view with spring slide-up, scale settle,
-// fade-in, and a transient soft glow that sharpens out on arrival.
-func BlurReveal(c *ui.Context, text string, opts ...BlurRevealOptions) ui.Element {
-	var o BlurRevealOptions
-	if len(opts) > 0 {
-		o = opts[0]
-	}
-	t := ThemeFrom(c)
-	if o.Stagger <= 0 {
-		o.Stagger = 85 * time.Millisecond
-	}
 	if o.Duration <= 0 {
-		o.Duration = 460 * time.Millisecond
+		o.Duration = 1800 * time.Millisecond
+	}
+	if o.Spread <= 0 {
+		o.Spread = 2.6
 	}
 	if o.FontSize <= 0 {
-		o.FontSize = 20
+		o.FontSize = 14
 	}
 	if o.FontWeight <= 0 {
-		o.FontWeight = 600
+		o.FontWeight = 500
 	}
-	col := colorOr(o.Color, t.Text)
-
-	wrap := ui.Row(c).Wrap().AlignItems(ui.Center).Gap(6)
-	st := ui.Local(wrap, "blur_reveal", func() revealState {
-		return revealState{}
-	})
-	now := c.Now()
-	if !st.initialized || o.Trigger != st.lastTrigger || text != st.lastText {
-		st.initialized = true
-		st.lastTrigger = o.Trigger
-		st.lastText = text
-		st.startTime = now
+	defaultBase := ui.Hex("#a1a1aa")
+	defaultPeak := ui.Hex("#09090b")
+	if t.Dark {
+		defaultBase = ui.Hex("#71717a")
+		defaultPeak = ui.Hex("#ffffff")
 	}
-
-	words := strings.Fields(text)
-	elapsed := now.Sub(st.startTime)
-	totalDur := time.Duration(max(len(words)-1, 0))*o.Stagger + o.Duration
-	if elapsed < totalDur {
-		c.AnimationFrame()
-	}
-
-	springOpt := ui.SpringOptions{Duration: o.Duration, Bounce: 0.14}
-	wrap.Children(func() {
-		for i, w := range words {
-			local := elapsed - time.Duration(i)*o.Stagger
-			var prog float32
-			if local > 0 {
-				prog = float32(clamp64(springOpt.Progress(local), 0, 1.08))
-			}
-			alpha := clamp32(prog, 0, 1)
-			dy := (1 - prog) * 14
-			sc := 0.92 + 0.08*clamp32(prog, 0, 1)
-			blurHalo := (1 - alpha) * 0.45
-
-			wordEl := ui.Box(c).
-				Translate(0, dy).
-				Scale(sc, sc).
-				Opacity(alpha).
-				Draw(func(p *ui.Painter, r ui.Rect) {
-					if blurHalo > 0.02 && r.W > 0 && r.H > 0 {
-						p.FillRadialGradient(r, ui.RadialGradient{
-							Radius: max(r.W, r.H) * 0.85,
-							Stops: []ui.GradientStop{
-								{Color: t.Accent.Alpha(blurHalo * 0.35), At: 0},
-								{Color: ui.Transparent, At: 1},
-							},
-						}, 6)
-					}
-				}).
-				Children(func() {
-					ui.Text(c, w).
-						FontSize(o.FontSize).
-						FontWeight(o.FontWeight).
-						TextColor(col)
-				})
-			_ = wordEl
-		}
-	})
-	return wrap
-}
-
-// FlipWordsOptions configures FlipWords.
-type FlipWordsOptions struct {
-	Interval   time.Duration
-	FontSize   float32
-	FontWeight int
-	Color      ui.Color
-	Background ui.Color
-	Border     ui.Color
-}
-
-// FlipWords rotates through a slice of keywords with a 3D vertical spring flip
-// inside a crisp highlighted badge slot.
-func FlipWords(c *ui.Context, words []string, opts ...FlipWordsOptions) ui.Element {
-	var o FlipWordsOptions
-	if len(opts) > 0 {
-		o = opts[0]
-	}
-	t := ThemeFrom(c)
-	if len(words) == 0 {
-		words = []string{"Fluid", "Tactile", "Instant"}
-	}
-	if o.Interval <= 0 {
-		o.Interval = 2200 * time.Millisecond
-	}
-	if o.FontSize <= 0 {
-		o.FontSize = 20
-	}
-	if o.FontWeight <= 0 {
-		o.FontWeight = 700
-	}
-	col := colorOr(o.Color, t.Accent)
-	bg := colorOr(o.Background, t.Accent.Alpha(0.12))
-	border := colorOr(o.Border, t.Accent.Alpha(0.32))
+	baseCol := colorOr(o.BaseColor, defaultBase)
+	peakCol := colorOr(o.HighlightColor, defaultPeak)
 
 	c.AnimationFrame()
-	sec := phaseSeconds(c.Now())
-	iv := o.Interval.Seconds()
-	step := int(math.Floor(sec / iv))
-	localSec := sec - float64(step)*iv
-	curIdx := step % len(words)
-	if curIdx < 0 {
-		curIdx += len(words)
-	}
+	phase := mod1(phaseSeconds(c.Now()) / o.Duration.Seconds())
+	runes := []rune(text)
+	n := float64(max(len(runes), 1))
+	center := -float64(o.Spread) + phase*(n+2*float64(o.Spread))
 
-	flipDur := 0.42
-	sp := ui.SpringOptions{Duration: 420 * time.Millisecond, Bounce: 0.22}
-	prog := float32(1)
-	if localSec < flipDur {
-		prog = float32(sp.Progress(time.Duration(localSec * float64(time.Second))))
-	}
-	dy := (1 - prog) * 14
-	rx := (1 - prog) * -58
-	op := clamp32(prog*1.15, 0, 1)
-
-	return ui.Box(c).
-		Padding(4, 12).
-		Radius(10).
-		Background(bg).
-		Border(1, border).
-		Clip().
-		Children(func() {
-			ui.Text(c, words[curIdx]).
+	row := ui.Row(c).AlignItems(ui.Center)
+	row.Children(func() {
+		for i, r := range runes {
+			if r == ' ' {
+				ui.Box(c).Key(i).Width(o.FontSize * 0.30)
+				continue
+			}
+			dist := (float64(i) - center) / float64(o.Spread)
+			intensity := float32(math.Exp(-dist * dist * 1.4))
+			col := lerpColor(baseCol, peakCol, intensity)
+			ui.Text(c, string(r)).
+				Key(i).
 				FontSize(o.FontSize).
 				FontWeight(o.FontWeight).
 				TextColor(col).
-				Perspective(500).
+				SingleLine()
+		}
+	})
+	return row
+}
+
+// ============================================================================
+// 10. TextShimmerWave
+// ============================================================================
+
+// TextShimmerWaveOptions configures TextShimmerWave.
+type TextShimmerWaveOptions struct {
+	Duration       time.Duration
+	Spread         float32
+	YDistance      float32
+	ScaleDistance  float32
+	FontSize       float32
+	FontWeight     int
+	BaseColor      ui.Color
+	HighlightColor ui.Color
+}
+
+// TextShimmerWave animates a per-character luminance wave with subtle vertical lift and scale ripple.
+func TextShimmerWave(c *ui.Context, text string, opts ...TextShimmerWaveOptions) ui.Element {
+	var o TextShimmerWaveOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.Duration <= 0 {
+		o.Duration = 1600 * time.Millisecond
+	}
+	if o.Spread <= 0 {
+		o.Spread = 2.2
+	}
+	if o.YDistance == 0 {
+		o.YDistance = -2.5
+	}
+	if o.ScaleDistance == 0 {
+		o.ScaleDistance = 1.12
+	}
+	if o.FontSize <= 0 {
+		o.FontSize = 14
+	}
+	if o.FontWeight <= 0 {
+		o.FontWeight = 500
+	}
+	defaultBase := ui.Hex("#a1a1aa")
+	defaultPeak := ui.Hex("#09090b")
+	if t.Dark {
+		defaultBase = ui.Hex("#71717a")
+		defaultPeak = ui.Hex("#ffffff")
+	}
+	baseCol := colorOr(o.BaseColor, defaultBase)
+	peakCol := colorOr(o.HighlightColor, defaultPeak)
+
+	c.AnimationFrame()
+	phase := mod1(phaseSeconds(c.Now()) / o.Duration.Seconds())
+	runes := []rune(text)
+	n := float64(max(len(runes), 1))
+	center := -float64(o.Spread) + phase*(n+2*float64(o.Spread))
+
+	row := ui.Row(c).AlignItems(ui.Center)
+	row.Children(func() {
+		for i, r := range runes {
+			if r == ' ' {
+				ui.Box(c).Key(i).Width(o.FontSize * 0.30)
+				continue
+			}
+			dist := (float64(i) - center) / float64(o.Spread)
+			wave := float32(math.Exp(-dist * dist * 1.6))
+			col := lerpColor(baseCol, peakCol, wave)
+			sc := lerp32(1, o.ScaleDistance, wave)
+			dy := o.YDistance * wave
+			ui.Text(c, string(r)).
+				Key(i).
+				FontSize(o.FontSize).
+				FontWeight(o.FontWeight).
+				TextColor(col).
 				Translate(0, dy).
-				RotateX(rx).
-				Opacity(op)
-		})
+				Scale(sc, sc).
+				SingleLine()
+		}
+	})
+	return row
 }
