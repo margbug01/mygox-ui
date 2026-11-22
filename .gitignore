@@ -1,0 +1,8 @@
+upstream/
+.alma/
+dist/
+*.png
+!docs/screenshots/*.png
+/mygox-ui
+/showcase
+.DS_Store

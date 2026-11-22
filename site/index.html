@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>mygox-ui — Native Go UI, Node Canvas &amp; GPU Motion for MyGo</title>
+  <meta name="description" content="A unified pure-Go UI suite for MyGo v0.10.0: 56 coss primitives, 530 particles, an interactive node graph canvas, and 28 GPU motion effects." />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #262626;
+      --muted: #f5f5f5;
+      --muted-fg: #686868;
+      --card: #ffffff;
+      --border: rgba(0, 0, 0, 0.08);
+      --border-strong: rgba(0, 0, 0, 0.14);
+      --primary: #262626;
+      --primary-fg: #fafafa;
+      --frame-bg: #f6f6f7;
+      --code-bg: #f7f7f8;
+      --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.04);
+      --radius: 12px;
+      --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    html[data-theme="dark"] {
+      --bg: #161616;
+      --fg: #f5f5f5;
+      --muted: rgba(255, 255, 255, 0.05);
+      --muted-fg: #9a9a9a;
+      --card: #1c1c1e;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.16);
+      --primary: #f5f5f5;
+      --primary-fg: #181818;
+      --frame-bg: #121214;
+      --code-bg: #1c1c1e;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font);
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+    }
+    a { color: inherit; text-decoration: none; }
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      background: color-mix(in srgb, var(--bg) 86%, transparent);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav {
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--muted);
+      color: var(--muted-fg);
+      border: 1px solid var(--border);
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-link {
+      font-size: 13.5px;
+      color: var(--muted-fg);
+      padding: 6px 10px;
+      border-radius: 8px;
+      transition: color 120ms, background 120ms;
+    }
+    .nav-link:hover { color: var(--fg); background: var(--muted); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 36px;
+      padding: 0 14px;
+      border-radius: 9px;
+      font-size: 13.5px;
+      font-weight: 500;
+      border: 1px solid var(--border-strong);
+      background: var(--card);
+      color: var(--fg);
+      cursor: pointer;
+      transition: transform 80ms, background 120ms, border-color 120ms;
+    }
+    .btn:hover { background: var(--muted); }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: var(--primary);
+      color: var(--primary-fg);
+      border-color: var(--primary);
+    }
+    .btn-primary:hover { opacity: 0.9; background: var(--primary); }
+    .btn-lg { height: 42px; padding: 0 18px; font-size: 14.5px; border-radius: 10px; }
+    .btn-icon { width: 34px; height: 34px; padding: 0; }
+
+    /* Hero */
+    .hero {
+      padding: 64px 0 36px;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted-fg);
+      border: 1px solid var(--border-strong);
+      background: var(--card);
+      margin-bottom: 20px;
+    }
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #10b981;
+    }
+    .hero h1 {
+      margin: 0 auto 14px;
+      max-width: 760px;
+      font-size: clamp(32px, 5vw, 52px);
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      line-height: 1.08;
+    }
+    .hero p {
+      margin: 0 auto 28px;
+      max-width: 660px;
+      font-size: 16.5px;
+      color: var(--muted-fg);
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    .install-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      max-width: 100%;
+      padding: 7px 8px 7px 14px;
+      border-radius: 10px;
+      background: var(--code-bg);
+      border: 1px solid var(--border-strong);
+      font-family: var(--mono);
+      font-size: 12.5px;
+    }
+    .install-bar code { overflow-x: auto; white-space: nowrap; }
+    .copy-btn {
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 7px;
+      border: 1px solid var(--border-strong);
+      background: var(--card);
+      color: var(--fg);
+      font-size: 12px;
+      font-family: var(--font);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .copy-btn:hover { background: var(--muted); }
+
+    /* Stats */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 34px 0 42px;
+    }
+    .stat {
+      padding: 18px 20px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--card);
+    }
+    .stat-val {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+    .stat-lbl {
+      font-size: 12.5px;
+      color: var(--muted-fg);
+      margin-top: 2px;
+    }
+
+    /* Coss Frame Preview */
+    .frame {
+      padding: 6px;
+      border-radius: 20px;
+      background: var(--frame-bg);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      margin-bottom: 56px;
+    }
+    .frame-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px 12px;
+    }
+    .tabs {
+      display: inline-flex;
+      gap: 4px;
+      padding: 3px;
+      border-radius: 10px;
+      background: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .tab {
+      border: 0;
+      background: transparent;
+      color: var(--muted-fg);
+      padding: 6px 11px;
+      border-radius: 7px;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: var(--card);
+      color: var(--fg);
+      box-shadow: 0 1px 2px rgba(0,0,0,.08);
+    }
+    .frame-panel {
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--card);
+    }
+    .frame-panel img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* Sections */
+    section { padding: 28px 0 44px; }
+    .sec-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .sec-head h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .sec-head p {
+      margin: 4px 0 0;
+      font-size: 14px;
+      color: var(--muted-fg);
+    }
+
+    /* Three-Suite Cards (coss style) */
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .card {
+      padding: 20px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .card h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+    }
+    .card p {
+      margin: 0;
+      font-size: 13.5px;
+      color: var(--muted-fg);
+    }
+    .pkg-chip {
+      display: inline-flex;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+    }
+    pre {
+      margin: 0;
+      padding: 13px 14px;
+      border-radius: 10px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    /* Interactive Grids (Flow presets, Motion categories, Coss 55 families) */
+    .chip-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+      gap: 8px;
+    }
+    .fam-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      font-size: 13px;
+      font-weight: 500;
+      transition: border-color 120ms, background 120ms;
+    }
+    .fam-card:hover {
+      border-color: var(--border-strong);
+      background: var(--muted);
+    }
+    .fam-count {
+      font-size: 11.5px;
+      color: var(--muted-fg);
+      background: var(--muted);
+      padding: 1px 7px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 0 42px;
+      margin-top: 24px;
+      font-size: 13px;
+      color: var(--muted-fg);
+    }
+    .foot {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .foot a { text-decoration: underline; text-underline-offset: 3px; }
+
+    @media (max-width: 860px) {
+      .three-col { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 760px) {
+      .container { padding: 0 16px; }
+      .nav { height: 54px; gap: 8px; }
+      .brand .pill { display: none; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 24px 0 28px; }
+      .stat { padding: 13px 14px; }
+      .stat-val { font-size: 20px; }
+      .two-col { grid-template-columns: 1fr; }
+      .nav-hide-sm { display: none; }
+      .hero { padding: 36px 0 24px; }
+      .hero p { font-size: 15px; margin-bottom: 22px; }
+      .hero-actions { flex-direction: column; width: 100%; }
+      .hero-actions .btn { width: 100%; }
+      .install-bar { width: 100%; justify-content: space-between; font-size: 12px; }
+      .frame { padding: 4px; border-radius: 16px; margin-bottom: 40px; }
+      .frame-bar { padding: 6px 6px 10px; }
+      .tabs { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .tab { white-space: nowrap; flex-shrink: 0; }
+      .chip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .fam-card { padding: 11px 12px; min-height: 42px; }
+      section { padding: 20px 0 32px; }
+      footer { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a class="brand" href="#">
+        <span>mygox-ui</span>
+        <span class="pill">mygo v0.10.0</span>
+      </a>
+      <div class="nav-links">
+        <a class="nav-link nav-hide-sm" href="#packages">Packages</a>
+        <a class="nav-link nav-hide-sm" href="#flow">Flow</a>
+        <a class="nav-link nav-hide-sm" href="#motion">Motion</a>
+        <a class="nav-link nav-hide-sm" href="#coss">Particles</a>
+        <a class="nav-link" href="https://github.com/margbug01/mygox-ui" target="_blank" rel="noreferrer">GitHub</a>
+        <button class="btn btn-icon" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">◐</button>
+        <a class="btn btn-primary" href="./playground/">Live Playground →</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div class="hero-eyebrow">
+        <span class="dot"></span>
+        <span>56 Primitives · 530 Particles · Node Graph Canvas · 28 GPU Effects</span>
+      </div>
+      <h1>One Go UI suite for MyGo.</h1>
+      <p>
+        A cohesive, coss-styled native component suite for <strong>MyGo</strong> — combining
+        <code>coss</code> UI primitives &amp; 530 particles, <code>flow</code> interactive node graph canvas,
+        and <code>motion</code> 60fps GPU effects in a single pure-Go module with zero WebView.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary btn-lg" href="./playground/#coss">Open Unified WASM Playground →</a>
+        <a class="btn btn-lg" href="./playground/#flow">Try Flow Canvas</a>
+        <a class="btn btn-lg" href="./playground/#motion">Try Motion 28</a>
+      </div>
+      <div class="install-bar">
+        <code id="installCmd">go get github.com/margbug01/mygox-ui</code>
+        <button class="copy-btn" id="copyInstall">Copy</button>
+      </div>
+    </section>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-val">56 / 530</div>
+        <div class="stat-lbl">coss primitives &amp; particles in pure Go</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">Flow Canvas</div>
+        <div class="stat-lbl">Pan/zoom, magnetic ports, layout &amp; MiniMap</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">28 Effects</div>
+        <div class="stat-lbl">Conic beams, spotlights, dock &amp; particles</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">0 WebView</div>
+        <div class="stat-lbl">Native Metal / D3D11 / WebGL 2 rendering</div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <div class="frame-bar">
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-src="screenshots/ui-light.png" data-href="./playground/#coss">UI · Light</button>
+          <button class="tab" data-src="screenshots/ui-dark.png" data-href="./playground/#coss">UI · Dark</button>
+          <button class="tab" data-src="screenshots/flow-light.png" data-href="./playground/#flow">Flow · Light</button>
+          <button class="tab" data-src="screenshots/flow-dark.png" data-href="./playground/#flow">Flow · Dark</button>
+          <button class="tab" data-src="screenshots/motion-light.png" data-href="./playground/#motion">Motion · Light</button>
+          <button class="tab" data-src="screenshots/motion-dark.png" data-href="./playground/#motion/layout">Motion · Dark</button>
+        </div>
+        <a class="btn" id="frameOpenBtn" href="./playground/#coss">Open in WebGL 2 Playground →</a>
+      </div>
+      <div class="frame-panel">
+        <img id="previewImg" src="screenshots/ui-light.png" alt="mygox-ui native MyGo preview" />
+      </div>
+    </div>
+
+    <section id="packages">
+      <div class="sec-head">
+        <div>
+          <h2>Three packages, one design language</h2>
+          <p>Zero package-name collisions with <code>github.com/egoist/mygo/ui</code>. Import only what you need.</p>
+        </div>
+      </div>
+      <div class="three-col">
+        <div class="card">
+          <div class="card-head">
+            <h3>coss · UI Components</h3>
+            <span class="pkg-chip">mygox-ui/coss</span>
+          </div>
+          <p>56 chainable primitives, 530 interactive particles, 102 lazy-parsed Lucide SVG icons, Light &amp; Dark tokens, plus a shadcn-style source copier CLI.</p>
+          <pre><code>import "github.com/margbug01/mygox-ui/coss"
+
+coss.Button(c, "Deploy").
+    Variant(coss.ButtonDefault).
+    Size(coss.SizeSM).
+    OnClick(deploy)</code></pre>
+          <div><a class="btn" href="./playground/#coss">Browse 530 Particles →</a></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>flow · Node Graph Canvas</h3>
+            <span class="pkg-chip">mygox-ui/flow</span>
+          </div>
+          <p>Infinite pan/zoom canvas, typed magnetic ports, Bezier/SmoothStep/Straight animated edges, alignment guides, Undo/Redo, Kahn auto-layout, MiniMap &amp; JSON.</p>
+          <pre><code>import "github.com/margbug01/mygox-ui/flow"
+
+g := flow.PresetAIAgent()
+g.AutoLayout(flow.LayoutLR)
+flow.Canvas(c, g, flow.CanvasOptions{
+    Theme: flow.LightTheme(),
+})</code></pre>
+          <div><a class="btn" href="./playground/#flow">Launch Flow Studio →</a></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>motion · GPU Effects</h3>
+            <span class="pkg-chip">mygox-ui/motion</span>
+          </div>
+          <p>28 GPU-rendered effects powered by conic/radial gradients, spring physics, and vector paths: BorderBeam, SpotlightCard, Dock, AnimatedBeam, Aurora, Confetti.</p>
+          <pre><code>import "github.com/margbug01/mygox-ui/motion"
+
+motion.BorderBeam(c, func() {
+    ui.Text(c, "60fps GPU Beam")
+}, motion.BorderBeamOptions{
+    BorderWidth: 2,
+})</code></pre>
+          <div><a class="btn" href="./playground/#motion">Explore 28 Effects →</a></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="flow">
+      <div class="sec-head">
+        <div>
+          <h2>Flow · Node Graph Studio</h2>
+          <p>Jump straight into any interactive workflow preset in the coss-styled canvas.</p>
+        </div>
+        <a class="btn" href="./playground/#flow">Open Flow Canvas →</a>
+      </div>
+      <div class="chip-grid">
+        <a class="fam-card" href="./playground/#flow/ai-agent"><span>AI Agent Graph</span><span class="fam-count">6 nodes</span></a>
+        <a class="fam-card" href="./playground/#flow/etl"><span>Data ETL Pipeline</span><span class="fam-count">SmoothStep</span></a>
+        <a class="fam-card" href="./playground/#flow/cicd"><span>CI/CD Rollout</span><span class="fam-count">Cross grid</span></a>
+        <a class="fam-card" href="./playground/#flow/blank"><span>Blank Canvas</span><span class="fam-count">Build free</span></a>
+      </div>
+    </section>
+
+    <section id="motion">
+      <div class="sec-head">
+        <div>
+          <h2>Motion · 28 GPU Effects</h2>
+          <p>Five categories of 60fps effects rendered inside unified coss cards.</p>
+        </div>
+        <a class="btn" href="./playground/#motion">Open All 28 Effects →</a>
+      </div>
+      <div class="chip-grid">
+        <a class="fam-card" href="./playground/#motion/cards"><span>Cards &amp; Borders</span><span class="fam-count">5</span></a>
+        <a class="fam-card" href="./playground/#motion/text"><span>Text &amp; Numbers</span><span class="fam-count">6</span></a>
+        <a class="fam-card" href="./playground/#motion/interactive"><span>Micro-Interactions</span><span class="fam-count">7</span></a>
+        <a class="fam-card" href="./playground/#motion/backgrounds"><span>Backgrounds</span><span class="fam-count">6</span></a>
+        <a class="fam-card" href="./playground/#motion/layout"><span>Layout &amp; Motion</span><span class="fam-count">4</span></a>
+      </div>
+    </section>
+
+    <section id="coss">
+      <div class="sec-head">
+        <div>
+          <h2>coss · All 55 Particle Families (530)</h2>
+          <p>Click any family to jump directly to its live interactive WebAssembly demos.</p>
+        </div>
+        <a class="btn" href="./playground/#coss">Open All 530 →</a>
+      </div>
+      <div class="chip-grid" id="familyGrid"></div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container foot">
+      <div>Built with pure Go &amp; <a href="https://github.com/egoist/mygo" target="_blank" rel="noreferrer">MyGo v0.10.0</a> · MIT License © 2026 margbug01</div>
+      <div>UI design system inspired by <a href="https://coss.com/ui/particles" target="_blank" rel="noreferrer">coss.com/ui</a></div>
+    </div>
+  </footer>
+
+  <script>
+    const html = document.documentElement;
+    const saved = localStorage.getItem("mygox-theme");
+    if (saved === "dark" || (!saved && matchMedia("(prefers-color-scheme: dark)").matches)) {
+      html.setAttribute("data-theme", "dark");
+    }
+    document.getElementById("themeToggle").addEventListener("click", () => {
+      const dark = html.getAttribute("data-theme") === "dark";
+      html.setAttribute("data-theme", dark ? "light" : "dark");
+      localStorage.setItem("mygox-theme", dark ? "light" : "dark");
+    });
+
+    const copyBtn = document.getElementById("copyInstall");
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(document.getElementById("installCmd").textContent);
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => (copyBtn.textContent = "Copy"), 1400);
+      } catch {}
+    });
+
+    const previewImg = document.getElementById("previewImg");
+    const frameOpenBtn = document.getElementById("frameOpenBtn");
+    document.querySelectorAll(".tab").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        previewImg.src = btn.dataset.src;
+        frameOpenBtn.href = btn.dataset.href;
+      });
+    });
+
+    const families = [
+      ["accordion",4],["alert",7],["alert-dialog",2],["autocomplete",16],["avatar",21],
+      ["badge",20],["breadcrumb",7],["button",40],["calendar",25],["card",11],
+      ["checkbox",5],["checkbox-group",5],["collapsible",1],["combobox",20],["command",2],
+      ["composer",12],["context-menu",8],["date-picker",9],["dialog",11],["drawer",9],
+      ["empty",4],["field",16],["fieldset",1],["form",2],["frame",8],
+      ["group",19],["input",13],["input-group",30],["kbd",2],["menu",13],
+      ["meter",4],["number-field",6],["otp-field",7],["pagination",4],["popover",6],
+      ["preview-card",1],["progress",4],["radio-group",10],["scroll-area",3],["segmented-control",2],
+      ["select",19],["separator",3],["sheet",4],["sidebar",1],["skeleton",4],
+      ["slider",23],["spinner",3],["switch",7],["table",8],["tabs",10],
+      ["textarea",9],["toast",7],["toggle",8],["toggle-group",12],["toolbar",3],["tooltip",3]
+    ];
+    const grid = document.getElementById("familyGrid");
+    for (const [name, count] of families) {
+      const a = document.createElement("a");
+      a.className = "fam-card";
+      a.href = `./playground/#coss/${name}`;
+      a.innerHTML = `<span>${name}</span><span class="fam-count">${count}</span>`;
+      grid.appendChild(a);
+    }
+  </script>
+</body>
+</html>

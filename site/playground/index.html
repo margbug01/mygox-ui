@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <title>mygox-ui Playground — UI 530 · Flow Canvas · Motion 28</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #262626;
+      --muted-fg: #686868;
+      --bar: #fafafa;
+      --border: rgba(0, 0, 0, 0.08);
+      --track: rgba(0, 0, 0, 0.08);
+      --fill: #262626;
+      --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    }
+    html[data-mygo-theme="dark"] {
+      --bg: #161616;
+      --fg: #f5f5f5;
+      --muted-fg: #8c8c8c;
+      --bar: #121212;
+      --border: rgba(255, 255, 255, 0.07);
+      --track: rgba(255, 255, 255, 0.10);
+      --fill: #f5f5f5;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font);
+      overscroll-behavior: none;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .topbar {
+      min-height: calc(38px + env(safe-area-inset-top));
+      padding: env(safe-area-inset-top) 14px 0 14px;
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bar);
+      border-bottom: 1px solid var(--border);
+      font-size: 12.5px;
+      z-index: 10;
+    }
+    .topbar a {
+      color: var(--fg);
+      text-decoration: none;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+    }
+    .topbar a:hover { opacity: 0.78; }
+    .topbar .meta {
+      color: var(--muted-fg);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .stage {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      touch-action: none;
+    }
+    #mygo {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    #loader {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 24px;
+      background: var(--bg);
+      z-index: 5;
+      transition: opacity 220ms ease;
+    }
+    #loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .sub {
+      font-size: 12.5px;
+      color: var(--muted-fg);
+      text-align: center;
+    }
+    .bar {
+      width: min(240px, 76vw);
+      height: 5px;
+      border-radius: 999px;
+      background: var(--track);
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      width: 8%;
+      border-radius: 999px;
+      background: var(--fill);
+      transition: width 100ms linear;
+    }
+    .err {
+      color: #ef4444;
+      font-size: 13px;
+      max-width: 420px;
+      text-align: center;
+    }
+    @media (max-width: 600px) {
+      .hide-xs { display: none; }
+    }
+  </style>
+  <script>
+    (function () {
+      const saved = localStorage.getItem("mygox-theme");
+      const dark = saved === "dark" || (!saved && matchMedia("(prefers-color-scheme: dark)").matches);
+      document.documentElement.setAttribute("data-mygo-theme", dark ? "dark" : "light");
+    })();
+  </script>
+</head>
+<body>
+  <div class="topbar">
+    <a href="../">← mygox-ui</a>
+    <div class="meta">
+      <span class="hide-xs">UI 530 · Flow Canvas · Motion 28 — MyGo v0.10.0 WebGL&nbsp;2 WASM</span>
+      <a href="https://github.com/margbug01/mygox-ui" target="_blank" rel="noreferrer">GitHub ↗</a>
+    </div>
+  </div>
+  <div class="stage">
+    <div id="loader">
+      <div class="title">Loading mygox-ui Playground…</div>
+      <div class="bar"><div class="bar-fill" id="progress"></div></div>
+      <div class="sub" id="status">Fetching WebAssembly runtime</div>
+    </div>
+    <div id="mygo"></div>
+  </div>
+
+  <script src="wasm_exec.js"></script>
+  <script>
+    const loader = document.getElementById("loader");
+    const progressEl = document.getElementById("progress");
+    const statusEl = document.getElementById("status");
+
+    window.__mygoxReady = () => {
+      loader.classList.add("hidden");
+      setTimeout(() => loader.remove(), 260);
+    };
+
+    async function boot() {
+      const go = new Go();
+      const wasmFile = "__WASM_FILE__";
+      const resp = await fetch(wasmFile);
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status} loading ${wasmFile}`);
+      }
+
+      const total = Number(resp.headers.get("Content-Length") || 0);
+      let bytes;
+      if (resp.body && total > 0) {
+        const reader = resp.body.getReader();
+        const chunks = [];
+        let received = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.byteLength;
+          const pct = Math.min(95, Math.round((received / total) * 95));
+          progressEl.style.width = pct + "%";
+          statusEl.textContent = `${(received / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB`;
+        }
+        bytes = new Uint8Array(received);
+        let offset = 0;
+        for (const chunk of chunks) {
+          bytes.set(chunk, offset);
+          offset += chunk.byteLength;
+        }
+      } else {
+        statusEl.textContent = "Downloading WebAssembly bundle…";
+        progressEl.style.width = "60%";
+        bytes = new Uint8Array(await resp.arrayBuffer());
+      }
+
+      progressEl.style.width = "98%";
+      statusEl.textContent = "Initializing WebGL 2 renderer…";
+      const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
+      progressEl.style.width = "100%";
+      go.run(instance);
+      setTimeout(() => loader && loader.classList.add("hidden"), 800);
+    }
+
+    boot().catch((err) => {
+      statusEl.className = "err";
+      statusEl.textContent = "Failed to start WASM playground: " + err.message;
+    });
+
+    // Bridge mobile touch drag & momentum to WheelEvents on scrollable tabs (#coss, #motion).
+    // On #flow, let native pointer drag reach the node canvas directly so nodes & pan work by finger!
+    (function installTouchScrollBridge() {
+      const host = document.getElementById("mygo");
+      let activeId = null;
+      let startX = 0, startY = 0;
+      let lastX = 0, lastY = 0, lastT = 0;
+      let vx = 0, vy = 0;
+      let scrolling = false;
+      let momentumRAF = 0;
+
+      function isFlowCanvasActive() {
+        const h = (location.hash || "").toLowerCase();
+        return h === "#flow" || h.startsWith("#flow/");
+      }
+
+      function getCanvas() {
+        return host.querySelector("canvas");
+      }
+
+      function stopMomentum() {
+        if (momentumRAF) {
+          cancelAnimationFrame(momentumRAF);
+          momentumRAF = 0;
+        }
+      }
+
+      function emitWheel(x, y, dx, dy) {
+        const canvas = getCanvas();
+        if (!canvas || (dx === 0 && dy === 0)) return;
+        canvas.dispatchEvent(new WheelEvent("wheel", {
+          bubbles: true,
+          cancelable: true,
+          clientX: x,
+          clientY: y,
+          deltaX: dx,
+          deltaY: dy,
+          deltaMode: 0,
+        }));
+      }
+
+      function cancelCanvasPress(x, y, pointerId) {
+        const canvas = getCanvas();
+        if (!canvas) return;
+        try {
+          canvas.dispatchEvent(new PointerEvent("pointercancel", {
+            bubbles: true,
+            cancelable: false,
+            clientX: x,
+            clientY: y,
+            pointerId: pointerId || 1,
+            pointerType: "touch",
+            isPrimary: true,
+          }));
+        } catch {}
+      }
+
+      host.addEventListener("touchstart", (e) => {
+        stopMomentum();
+        if (isFlowCanvasActive() || e.touches.length !== 1) {
+          activeId = null;
+          scrolling = false;
+          return;
+        }
+        const t = e.touches[0];
+        activeId = t.identifier;
+        startX = lastX = t.clientX;
+        startY = lastY = t.clientY;
+        lastT = performance.now();
+        vx = 0;
+        vy = 0;
+        scrolling = false;
+      }, { passive: true, capture: true });
+
+      host.addEventListener("touchmove", (e) => {
+        if (activeId === null || isFlowCanvasActive() || e.touches.length !== 1) return;
+        let t = null;
+        for (const item of e.touches) {
+          if (item.identifier === activeId) { t = item; break; }
+        }
+        if (!t) return;
+
+        const now = performance.now();
+        const x = t.clientX;
+        const y = t.clientY;
+
+        if (!scrolling) {
+          if (Math.hypot(x - startX, y - startY) < 8) return;
+          scrolling = true;
+          cancelCanvasPress(x, y, t.identifier);
+        }
+
+        e.preventDefault();
+        const dx = lastX - x;
+        const dy = lastY - y;
+        const dt = Math.max(4, now - lastT);
+        vx = vx * 0.65 + (dx / dt) * 0.35;
+        vy = vy * 0.65 + (dy / dt) * 0.35;
+        lastX = x;
+        lastY = y;
+        lastT = now;
+
+        emitWheel(x, y, dx, dy);
+      }, { passive: false, capture: true });
+
+      function endTouch() {
+        const wasScrolling = scrolling;
+        const anchorX = lastX;
+        const anchorY = lastY;
+        activeId = null;
+        scrolling = false;
+        if (!wasScrolling) return;
+
+        if (performance.now() - lastT > 90) return;
+        let curVx = vx * 16;
+        let curVy = vy * 16;
+        if (Math.hypot(curVx, curVy) < 1.2) return;
+
+        function step() {
+          curVx *= 0.94;
+          curVy *= 0.94;
+          if (Math.hypot(curVx, curVy) < 0.35) {
+            momentumRAF = 0;
+            return;
+          }
+          emitWheel(anchorX, anchorY, curVx, curVy);
+          momentumRAF = requestAnimationFrame(step);
+        }
+        momentumRAF = requestAnimationFrame(step);
+      }
+
+      host.addEventListener("touchend", endTouch, { passive: true, capture: true });
+      host.addEventListener("touchcancel", () => {
+        activeId = null;
+        scrolling = false;
+        stopMomentum();
+      }, { passive: true, capture: true });
+    })();
+  </script>
+</body>
+</html>
