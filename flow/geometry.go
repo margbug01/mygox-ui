@@ -326,6 +326,41 @@ func distToSegment(p, a, b Point) float32 {
 	return dist2D(p, proj)
 }
 
+// SamplePolylineAt returns the point at arc-length fraction t in [0,1] along samples.
+// Used by AnimatedSvgEdge to move a glowing shape smoothly along any edge geometry.
+func SamplePolylineAt(samples []Point, t float32) Point {
+	if len(samples) == 0 {
+		return Point{}
+	}
+	if len(samples) == 1 || t <= 0 {
+		return samples[0]
+	}
+	if t >= 1 {
+		return samples[len(samples)-1]
+	}
+	var total float32
+	for i := 1; i < len(samples); i++ {
+		total += dist2D(samples[i-1], samples[i])
+	}
+	if total <= 1e-4 {
+		return samples[0]
+	}
+	target := total * t
+	var acc float32
+	for i := 1; i < len(samples); i++ {
+		seg := dist2D(samples[i-1], samples[i])
+		if acc+seg >= target && seg > 0 {
+			f := (target - acc) / seg
+			return Point{
+				X: samples[i-1].X + (samples[i].X-samples[i-1].X)*f,
+				Y: samples[i-1].Y + (samples[i].Y-samples[i-1].Y)*f,
+			}
+		}
+		acc += seg
+	}
+	return samples[len(samples)-1]
+}
+
 // ArrowPath builds a crisp filled triangular arrowhead pointing along angle at tip.
 func ArrowPath(tip Point, angle, size float32) *ui.Path {
 	cosA := float32(math.Cos(float64(angle)))

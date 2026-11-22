@@ -66,8 +66,28 @@ func Canvas(c *ui.Context, g *Graph, opts ...CanvasOptions) ui.Element {
 			}
 		}
 
-		// Floating bottom-left React Flow UI ZoomSlider + controls overlay.
+		// React Flow UI NodeSearch overlay (top-center, Cmd/Ctrl+K).
+		if g.ShowSearch {
+			left := max32(14, (g.lastCanvasW-296)*0.5)
+			ui.Box(c).Absolute().Left(left).Top(16).Children(func() {
+				NodeSearch(c, g, t)
+			})
+		}
+
+		// React Flow UI DevTools overlay (top-left).
+		if g.ShowDevTools {
+			ui.Box(c).Absolute().Left(14).Top(14).Children(func() {
+				DevTools(c, g, t)
+			})
+		}
+
+		// Floating bottom-left React Flow UI ZoomSlider + ZoomSelect + controls overlay.
 		if g.ShowControls {
+			if g.zoomSelectOpen {
+				ui.Box(c).Absolute().Left(120).Bottom(54).Children(func() {
+					ZoomSelect(c, g, t)
+				})
+			}
 			ui.Box(c).
 				Absolute().
 				Left(14).
@@ -151,9 +171,9 @@ func ControlsBar(c *ui.Context, g *Graph, t Theme) {
 			}
 
 			ctrlBtn(c, t, "+", "Zoom in", false, func() { g.ZoomIn() })
-			// Click percentage to reset to 100% (just like React Flow ZoomSlider).
-			ctrlBtn(c, t, fmt.Sprintf("%d%%", int(math.Round(float64(g.Viewport.safeZoom()*100)))), "Reset zoom to 100%", false, func() {
-				g.ZoomTo(1.0)
+			// React Flow UI ZoomSelect trigger: click percentage to pick preset zoom levels.
+			ctrlBtn(c, t, fmt.Sprintf("%d%% ▾", int(math.Round(float64(g.Viewport.safeZoom()*100)))), "Zoom levels", g.zoomSelectOpen, func() {
+				g.zoomSelectOpen = !g.zoomSelectOpen
 			})
 			ctrlSep(c, t)
 			ctrlBtn(c, t, "Fit", "Fit view (0)", false, func() { g.FitView(0, 0, 56) })
@@ -271,12 +291,25 @@ func (g *Graph) handleKeyDown(ev ui.InputEvent) bool {
 	case ui.KeyDelete, ui.KeyBackspace:
 		return g.DeleteSelected()
 	case ui.KeyEscape:
+		if g.ShowSearch {
+			g.ShowSearch = false
+			return true
+		}
+		if g.zoomSelectOpen {
+			g.zoomSelectOpen = false
+			return true
+		}
 		if g.mode == modeConnect {
 			g.mode = modeIdle
 			return true
 		}
 		g.ClearSelection()
 		return true
+	case ui.KeyK:
+		if cmd {
+			g.ShowSearch = !g.ShowSearch
+			return true
+		}
 	case ui.KeyA:
 		if cmd {
 			g.SelectAll()
@@ -330,6 +363,13 @@ func (g *Graph) handlePointerDown(ev ui.InputEvent) bool {
 		for _, btn := range g.edgeBtnHits {
 			if dist2D(ptScreen, btn.Center) <= btn.Radius+2 {
 				g.RemoveEdge(btn.EdgeID)
+				return true
+			}
+		}
+		// 0c. Check ButtonHandle '+' spawn button.
+		for _, hb := range g.handleBtnHits {
+			if dist2D(ptScreen, hb.Center) <= hb.Radius+3 {
+				g.SpawnConnectedNode(hb.NodeID, hb.PortID)
 				return true
 			}
 		}
@@ -641,10 +681,11 @@ func (g *Graph) paint(p *ui.Painter, r ui.Rect, t Theme, customNode func(*ui.Pai
 		}
 	}
 
-	// 4. Edges + ButtonEdge midpoint controls.
+	// 4. Edges + ButtonEdge midpoint controls + AnimatedSvgEdge packets.
 	g.edgeBtnHits = g.edgeBtnHits[:0]
+	g.handleBtnHits = g.handleBtnHits[:0]
 	for _, e := range g.Edges {
-		if e.Animated {
+		if e.Animated || e.PacketMotion {
 			needsAnim = true
 		}
 		g.paintEdge(p, r, e, t, nowSec)
@@ -665,6 +706,13 @@ func (g *Graph) paint(p *ui.Painter, r ui.Rect, t Theme, customNode func(*ui.Pai
 			needsAnim = true
 		}
 		g.paintNode(p, r, n, t, nowSec, customNode)
+	}
+
+	// 6b. React Flow UI NodeTooltip rendered on top of hovered node.
+	if g.hoverNodeID != "" && g.mode == modeIdle {
+		if hn := g.NodeByID(g.hoverNodeID); hn != nil && hn.Tooltip != "" {
+			g.paintNodeTooltip(p, r, hn, t)
+		}
 	}
 
 	// 7. Box selection marquee.
@@ -790,6 +838,36 @@ func (g *Graph) paintEdge(p *ui.Painter, r ui.Rect, e *Edge, t Theme, nowSec flo
 		p.StrokePath(animPath, width+0.25, animCol)
 	} else {
 		p.StrokePath(geom.Path, width, col)
+	}
+
+	// React Flow UI AnimatedSvgEdge: glowing data packet traveling smoothly along curve.
+	if e.PacketMotion && len(geom.Samples) >= 2 {
+		dur := float64(e.PacketDuration)
+		if dur <= 0.2 {
+			dur = 2.2
+		}
+		rawT := math.Mod(nowSec/dur, 1.0)
+		frac := float32(rawT)
+		switch e.PacketDirection {
+		case "reverse":
+			frac = 1 - frac
+		case "alternate":
+			cycle := math.Mod(nowSec/dur, 2.0)
+			if cycle > 1.0 {
+				frac = float32(2.0 - cycle)
+			} else {
+				frac = float32(cycle)
+			}
+		}
+		pkt := SamplePolylineAt(geom.Samples, frac)
+		pktCol := t.NodeSelected
+		if e.ColorHex != 0 {
+			pktCol = RGBHex(e.ColorHex)
+		}
+		pr := clamp32(4.2*g.Viewport.safeZoom(), 2.8, 5.6)
+		glowR := pr * 2.1
+		p.Fill(ui.Rect{X: pkt.X - glowR, Y: pkt.Y - glowR, W: glowR * 2, H: glowR * 2}, colorWithAlpha(pktCol, 0.28), glowR)
+		p.Fill(ui.Rect{X: pkt.X - pr, Y: pkt.Y - pr, W: pr * 2, H: pr * 2}, pktCol, pr)
 	}
 
 	arrowSize := clamp32(7.5*g.Viewport.safeZoom(), 4.5, 10)
@@ -1014,8 +1092,85 @@ func (g *Graph) paintNode(p *ui.Painter, r ui.Rect, n *Node, t Theme, nowSec flo
 	// Outer crisp border.
 	g.paintNodeOuterBorder(p, nr, rad, n, t)
 
+	// React Flow UI NodeStatusIndicator "overlay" variant: frosted scrim + spinning ring.
+	if n.Status == StatusRunning && n.StatusVariant == StatusOverlay {
+		p.Fill(nr, colorWithAlpha(t.CanvasBG, 0.58), rad)
+		cx, cy := nr.X+nr.W*0.5, nr.Y+nr.H*0.5
+		ping := float32(math.Mod(nowSec*1.2, 1.0))
+		pingR := clamp32((10+14*ping)*z, 6, 26)
+		p.Fill(ui.Rect{X: cx - pingR, Y: cy - pingR, W: pingR * 2, H: pingR * 2}, ui.RGBA(59, 130, 246, (1-ping)*0.28), pingR)
+		sr := clamp32(11*z, 6, 15)
+		ringRect := ui.Rect{X: cx - sr, Y: cy - sr, W: sr * 2, H: sr * 2}
+		p.Stroke(ringRect, ui.RGBA(59, 130, 246, 0.25), sr, 2.2)
+		spinPath := new(ui.Path)
+		startA := nowSec * 5.2
+		const segs = 12
+		for i := 0; i <= segs; i++ {
+			a := startA + float64(i)/segs*math.Pi*1.15
+			px := cx + float32(math.Cos(a))*sr
+			py := cy + float32(math.Sin(a))*sr
+			if i == 0 {
+				spinPath.MoveTo(px, py)
+			} else {
+				spinPath.LineTo(px, py)
+			}
+		}
+		p.StrokePath(spinPath, 2.2, ui.RGB(59, 130, 246))
+	}
+
+	// React Flow UI NodeAppendix attached outside top/bottom/left/right edge of node.
+	if n.Appendix != "" && z >= 0.45 {
+		g.paintNodeAppendix(p, nr, n, t, z)
+	}
+
 	// Handles.
 	g.paintNodePorts(p, r, n, t, z)
+}
+
+func (g *Graph) paintNodeAppendix(p *ui.Painter, nr ui.Rect, n *Node, t Theme, z float32) {
+	fs := clamp32(9.8*z, 7.5, 11.5)
+	ah := fs + 11*z
+	gap := 4 * z
+	var ar ui.Rect
+	switch n.AppendixPos {
+	case PortTop:
+		ar = ui.Rect{X: nr.X, Y: nr.Y - ah - gap, W: nr.W, H: ah}
+	case PortLeft:
+		aw := float32(len(n.Appendix))*fs*0.58 + 16*z
+		ar = ui.Rect{X: nr.X - aw - gap, Y: nr.Y + (nr.H-ah)*0.5, W: aw, H: ah}
+	case PortRight:
+		aw := float32(len(n.Appendix))*fs*0.58 + 16*z
+		ar = ui.Rect{X: nr.X + nr.W + gap, Y: nr.Y + (nr.H-ah)*0.5, W: aw, H: ah}
+	default: // PortBottom
+		ar = ui.Rect{X: nr.X, Y: nr.Y + nr.H + gap, W: nr.W, H: ah}
+	}
+	rad := clamp32(7*z, 4, 9)
+	p.Fill(ar, t.NodeBG, rad)
+	p.Stroke(ar, t.NodeBorder, rad, 1)
+	lw := float32(len(n.Appendix)) * fs * 0.56
+	tx := ar.X + max32(8*z, (ar.W-lw)*0.5)
+	p.Text(tx, ar.Y+(ar.H-fs)*0.5-0.5, truncateStr(n.Appendix, 32), fs, t.TextMuted)
+}
+
+func (g *Graph) paintNodeTooltip(p *ui.Painter, r ui.Rect, n *Node, t Theme) {
+	b := n.Bounds()
+	z := g.Viewport.safeZoom()
+	topMid := g.Viewport.WorldToScreen(Point{X: b.X + b.W*0.5, Y: b.Y})
+	fs := float32(11)
+	tw := float32(len(n.Tooltip))*fs*0.58 + 20
+	th := fs + 12
+	tr := ui.Rect{
+		X: r.X + topMid.X - tw*0.5,
+		Y: r.Y + topMid.Y - th - 10,
+		W: tw,
+		H: th,
+	}
+	if tr.Y < r.Y+6 {
+		tr.Y = r.Y + topMid.Y + b.H*z + 8
+	}
+	p.Shadow(tr, 7, 0, 4, 12, 0, colorWithAlpha(ui.RGB(0, 0, 0), 0.20))
+	p.Fill(tr, t.ControlsActiveBG, 7)
+	p.Text(tr.X+10, tr.Y+(th-fs)*0.5-0.5, n.Tooltip, fs, t.ControlsActiveFG)
 }
 
 func (g *Graph) paintSchemaNode(p *ui.Painter, r, nr ui.Rect, n *Node, t Theme, z float32, nowSec float64) {
@@ -1174,6 +1329,29 @@ func (g *Graph) paintNodePorts(p *ui.Painter, r ui.Rect, n *Node, t Theme, z flo
 		prRect := ui.Rect{X: sx - pr, Y: sy - pr, W: pr * 2, H: pr * 2}
 		p.Fill(prRect, t.PortFill, pr)
 		p.Stroke(prRect, borderCol, pr, 1.8)
+
+		// React Flow UI ButtonHandle: stem line + circular '+' button to spawn & wire next node.
+		if port.ShowButton && !g.ReadOnly && z >= 0.45 {
+			sn := sideNormal(side)
+			stem := 26 * z
+			bx := sx + sn.X*stem
+			by := sy + sn.Y*stem
+			p.Line(sx+sn.X*pr, sy+sn.Y*pr, bx, by, 1.2, t.NodeBorder)
+			br := clamp32(8.5*z, 5.5, 10)
+			brect := ui.Rect{X: bx - br, Y: by - br, W: br * 2, H: br * 2}
+			p.Shadow(brect, br, 0, 2, 6, 0, colorWithAlpha(ui.RGB(0, 0, 0), 0.14))
+			p.Fill(brect, t.NodeBG, br)
+			p.Stroke(brect, t.NodeBorder, br, 1.1)
+			arm := br * 0.42
+			p.Line(bx-arm, by, bx+arm, by, 1.3, t.TextPrimary)
+			p.Line(bx, by-arm, bx, by+arm, 1.3, t.TextPrimary)
+			g.handleBtnHits = append(g.handleBtnHits, handleButtonHit{
+				NodeID: n.ID,
+				PortID: port.ID,
+				Center: Point{X: bx - r.X, Y: by - r.Y},
+				Radius: br,
+			})
+		}
 
 		// For BaseNode (not SchemaNode which already shows column names inline), show crisp handle labels outside.
 		if n.Variant != VariantSchema && port.Label != "" && z >= 0.72 && (side == PortLeft || side == PortRight) {

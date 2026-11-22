@@ -267,6 +267,22 @@ func (a *showcaseApp) renderFlowTab(c *ui.Context, t theme.Tokens, winW, winH fl
 						})
 
 						if !isMobile {
+							sv := coss.ButtonOutline
+							if f.graph.ShowSearch {
+								sv = coss.ButtonSecondary
+							}
+							coss.Button(c, "Find").Size(coss.SizeXS).Variant(sv).OnClick(func() {
+								f.graph.ShowSearch = !f.graph.ShowSearch
+							})
+
+							dv := coss.ButtonOutline
+							if f.graph.ShowDevTools {
+								dv = coss.ButtonSecondary
+							}
+							coss.Button(c, "Dev").Size(coss.SizeXS).Variant(dv).OnClick(func() {
+								f.graph.ShowDevTools = !f.graph.ShowDevTools
+							})
+
 							coss.Button(c, "Layout").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
 								f.graph.AutoLayout(flow.LayoutLR)
 								f.graph.FitView(0, 0, 56)
@@ -515,6 +531,12 @@ func (a *showcaseApp) flowInspectorContent(c *ui.Context, t theme.Tokens) {
 				mv = coss.ButtonSecondary
 			}
 			coss.Button(c, "MiniMap").Size(coss.SizeXS).Variant(mv).OnClick(func() { f.graph.ShowMiniMap = !f.graph.ShowMiniMap })
+			dv := coss.ButtonOutline
+			if f.graph.ShowDevTools {
+				dv = coss.ButtonSecondary
+			}
+			coss.Button(c, "DevTools").Size(coss.SizeXS).Variant(dv).OnClick(func() { f.graph.ShowDevTools = !f.graph.ShowDevTools })
+			coss.Button(c, "Search").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() { f.graph.ShowSearch = true })
 			coss.Button(c, "Fit View").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() { f.graph.FitView(0, 0, 56) })
 		})
 	})

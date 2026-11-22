@@ -270,13 +270,15 @@ func PresetSubFlows() *Graph {
 		{
 			ID: "ingress", Type: "trigger", Variant: VariantBase,
 			Title: "API Request", Subtitle: "POST /v1/agent/run",
-			Badge: "IN", AccentHex: 0x22c55e, X: 40, Y: 156, W: 214, H: 104, Status: StatusSuccess,
+			Badge: "IN", Tooltip: "Triggers parallel retrieval sub-flow",
+			AccentHex: 0x22c55e, X: 40, Y: 156, W: 214, H: 104, Status: StatusSuccess,
 			Ports: []Port{{ID: "out", Label: "req", Side: PortRight, Kind: PortOutput}},
 		},
 		{
 			ID: "vec", Type: "tool", Variant: VariantBase,
 			Title: "Vector Recall", Subtitle: "HNSW cosine top-8",
-			Badge: "DB", AccentHex: 0x06b6d4, X: 368, Y: 102, W: 234, H: 104, Status: StatusRunning,
+			Badge: "DB", Tooltip: "NodeStatusIndicator (border variant)",
+			AccentHex: 0x06b6d4, X: 368, Y: 102, W: 234, H: 104, Status: StatusRunning, StatusVariant: StatusBorder,
 			Ports: []Port{
 				{ID: "in", Side: PortLeft, Kind: PortInput},
 				{ID: "out", Side: PortRight, Kind: PortOutput},
@@ -286,7 +288,8 @@ func PresetSubFlows() *Graph {
 		{
 			ID: "web", Type: "tool", Variant: VariantBase,
 			Title: "Live Search", Subtitle: "Exa neural fetch",
-			Badge: "WEB", AccentHex: 0xec4899, X: 368, Y: 236, W: 234, H: 104, Status: StatusRunning,
+			Badge: "WEB", Tooltip: "NodeStatusIndicator (overlay spinner)",
+			AccentHex: 0xec4899, X: 368, Y: 236, W: 234, H: 104, Status: StatusRunning, StatusVariant: StatusOverlay,
 			Ports: []Port{
 				{ID: "in", Side: PortLeft, Kind: PortInput},
 				{ID: "out", Side: PortRight, Kind: PortOutput},
@@ -296,18 +299,21 @@ func PresetSubFlows() *Graph {
 		{
 			ID: "synth", Type: "llm", Variant: VariantBase,
 			Title: "Synthesizer", Subtitle: "Grounded streaming reply",
-			Badge: "AI", Footer: "Status: idle · Click Run", AccentHex: 0x6366f1,
+			Badge: "AI", Footer: "Status: idle · Click Run",
+			Appendix: "Appendix · 1,420 tok · 380ms", AppendixPos: PortBottom,
+			Tooltip: "Click '+' on ButtonHandle to append a step",
+			AccentHex: 0x6366f1,
 			X: 720, Y: 146, W: 232, H: 126, Status: StatusIdle,
 			Ports: []Port{
 				{ID: "a", Label: "vec", Side: PortLeft, Kind: PortInput},
 				{ID: "b", Label: "web", Side: PortLeft, Kind: PortInput},
-				{ID: "out", Label: "next", Side: PortRight, Kind: PortOutput},
+				{ID: "out", Label: "next", Side: PortRight, Kind: PortOutput, ShowButton: true},
 			},
 		},
 		{
 			ID: "placeholder-next", Type: "placeholder", Variant: VariantPlaceholder,
 			Title: "+ Add output step",
-			X: 1030, Y: 172, W: 176, H: 74,
+			X: 1054, Y: 172, W: 176, H: 74,
 			Ports: []Port{
 				{ID: "in", Side: PortLeft, Kind: PortInput},
 				{ID: "out", Side: PortRight, Kind: PortOutput},
@@ -315,9 +321,9 @@ func PresetSubFlows() *Graph {
 		},
 	}
 	g.Edges = []*Edge{
-		{ID: "s1", Source: "ingress", SourcePort: "out", Target: "vec", TargetPort: "in", Animated: true},
-		{ID: "s2", Source: "ingress", SourcePort: "out", Target: "web", TargetPort: "in", Animated: true},
-		{ID: "s3", Source: "vec", SourcePort: "out", Target: "synth", TargetPort: "a"},
+		{ID: "s1", Source: "ingress", SourcePort: "out", Target: "vec", TargetPort: "in", PacketMotion: true, PacketDuration: 2.0, ColorHex: 0x06b6d4},
+		{ID: "s2", Source: "ingress", SourcePort: "out", Target: "web", TargetPort: "in", PacketMotion: true, PacketDuration: 2.4, ColorHex: 0xec4899},
+		{ID: "s3", Source: "vec", SourcePort: "out", Target: "synth", TargetPort: "a", PacketMotion: true, PacketDuration: 2.2},
 		{ID: "s4", Source: "web", SourcePort: "out", Target: "synth", TargetPort: "b"},
 		{ID: "s5", Source: "synth", SourcePort: "out", Target: "placeholder-next", TargetPort: "in", Animated: true},
 	}

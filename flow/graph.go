@@ -41,6 +41,13 @@ type edgeButtonHit struct {
 	Radius float32
 }
 
+type handleButtonHit struct {
+	NodeID string
+	PortID string
+	Center Point
+	Radius float32
+}
+
 type graphSnapshot struct {
 	Nodes []Node `json:"nodes"`
 	Edges []Edge `json:"edges"`
@@ -56,12 +63,17 @@ type Graph struct {
 	GridSize    float32
 	EdgeKind    EdgeKind
 	Background  BackgroundKind
-	ShowMiniMap bool
-	ShowControls bool
+	ShowMiniMap   bool
+	ShowControls  bool
+	ShowDevTools  bool
+	ShowSearch    bool
+	SearchQuery   string
 	BoxSelectMode bool
-	ReadOnly    bool
-	MinZoom     float32
-	MaxZoom     float32
+	ReadOnly      bool
+	MinZoom       float32
+	MaxZoom       float32
+
+	ChangeLog []ChangeEvent
 
 	OnChange      func()
 	OnConnect     func(e *Edge)
@@ -83,11 +95,13 @@ type Graph struct {
 	hoverEdgeID   string
 	connect       connectPreview
 	guides        []alignmentGuide
-	lastCanvasW   float32
-	lastCanvasH   float32
-	miniMapRect   Rect
-	edgeBtnHits   []edgeButtonHit
-	nextID        int
+	lastCanvasW    float32
+	lastCanvasH    float32
+	miniMapRect    Rect
+	edgeBtnHits    []edgeButtonHit
+	handleBtnHits  []handleButtonHit
+	zoomSelectOpen bool
+	nextID         int
 
 	undoStack []graphSnapshot
 	redoStack []graphSnapshot
@@ -146,8 +160,110 @@ func (g *Graph) AddNode(n *Node) *Node {
 	}
 	g.PushUndo()
 	g.Nodes = append(g.Nodes, n)
+	g.RecordChange("add", n.ID, n.Title)
 	g.notifyChange()
 	return n
+}
+
+// RecordChange appends a capped mutation entry for DevTools ChangeLogger.
+func (g *Graph) RecordChange(kind, target, detail string) {
+	const maxLog = 20
+	g.ChangeLog = append(g.ChangeLog, ChangeEvent{Kind: kind, Target: target, Detail: detail})
+	if len(g.ChangeLog) > maxLog {
+		g.ChangeLog = g.ChangeLog[len(g.ChangeLog)-maxLog:]
+	}
+}
+
+// FocusNode selects a node and centers the viewport smoothly on it (used by NodeSearch).
+func (g *Graph) FocusNode(id string) bool {
+	n := g.NodeByID(id)
+	if n == nil {
+		return false
+	}
+	g.SelectNode(n.ID, false)
+	cw := g.lastCanvasW
+	ch := g.lastCanvasH
+	if cw <= 0 {
+		cw = 900
+	}
+	if ch <= 0 {
+		ch = 600
+	}
+	b := n.Bounds()
+	z := g.Viewport.safeZoom()
+	if z < 0.75 {
+		z = 0.85
+	}
+	g.Viewport = Viewport{
+		X:    cw*0.5 - (b.X+b.W*0.5)*z,
+		Y:    ch*0.5 - (b.Y+b.H*0.5)*z,
+		Zoom: z,
+	}
+	g.RecordChange("focus", n.ID, n.Title)
+	return true
+}
+
+// SpawnConnectedNode creates a new downstream BaseNode wired from srcNode:srcPort
+// (triggered when clicking React Flow UI's ButtonHandle '+' button).
+func (g *Graph) SpawnConnectedNode(srcNodeID, srcPortID string) (*Node, *Edge) {
+	if g.ReadOnly {
+		return nil, nil
+	}
+	src := g.NodeByID(srcNodeID)
+	if src == nil {
+		return nil, nil
+	}
+	sb := src.Bounds()
+	_, side, _ := PortPosition(src, srcPortID)
+	nx, ny := sb.X+sb.W+96, sb.Y
+	inSide := PortLeft
+	outSide := PortRight
+	switch side {
+	case PortLeft:
+		nx, ny = sb.X-220-96, sb.Y
+		inSide, outSide = PortRight, PortLeft
+	case PortBottom:
+		nx, ny = sb.X, sb.Y+sb.H+88
+		inSide, outSide = PortTop, PortBottom
+	case PortTop:
+		nx, ny = sb.X, sb.Y-110-88
+		inSide, outSide = PortBottom, PortTop
+	}
+	g.PushUndo()
+	g.nextID++
+	nodeID := fmt.Sprintf("node-%d", g.nextID)
+	child := &Node{
+		ID:       nodeID,
+		Type:     "step",
+		Variant:  VariantBase,
+		Title:    fmt.Sprintf("Step %d", g.nextID-100),
+		Subtitle: "Added via ButtonHandle",
+		Badge:    "NEW",
+		X:        nx,
+		Y:        ny,
+		W:        212,
+		H:        104,
+		Ports: []Port{
+			{ID: "in", Side: inSide, Kind: PortInput},
+			{ID: "out", Side: outSide, Kind: PortOutput, ShowButton: true},
+		},
+	}
+	g.Nodes = append(g.Nodes, child)
+	g.nextID++
+	edge := &Edge{
+		ID:           fmt.Sprintf("edge-%d", g.nextID),
+		Source:       srcNodeID,
+		SourcePort:   srcPortID,
+		Target:       child.ID,
+		TargetPort:   "in",
+		Kind:         g.EdgeKind,
+		PacketMotion: true,
+	}
+	g.Edges = append(g.Edges, edge)
+	g.SelectNode(child.ID, false)
+	g.RecordChange("spawn", child.ID, "from "+srcNodeID)
+	g.notifyChange()
+	return child, edge
 }
 
 // RemoveEdge removes a single edge by ID.

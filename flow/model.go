@@ -94,12 +94,13 @@ const (
 
 // Port represents a connection handle on a node.
 type Port struct {
-	ID       string   `json:"id"`
-	Label    string   `json:"label,omitempty"`
-	Side     PortSide `json:"side"`
-	Kind     PortKind `json:"kind"`
-	DataType string   `json:"dataType,omitempty"`
-	ColorHex uint32   `json:"color,omitempty"`
+	ID         string   `json:"id"`
+	Label      string   `json:"label,omitempty"`
+	Side       PortSide `json:"side"`
+	Kind       PortKind `json:"kind"`
+	DataType   string   `json:"dataType,omitempty"`
+	ColorHex   uint32   `json:"color,omitempty"`
+	ShowButton bool     `json:"showButton,omitempty"`
 }
 
 // NodeStatus displays live execution state on a node card.
@@ -110,6 +111,14 @@ const (
 	StatusRunning NodeStatus = "running"
 	StatusSuccess NodeStatus = "success"
 	StatusError   NodeStatus = "error"
+)
+
+// StatusVariant mirrors React Flow UI NodeStatusIndicator loadingVariant ("border" | "overlay").
+type StatusVariant string
+
+const (
+	StatusBorder  StatusVariant = "border"
+	StatusOverlay StatusVariant = "overlay"
 )
 
 // NodeField is a lightweight key/value line rendered inside a node card.
@@ -140,24 +149,28 @@ type SchemaRow struct {
 
 // Node represents a draggable, connectable unit on the canvas.
 type Node struct {
-	ID         string      `json:"id"`
-	Type       string      `json:"type"`
-	Variant    NodeVariant `json:"variant,omitempty"`
-	Title      string      `json:"title"`
-	Subtitle   string      `json:"subtitle,omitempty"`
-	Badge      string      `json:"badge,omitempty"`
-	Footer     string      `json:"footer,omitempty"`
-	X          float32     `json:"x"`
-	Y          float32     `json:"y"`
-	W          float32     `json:"w"`
-	H          float32     `json:"h"`
-	AccentHex  uint32      `json:"accent,omitempty"`
-	Ports      []Port      `json:"ports,omitempty"`
-	Fields     []NodeField `json:"fields,omitempty"`
-	SchemaRows []SchemaRow `json:"schemaRows,omitempty"`
-	Selected   bool        `json:"selected,omitempty"`
-	Locked     bool        `json:"locked,omitempty"`
-	Status     NodeStatus  `json:"status,omitempty"`
+	ID            string        `json:"id"`
+	Type          string        `json:"type"`
+	Variant       NodeVariant   `json:"variant,omitempty"`
+	Title         string        `json:"title"`
+	Subtitle      string        `json:"subtitle,omitempty"`
+	Badge         string        `json:"badge,omitempty"`
+	Footer        string        `json:"footer,omitempty"`
+	Appendix      string        `json:"appendix,omitempty"`
+	AppendixPos   PortSide      `json:"appendixPos,omitempty"`
+	Tooltip       string        `json:"tooltip,omitempty"`
+	X             float32       `json:"x"`
+	Y             float32       `json:"y"`
+	W             float32       `json:"w"`
+	H             float32       `json:"h"`
+	AccentHex     uint32        `json:"accent,omitempty"`
+	Ports         []Port        `json:"ports,omitempty"`
+	Fields        []NodeField   `json:"fields,omitempty"`
+	SchemaRows    []SchemaRow   `json:"schemaRows,omitempty"`
+	Selected      bool          `json:"selected,omitempty"`
+	Locked        bool          `json:"locked,omitempty"`
+	Status        NodeStatus    `json:"status,omitempty"`
+	StatusVariant StatusVariant `json:"statusVariant,omitempty"`
 }
 
 func (n *Node) Bounds() Rect {
@@ -189,16 +202,26 @@ const (
 
 // Edge connects an output port on Source to an input port on Target.
 type Edge struct {
-	ID         string   `json:"id"`
-	Source     string   `json:"source"`
-	SourcePort string   `json:"sourcePort"`
-	Target     string   `json:"target"`
-	TargetPort string   `json:"targetPort"`
-	Label      string   `json:"label,omitempty"`
-	Kind       EdgeKind `json:"kind,omitempty"`
-	Animated   bool     `json:"animated,omitempty"`
-	ColorHex   uint32   `json:"color,omitempty"`
-	Selected   bool     `json:"selected,omitempty"`
+	ID              string   `json:"id"`
+	Source          string   `json:"source"`
+	SourcePort      string   `json:"sourcePort"`
+	Target          string   `json:"target"`
+	TargetPort      string   `json:"targetPort"`
+	Label           string   `json:"label,omitempty"`
+	Kind            EdgeKind `json:"kind,omitempty"`
+	Animated        bool     `json:"animated,omitempty"`
+	PacketMotion    bool     `json:"packetMotion,omitempty"`
+	PacketDuration  float32  `json:"packetDuration,omitempty"`
+	PacketDirection string   `json:"packetDirection,omitempty"` // "forward", "reverse", "alternate"
+	ColorHex        uint32   `json:"color,omitempty"`
+	Selected        bool     `json:"selected,omitempty"`
+}
+
+// ChangeEvent records graph mutations for React Flow UI DevTools ChangeLogger.
+type ChangeEvent struct {
+	Kind   string
+	Target string
+	Detail string
 }
 
 // BackgroundKind selects the canvas backdrop pattern.

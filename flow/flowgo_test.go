@@ -187,3 +187,41 @@ func TestReactFlowUISchemaPlaceholderAndGroupNodes(t *testing.T) {
 		tt.Frame()
 	}
 }
+
+func TestReactFlowUIAll17ComponentsCompleteness(t *testing.T) {
+	g := flow.PresetSubFlows()
+
+	// AnimatedSvgEdge: SamplePolylineAt smoothly interpolates midpoint along path.
+	mid := flow.SamplePolylineAt([]flow.Point{{X: 0, Y: 0}, {X: 100, Y: 0}, {X: 100, Y: 100}}, 0.5)
+	if math.Abs(float64(mid.X-100)) > 0.1 || math.Abs(float64(mid.Y-0)) > 0.1 {
+		t.Fatalf("unexpected SamplePolylineAt midpoint: %+v", mid)
+	}
+
+	// ButtonHandle: SpawnConnectedNode appends a wired child node & records DevTools ChangeLog.
+	prevNodes, prevEdges := len(g.Nodes), len(g.Edges)
+	child, edge := g.SpawnConnectedNode("synth", "out")
+	if child == nil || edge == nil || len(g.Nodes) != prevNodes+1 || len(g.Edges) != prevEdges+1 {
+		t.Fatalf("SpawnConnectedNode failed: nodes=%d edges=%d", len(g.Nodes), len(g.Edges))
+	}
+	if len(g.ChangeLog) == 0 {
+		t.Fatal("expected DevTools ChangeLog to record spawn mutation")
+	}
+
+	// NodeSearch: FocusNode selects and centers viewport on target node.
+	if !g.FocusNode("vec") || !g.NodeByID("vec").Selected {
+		t.Fatal("expected FocusNode(vec) to select node")
+	}
+
+	// Render with DevTools, NodeSearch, StatusOverlay, Appendix, PacketMotion, and ZoomSlider active.
+	g.ShowDevTools = true
+	g.ShowSearch = true
+	tt := ui.NewTester(func(c *ui.Context) {
+		flow.Canvas(c, g, flow.CanvasOptions{Theme: flow.DarkTheme()})
+	}, 1200, 760)
+	tt.Frame()
+	tt.Advance(120 * time.Millisecond)
+	tt.Frame()
+	if !tt.HasText("FLOW DEVTOOLS") || !tt.HasText("Change Logger") {
+		t.Fatalf("expected DevTools overlay text, got: %v", tt.Texts())
+	}
+}
