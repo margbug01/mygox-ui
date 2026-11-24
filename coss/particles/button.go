@@ -176,7 +176,7 @@ func PButton26(c *ui.Context) {
 		coss.ButtonBox(c, func() {
 			ic := ui.Icon(c, icons.Star()).Size(15, 15)
 			if *starred {
-				ic.TextColor(ui.Hex("#eab308"))
+				ic.TextColor(ui.Hex("#f0b100"))
 			}
 			ui.Text(c, label).FontSize(14).FontWeight(500)
 			ui.Text(c, fmt.Sprintf("%d", count)).FontSize(12).TextColor(theme.Alpha(t.PrimaryForeground, 0.68))
@@ -243,7 +243,7 @@ func PButton33(c *ui.Context) {
 
 func PButton34(c *ui.Context) {
 	coss.ButtonBox(c, func() {
-		dot := ui.Box(c).Size(8, 8).Radius(999).Background(ui.Hex("#10b981"))
+		dot := ui.Box(c).Size(8, 8).Radius(999).Background(ui.Hex("#00bc7d"))
 		pulse := dot.Loop("online", 1400*time.Millisecond, ui.Bounce(ui.EaseInOut))
 		dot.Opacity(0.55 + 0.45*pulse)
 		ui.Text(c, "Online").FontSize(14).FontWeight(500)

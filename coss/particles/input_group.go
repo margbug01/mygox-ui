@@ -514,16 +514,16 @@ func PInputGroup26(c *ui.Context) {
 		strengthText := "Enter a password"
 		switch score {
 		case 1:
-			barColor = ui.Hex("#ef4444")
+			barColor = ui.Hex("#fb2c36")
 			strengthText = "Weak password"
 		case 2:
-			barColor = ui.Hex("#f97316")
+			barColor = ui.Hex("#ff6900")
 			strengthText = "Weak password"
 		case 3:
-			barColor = ui.Hex("#f59e0b")
+			barColor = ui.Hex("#fe9a00")
 			strengthText = "Medium password"
 		case 4:
-			barColor = ui.Hex("#10b981")
+			barColor = ui.Hex("#00bc7d")
 			strengthText = "Strong password"
 		}
 
@@ -558,7 +558,7 @@ func PInputGroup26(c *ui.Context) {
 			for _, r := range reqs {
 				ui.Row(c).AlignItems(ui.Center).Gap(8).Children(func() {
 					if r.met {
-						ui.Icon(c, icons.Check()).Size(16, 16).TextColor(ui.Hex("#10b981"))
+						ui.Icon(c, icons.Check()).Size(16, 16).TextColor(ui.Hex("#00bc7d"))
 						ui.Text(c, r.text).FontSize(12).TextColor(t.SuccessForeground)
 					} else {
 						ui.Icon(c, icons.X()).Size(16, 16).TextColor(theme.Alpha(t.MutedForeground, 0.8))

@@ -63,13 +63,13 @@ func statusBadge(c *ui.Context, status string) {
 	dot := theme.Alpha(t.MutedForeground, 0.64)
 	switch status {
 	case "Paid", "On Time":
-		dot = ui.Hex("#10b981")
+		dot = ui.Hex("#00bc7d")
 	case "Pending", "Delayed":
-		dot = ui.Hex("#f59e0b")
+		dot = ui.Hex("#fe9a00")
 	case "Failed", "Cancelled":
-		dot = ui.Hex("#ef4444")
+		dot = ui.Hex("#fb2c36")
 	case "Boarding":
-		dot = ui.Hex("#3b82f6")
+		dot = ui.Hex("#2b7fff")
 	}
 	coss.Badge(c, status).Variant(coss.BadgeOutline).Dot(dot)
 }

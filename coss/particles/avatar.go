@@ -162,7 +162,7 @@ func avatarStatusDot(c *ui.Context, color ui.Color) ui.Element {
 func PAvatar7(c *ui.Context) {
 	ui.Box(c).Size(32, 32).Children(func() {
 		coss.Avatar(c, "LT").Image(avatarFK)
-		avatarStatusDot(c, ui.Hex("#10b981")).Right(0).Bottom(0)
+		avatarStatusDot(c, ui.Hex("#00bc7d")).Right(0).Bottom(0)
 	})
 }
 
@@ -178,7 +178,7 @@ func PAvatar9(c *ui.Context) {
 	t := theme.Of(c)
 	ui.Box(c).Size(32, 32).Children(func() {
 		coss.Avatar(c, "LT").Image(avatarFK).Radius(t.RadiusLG)
-		avatarStatusDot(c, ui.Hex("#10b981")).Right(-2).Top(-2)
+		avatarStatusDot(c, ui.Hex("#00bc7d")).Right(-2).Top(-2)
 	})
 }
 

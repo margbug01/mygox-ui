@@ -319,11 +319,11 @@ func PSelect14(c *ui.Context) {
 		color        ui.Color
 		label, value string
 	}{
-		{ui.Hex("#10b981"), "Completed", "completed"},
-		{ui.Hex("#3b82f6"), "In Progress", "in-progress"},
-		{ui.Hex("#f59e0b"), "Pending", "pending"},
-		{ui.Hex("#6b7280"), "Cancelled", "cancelled"},
-		{ui.Hex("#ef4444"), "Failed", "failed"},
+		{ui.Hex("#00bc7d"), "Completed", "completed"},
+		{ui.Hex("#2b7fff"), "In Progress", "in-progress"},
+		{ui.Hex("#fe9a00"), "Pending", "pending"},
+		{ui.Hex("#6a7282"), "Cancelled", "cancelled"},
+		{ui.Hex("#fb2c36"), "Failed", "failed"},
 	}
 	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	v := ui.Local(host, "v", func() string { return "completed" })
