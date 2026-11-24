@@ -2,6 +2,8 @@ package particles
 
 import (
 	_ "embed"
+	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/margbug01/mygox-ui/coss"
@@ -43,11 +45,47 @@ func composerDemo(c *ui.Context, spec coss.ComposerSpec, leading func(notice *st
 		spec.Value = draft
 		spec.OnSubmit = func(text string) { *notice = "Sent: " + text }
 		if leading != nil {
-			spec.Leading = func() { leading(notice) }
+			spec.Leading = func(func(string)) { leading(notice) }
 		}
 		coss.Composer(c, spec)
 		ui.Text(c, *notice).MinHeight(20).FontSize(14).FixedLineHeight(20).TextColor(t.MutedForeground)
 	})
+}
+
+// The suggestions of coss's composer particles: people and teams to
+// mention with "@", actions with "/".
+var (
+	composerPeople = []coss.ComposerItem{
+		{ID: "alex", Label: "Alex Morgan", Icon: icons.UserRound()},
+		{ID: "sam", Label: "Sam Rivera", Icon: icons.UserRound()},
+	}
+	composerTeams = []coss.ComposerItem{
+		{ID: "design", Label: "Design team", Icon: icons.UsersRound()},
+		{ID: "engineering", Label: "Engineering team", Icon: icons.UsersRound()},
+	}
+	composerActions = []coss.ComposerItem{
+		{ID: "summarize", Label: "Summarize", Icon: icons.Sparkles()},
+		{ID: "rewrite", Label: "Rewrite", Icon: icons.Sparkles()},
+	}
+)
+
+// composerMentions are p-composer-1 and -6's triggers: people and teams,
+// and actions.
+func composerMentions() []coss.ComposerTrigger {
+	return []coss.ComposerTrigger{
+		{Char: "@", Items: append(append([]coss.ComposerItem(nil), composerPeople...), composerTeams...)},
+		{Char: "/", Items: composerActions},
+	}
+}
+
+// plainItems drops the icons, for the particles whose items show labels
+// only.
+func plainItems(items []coss.ComposerItem) []coss.ComposerItem {
+	out := make([]coss.ComposerItem, len(items))
+	for i, it := range items {
+		out[i] = coss.ComposerItem{ID: it.ID, Label: it.Label}
+	}
+	return out
 }
 
 // composerAttach is the ghost icon button coss composers lead with; it
@@ -62,15 +100,49 @@ func composerAttach(c *ui.Context, icon *ui.SVG, label string, round bool) func(
 }
 
 func PComposer1(c *ui.Context) {
-	composerDemo(c, coss.ComposerSpec{Placeholder: "Write a message…"}, nil)
+	composerDemo(c, coss.ComposerSpec{Placeholder: "Write a message…", Triggers: composerMentions()}, nil)
+}
+
+// composerTeammates are p-composer-2's people, found 500ms after the
+// query changes as from a server.
+var composerTeammates = []coss.ComposerItem{
+	{ID: "alex", Label: "Alex Morgan", Description: "Design"},
+	{ID: "sam", Label: "Sam Rivera", Description: "Engineering"},
+	{ID: "taylor", Label: "Taylor Kim", Description: "Product"},
 }
 
 func PComposer2(c *ui.Context) {
 	t := theme.Of(c)
+	type search struct {
+		query string
+		at    time.Time
+		on    bool
+	}
 	host := ui.Column(c).WidthPercent(100).MaxWidth(576).Gap(12)
 	draft := ui.Local(host, "d", func() string { return "" })
+	s := ui.Local(host, "s", func() search { return search{} })
 	host.Children(func() {
-		coss.Composer(c, coss.ComposerSpec{Value: draft, Placeholder: "Mention someone…"})
+		trig := coss.ComposerTrigger{Char: "@", Filter: func(coss.ComposerItem, string) bool { return true }}
+		if s.on {
+			if wait := s.at.Add(500 * time.Millisecond).Sub(c.Now()); wait > 0 {
+				trig.Loading = true
+				c.After(wait)
+			} else {
+				for _, p := range composerTeammates {
+					if coss.ComposerContains(p.Label, s.query) || coss.ComposerContains(p.Description, s.query) {
+						trig.Items = append(trig.Items, p)
+					}
+				}
+			}
+		}
+		coss.Composer(c, coss.ComposerSpec{
+			Value:       draft,
+			Placeholder: "Mention someone…",
+			Triggers:    []coss.ComposerTrigger{trig},
+			OnQuery: func(char, query string) {
+				*s = search{query: query, at: c.Now(), on: char != ""}
+			},
+		})
 		ui.Text(c, "Search by name or team. Try @design, or @zz for no menu.").FontSize(14).FixedLineHeight(20).TextColor(t.MutedForeground)
 	})
 }
@@ -93,7 +165,10 @@ func PComposer3(c *ui.Context) {
 				})
 			},
 			Footer: func(func()) {
-				coss.Composer(c, coss.ComposerSpec{Value: draft, Placeholder: "Write a message…"})
+				coss.Composer(c, coss.ComposerSpec{Value: draft, Placeholder: "Write a message…", Triggers: []coss.ComposerTrigger{
+					{Char: "@", Items: plainItems(composerPeople)},
+					{Char: "/", Items: plainItems(composerActions)},
+				}})
 			},
 		})
 	})
@@ -107,12 +182,25 @@ func PComposer5(c *ui.Context) {
 	host := ui.Box(c).WidthPercent(100).MaxWidth(576)
 	draft := ui.Local(host, "d", func() string { return "" })
 	host.Children(func() {
-		coss.Composer(c, coss.ComposerSpec{Value: draft, Placeholder: "Mention a teammate…"})
+		coss.Composer(c, coss.ComposerSpec{Value: draft, Placeholder: "Mention a teammate…", Triggers: []coss.ComposerTrigger{{
+			Char: "@",
+			Items: []coss.ComposerItem{
+				{ID: "alex", Label: "Álex Morgan", Description: "Design"},
+				{ID: "sam", Label: "Sam Rivera", Description: "Engineering"},
+				{ID: "taylor", Label: "Taylor Kim", Description: "Product"},
+				{ID: "jordan", Label: "Jordan Lee", Description: "Marketing"},
+				{ID: "casey", Label: "Casey Chen", Description: "Support"},
+				{ID: "morgan", Label: "Morgan Davis", Description: "Operations"},
+				{ID: "jamie", Label: "Jamie Wilson", Description: "Finance"},
+				{ID: "riley", Label: "Riley Patel", Description: "Research"},
+			},
+			Filter: func(it coss.ComposerItem, q string) bool { return coss.ComposerStartsWith(it.Label, q) },
+		}}})
 	})
 }
 
 func PComposer6(c *ui.Context) {
-	composerDemo(c, coss.ComposerSpec{Placeholder: "Write a message…"}, nil)
+	composerDemo(c, coss.ComposerSpec{Placeholder: "Write a message…", Triggers: composerMentions()}, nil)
 }
 
 func PComposer7(c *ui.Context) {
@@ -132,9 +220,13 @@ func PComposer10(c *ui.Context) {
 		coss.Composer(c, coss.ComposerSpec{
 			Value:       draft,
 			Placeholder: "Write a message…",
-			Leading: func() {
-				coss.IconButton(c, icons.AtSign(), "Mention someone").Variant(coss.ButtonGhost).OnClick(func() { *draft += "@" })
-				coss.IconButton(c, icons.SquareSlash(), "Insert an action").Variant(coss.ButtonGhost).OnClick(func() { *draft += "/" })
+			Triggers: []coss.ComposerTrigger{
+				{Char: "@", Items: plainItems(composerPeople)},
+				{Char: "/", Items: plainItems(composerActions)},
+			},
+			Leading: func(insert func(string)) {
+				coss.IconButton(c, icons.AtSign(), "Mention someone").Variant(coss.ButtonGhost).OnClick(func() { insert("@") })
+				coss.IconButton(c, icons.SquareSlash(), "Insert an action").Variant(coss.ButtonGhost).OnClick(func() { insert("/") })
 			},
 		})
 	})
@@ -145,5 +237,61 @@ func PComposer11(c *ui.Context) {
 }
 
 func PComposer12(c *ui.Context) {
-	composerDemo(c, coss.ComposerSpec{Placeholder: "Type :thu for 👍"}, nil)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(576)
+	found := ui.Local(host, "emoji", func() []coss.ComposerItem { return nil })
+	host.Children(func() {
+		composerDemo(c, coss.ComposerSpec{
+			Placeholder: "Type :thu for 👍",
+			Triggers:    []coss.ComposerTrigger{{Char: ":", Items: *found, Filter: func(coss.ComposerItem, string) bool { return true }}},
+			OnQuery: func(char, query string) {
+				*found = nil
+				if char == ":" {
+					*found = searchEmoji(query)
+				}
+			},
+		}, nil)
+	})
+}
+
+type emojiEntry struct {
+	shortcode, emoji string
+	keywords         []string
+}
+
+// searchEmoji is coss's: up to 8 emoji for a query of two characters or
+// more, shortcode prefixes first, then keyword prefixes, then substrings
+// of either.
+func searchEmoji(query string) []coss.ComposerItem {
+	q := strings.Join(strings.Fields(strings.ToLower(query)), "_")
+	if len([]rune(q)) < 2 {
+		return nil
+	}
+	var ranked [3][]emojiEntry
+	for _, e := range emojiTable {
+		kw := func(match func(string, string) bool) bool {
+			for _, k := range e.keywords {
+				if match(k, q) {
+					return true
+				}
+			}
+			return false
+		}
+		switch {
+		case strings.HasPrefix(e.shortcode, q):
+			ranked[0] = append(ranked[0], e)
+		case kw(strings.HasPrefix):
+			ranked[1] = append(ranked[1], e)
+		case strings.Contains(e.shortcode, q) || kw(strings.Contains):
+			ranked[2] = append(ranked[2], e)
+		}
+	}
+	var out []coss.ComposerItem
+	for _, r := range ranked {
+		for _, e := range r {
+			if len(out) < 8 {
+				out = append(out, coss.ComposerItem{ID: e.shortcode, Label: e.shortcode, Text: e.emoji})
+			}
+		}
+	}
+	return out
 }
