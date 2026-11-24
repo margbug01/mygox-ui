@@ -13,5 +13,5 @@ func Fieldset(c *ui.Context, fn func()) ui.Element {
 // FieldsetLegend renders the heading of a Fieldset.
 func FieldsetLegend(c *ui.Context, text string) ui.Element {
 	t := theme.Of(c)
-	return ui.Text(c, text).FontSize(15).FontWeight(600).TextColor(t.Foreground)
+	return ui.Text(c, text).FontSize(16).FixedLineHeight(24).FontWeight(600).TextColor(t.Foreground)
 }
