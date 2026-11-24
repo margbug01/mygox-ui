@@ -224,7 +224,7 @@ func PToolbar1(c *ui.Context) {
 					{Value: "times-new-roman", Label: "Times New Roman"},
 				})
 				sel.MinWidth(144) // SelectTrigger min-w-36
-				coss.Tooltip(c, sel, "Select a different font")
+				coss.Tooltip(c, sel.Element, "Select a different font")
 			})
 			coss.ToolbarSeparator(c)
 			coss.ToolbarGroup(c, func() {
