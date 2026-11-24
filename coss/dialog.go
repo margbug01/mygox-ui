@@ -1,6 +1,7 @@
 package coss
 
 import (
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 	"github.com/margbug01/mygox-ui/coss/icons"
 	"github.com/margbug01/mygox-ui/coss/theme"
@@ -48,9 +49,23 @@ func Dialog(c *ui.Context, spec DialogSpec) ui.Element {
 	})
 }
 
-// dialogBackdrop is the bg-black/32 backdrop with the viewport's p-4.
+// dialogBackdrop is the bg-black/32 backdrop-blur-sm backdrop with the
+// viewport's p-4.
 func dialogBackdrop(backdrop ui.Element) {
-	backdrop.Background(theme.Alpha(ui.RGB(0, 0, 0), 0.32)).Padding(16)
+	backdrop.Material(dimBlur{glass.Blur{Radius: 8}, theme.Alpha(ui.RGB(0, 0, 0), 0.32)}).Padding(16)
+}
+
+// dimBlur blurs what is under the element, then tints it, as a backdrop
+// filter under a translucent background does: a Material takes the
+// place of the background, so the tint is painted here.
+type dimBlur struct {
+	blur glass.Blur
+	tint ui.Color
+}
+
+func (d dimBlur) PaintMaterial(p *ui.Painter, box ui.Rect, radii [4]float32) {
+	d.blur.PaintMaterial(p, box, radii)
+	p.Fill(box, d.tint, radii[0])
 }
 
 // dialogContent holds the slots ui/dialog.tsx, ui/alert-dialog.tsx and
