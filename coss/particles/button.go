@@ -218,12 +218,12 @@ func PButton30(c *ui.Context) {
 
 func PButton31(c *ui.Context) {
 	coss.ButtonBox(c, func() {
-		ui.Icon(c, icons.Printer()).Size(15, 15).Opacity(0.85)
+		ui.Icon(c, icons.Printer()).Size(16, 16).Opacity(0.8).Margin(0, -2)
 		ui.Text(c, "Print").FontSize(14).FontWeight(500)
 		coss.KbdGroup(c, func() {
 			coss.Kbd(c, "⌘")
 			coss.Kbd(c, "P")
-		})
+		}).Margin(0, -4, 0, 0)
 	}).Variant(coss.ButtonOutline)
 }
 
