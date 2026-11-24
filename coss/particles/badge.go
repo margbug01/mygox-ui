@@ -54,9 +54,9 @@ func PBadge15(c *ui.Context) {
 	t := theme.Of(c)
 	ui.Row(c).
 		Center().
-		Height(20).
-		Padding(0, 6).
-		Gap(5).
+		Height(18).
+		Padding(0, 3).
+		Gap(8).
 		Radius(t.RadiusXS).
 		Background(t.Background).
 		Border(1, t.Input).
@@ -66,9 +66,9 @@ func PBadge15(c *ui.Context) {
 		})
 }
 
-func PBadge16(c *ui.Context) { coss.Badge(c, "Paid").Variant(coss.BadgeOutline).Dot(ui.Hex("#10b981")) }
-func PBadge17(c *ui.Context) { coss.Badge(c, "Pending").Variant(coss.BadgeOutline).Dot(ui.Hex("#f59e0b")) }
-func PBadge18(c *ui.Context) { coss.Badge(c, "Failed").Variant(coss.BadgeOutline).Dot(ui.Hex("#ef4444")) }
+func PBadge16(c *ui.Context) { coss.Badge(c, "Paid").Variant(coss.BadgeOutline).Dot(ui.Hex("#00bc7d")) }
+func PBadge17(c *ui.Context) { coss.Badge(c, "Pending").Variant(coss.BadgeOutline).Dot(ui.Hex("#fe9a00")) }
+func PBadge18(c *ui.Context) { coss.Badge(c, "Failed").Variant(coss.BadgeOutline).Dot(ui.Hex("#fb2c36")) }
 
 func PBadge19(c *ui.Context) {
 	host := ui.Box(c)
@@ -85,20 +85,16 @@ func PBadge19(c *ui.Context) {
 
 func PBadge20(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Row(c).Center().Gap(8)
+	host := ui.Row(c).Center()
 	active := ui.Local(host, "active", func() bool { return true })
 	host.Children(func() {
 		if !*active {
-			coss.Button(c, "Restore badge").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() {
-				*active = true
-			})
 			return
 		}
 		ui.Row(c).
 			Center().
-			Height(20).
-			Padding(0, 2, 0, 6).
-			Gap(2).
+			Height(18).
+			Padding(0, 3).
 			Radius(t.RadiusXS).
 			Background(t.Primary).
 			TextColor(t.PrimaryForeground).
@@ -106,12 +102,14 @@ func PBadge20(c *ui.Context) {
 				ui.Text(c, "Removable").FontSize(12).FontWeight(500)
 				rm := ui.ButtonBase(c).
 					Center().
-					Size(16, 16).
+					Size(20, 20).
+					Margin(-1, -6, -1, -1).
 					Radius(4).
+					TextColor(theme.Alpha(t.PrimaryForeground, 0.6)).
 					Cursor(ui.CursorPointer).
 					Label("Remove badge")
 				rm.Children(func() {
-					ui.Icon(c, icons.X()).Size(11, 11).Opacity(0.8)
+					ui.Icon(c, icons.X()).Size(12, 12)
 				})
 				if rm.Clicked() {
 					*active = false
