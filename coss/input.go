@@ -82,12 +82,12 @@ func (in *InputElement) Password() *InputElement {
 func (in *InputElement) applyStyle() {
 	t := in.tokens
 	e := in.Element
-	var h, px, fontSz float32 = 32, 11, 14
+	var h, px float32 = 32, 11
 	switch in.size {
 	case InputSM:
-		h, px, fontSz = 28, 9, 13
+		h, px = 28, 9
 	case InputLG:
-		h, px, fontSz = 36, 13, 14
+		h = 36
 	}
 	bg := t.Background
 	if t.Dark {
@@ -104,8 +104,9 @@ func (in *InputElement) applyStyle() {
 		Radius(t.RadiusLG).
 		Background(bg).
 		TextColor(t.Foreground).
-		FontSize(fontSz).
-		Border(1, border)
+		FontSize(14).
+		Border(1, border).
+		DimDisabled(false)
 	if in.disabled {
 		e.Opacity(0.64)
 	} else {

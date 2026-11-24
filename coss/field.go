@@ -7,7 +7,7 @@ import (
 
 // Field groups a form label, control, helper description, and validation error.
 func Field(c *ui.Context, fn func()) ui.Element {
-	return ui.Column(c).WidthPercent(100).Gap(6).Children(fn)
+	return ui.Column(c).WidthPercent(100).Gap(8).Children(fn)
 }
 
 // FieldLabel renders a form field label.

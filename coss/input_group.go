@@ -19,8 +19,8 @@ func InputGroup(c *ui.Context, fn func()) ui.Element {
 		Radius(t.RadiusLG).
 		Background(bg).
 		Border(1, t.Input).
-		Padding(0, 8).
-		Gap(6)
+		Padding(0, 11).
+		Gap(8)
 	if row.FocusWithin() {
 		row.Border(1, t.Ring)
 	}
@@ -38,12 +38,12 @@ func InputGroupInput(c *ui.Context, value *string) ui.Element {
 		Grow(1).
 		MinWidth(0).
 		Height(30).
-		Padding(0, 2).
 		Background(ui.Transparent).
 		TextColor(t.Foreground).
 		PlaceholderColor(theme.Alpha(t.MutedForeground, 0.72)).
 		CaretColor(t.Foreground).
-		FontSize(14)
+		FontSize(14).
+		DimDisabled(false)
 }
 
 // InputGroupTextarea creates a borderless textarea designed to live inside an InputGroup.
@@ -61,13 +61,16 @@ func InputGroupTextarea(c *ui.Context, value *string) ui.Element {
 }
 
 // InputGroupAddon wraps an icon, text, or action inside an InputGroup.
+// Icons show at 80% of the foreground, as upstream dims svgs in addons; an
+// addon holding a button pulls 8px toward the group's edge (MarginStart(-8)
+// or MarginEnd(-8)), as upstream's has-[>button] rule does.
 func InputGroupAddon(c *ui.Context, fn func()) ui.Element {
 	t := theme.Of(c)
 	return ui.Row(c).
 		AlignItems(ui.Center).
-		Gap(4).
+		Gap(8).
 		Shrink(0).
-		TextColor(t.MutedForeground).
-		FontSize(13).
+		TextColor(theme.Alpha(t.Foreground, 0.8)).
+		FontSize(14).
 		Children(fn)
 }

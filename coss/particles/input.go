@@ -36,7 +36,7 @@ func init() {
 }
 
 func PInput1(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.Input(c, val).Placeholder("Enter text")
@@ -44,7 +44,7 @@ func PInput1(c *ui.Context) {
 }
 
 func PInput2(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.Input(c, val).Size(coss.InputSM).Placeholder("Enter text")
@@ -52,7 +52,7 @@ func PInput2(c *ui.Context) {
 }
 
 func PInput3(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.Input(c, val).Size(coss.InputLG).Placeholder("Enter text")
@@ -60,7 +60,7 @@ func PInput3(c *ui.Context) {
 }
 
 func PInput4(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.Input(c, val).Placeholder("Disabled").Disabled(true)
@@ -70,7 +70,7 @@ func PInput4(c *ui.Context) {
 func PInput5(c *ui.Context) {
 	t := theme.Of(c)
 	files := []string{"No file chosen", "design-system.pdf", "avatar.png"}
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	idx := ui.Local(host, "idx", func() int { return 0 })
 	host.Children(func() {
 		bg := t.Background
@@ -81,28 +81,20 @@ func PInput5(c *ui.Context) {
 			WidthPercent(100).
 			Height(32).
 			AlignItems(ui.Center).
-			Padding(0, 10, 0, 4).
-			Gap(10).
+			Justify(ui.Start).
+			Padding(0, 11).
+			Gap(12).
 			Radius(t.RadiusLG).
 			Background(bg).
 			Border(1, t.Input).
 			Cursor(ui.CursorPointer).
 			FocusRingColor(t.Ring)
+		if !t.Dark {
+			btn.Shadow(0, 1, 2, 0, theme.Alpha(ui.RGB(0, 0, 0), 0.04))
+		}
 		btn.Children(func() {
-			ui.Row(c).
-				Center().
-				Height(24).
-				Padding(0, 8).
-				Radius(t.RadiusSM).
-				Background(t.Muted).
-				Children(func() {
-					ui.Text(c, "Choose File").SingleLine().FontSize(12).FontWeight(500).TextColor(t.Foreground)
-				})
-			nameColor := t.MutedForeground
-			if *idx > 0 {
-				nameColor = t.Foreground
-			}
-			ui.Text(c, files[*idx]).SingleLine().Ellipsis("…").FontSize(13).TextColor(nameColor)
+			ui.Text(c, "Choose File").SingleLine().FontSize(14).FontWeight(500).TextColor(t.Foreground)
+			ui.Text(c, files[*idx]).SingleLine().Ellipsis("…").FontSize(14).TextColor(t.MutedForeground)
 		})
 		if btn.Clicked() {
 			*idx = (*idx + 1) % len(files)
@@ -111,7 +103,7 @@ func PInput5(c *ui.Context) {
 }
 
 func PInput6(c *ui.Context) {
-	host := ui.Column(c).WidthPercent(100).MaxWidth(280).Gap(8)
+	host := ui.Column(c).WidthPercent(100).MaxWidth(256).Gap(8)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.Label(c, "Email")
@@ -120,7 +112,7 @@ func PInput6(c *ui.Context) {
 }
 
 func PInput7(c *ui.Context) {
-	host := ui.Row(c).WidthPercent(100).MaxWidth(320).AlignItems(ui.Center).Gap(8)
+	host := ui.Row(c).WidthPercent(100).MaxWidth(256).AlignItems(ui.Center).Gap(8)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.Input(c, val).Placeholder("you@example.com").Grow(1).MinWidth(0)
@@ -129,24 +121,24 @@ func PInput7(c *ui.Context) {
 }
 
 func PInput8(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(300)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
 			coss.InputGroupAddon(c, func() {
-				ui.Text(c, "https://").SingleLine()
+				ui.Text(c, "https://").SingleLine().TextColor(theme.Of(c).Foreground)
 			})
-			coss.InputGroupInput(c, val).Placeholder("coss.com")
+			coss.InputGroupInput(c, val).Placeholder("coss.com").MarginStart(-8)
 			coss.InputGroupAddon(c, func() {
 				btn := coss.IconButton(c, icons.Info(), "More info").Variant(coss.ButtonGhost).Size(coss.SizeIconXS)
 				cossTooltip(c, btn.Element, "The URL of your website")
-			})
+			}).MarginEnd(-8)
 		})
 	})
 }
 
 func PInput9(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(300)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	show := ui.Local(host, "show", func() bool { return false })
 	host.Children(func() {
@@ -165,14 +157,14 @@ func PInput9(c *ui.Context) {
 				btn := coss.IconButton(c, ic, tip).Variant(coss.ButtonGhost).Size(coss.SizeIconXS).
 					OnClick(func() { *show = !*show })
 				cossTooltip(c, btn.Element, tip)
-			})
+			}).MarginEnd(-8)
 		})
 	})
 }
 
 func PInput10(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100).MaxWidth(340)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	fav := ui.Local(host, "fav", func() bool { return false })
 	infoOpen := ui.Local(host, "infoOpen", func() bool { return false })
@@ -192,11 +184,11 @@ func PInput10(c *ui.Context) {
 							ui.Text(c, "You should not enter any sensitive information on this site.").FontSize(12).TextColor(t.MutedForeground)
 						})
 				})
-			})
+			}).MarginStart(-8)
 			coss.InputGroupAddon(c, func() {
 				ui.Text(c, "https://").SingleLine().TextColor(t.MutedForeground)
-			})
-			coss.InputGroupInput(c, val).Placeholder("coss.com")
+			}).MarginStart(-2)
+			coss.InputGroupInput(c, val).MarginStart(-4)
 			coss.InputGroupAddon(c, func() {
 				starBtn := coss.IconButton(c, icons.Star(), "Favorite").
 					Variant(coss.ButtonGhost).Size(coss.SizeIconXS).
@@ -205,31 +197,31 @@ func PInput10(c *ui.Context) {
 				if *fav {
 					starBtn.TextColor(t.Primary)
 				}
-			})
+			}).MarginEnd(-8)
 		}).Radius(999)
 	})
 }
 
 func PInput11(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
 			coss.InputGroupInput(c, val).Placeholder("Search…")
 			coss.InputGroupAddon(c, func() {
 				coss.Kbd(c, "/")
-			})
+			}).MarginEnd(-5.6)
 		})
 	})
 }
 
 func PInput12(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
 			coss.InputGroupAddon(c, func() {
-				coss.Spinner(c).Size(14)
+				coss.Spinner(c).Size(16).MarginX(-2)
 			})
 			coss.InputGroupInput(c, val).Placeholder("Processing…").Disabled(true)
 		}).Opacity(0.64)
@@ -238,10 +230,10 @@ func PInput12(c *ui.Context) {
 
 func PInput13(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Column(c).WidthPercent(100).MaxWidth(280).Gap(8)
+	host := ui.Column(c).WidthPercent(100).MaxWidth(256).Gap(8)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
-		ui.Row(c).AlignItems(ui.Center).Gap(3).Children(func() {
+		ui.Row(c).AlignItems(ui.Center).Gap(8).Children(func() {
 			coss.Label(c, "Email")
 			ui.Text(c, "*").FontSize(14).FontWeight(500).TextColor(t.Destructive)
 		})
@@ -251,12 +243,12 @@ func PInput13(c *ui.Context) {
 
 func PInput14(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Column(c).WidthPercent(100).MaxWidth(280).Gap(8)
+	host := ui.Column(c).WidthPercent(100).MaxWidth(256).Gap(8)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.SpaceBetween).Gap(8).Children(func() {
 			coss.Label(c, "Email")
-			ui.Text(c, "Optional").FontSize(13).TextColor(t.MutedForeground)
+			ui.Text(c, "Optional").FontSize(14).TextColor(t.MutedForeground)
 		})
 		coss.Input(c, val).Placeholder("Email")
 	})
@@ -264,21 +256,21 @@ func PInput14(c *ui.Context) {
 
 func PInput15(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
-		coss.Input(c, val).Placeholder("Email").Background(t.Muted).Border(1, ui.Transparent)
+		coss.Input(c, val).Placeholder("Email").Background(t.Muted).Border(1, ui.Transparent).NoShadow()
 	})
 }
 
 func PInput16(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
 			coss.InputGroupInput(c, val).Placeholder("Processing…").Disabled(true)
 			coss.InputGroupAddon(c, func() {
-				coss.Spinner(c).Size(14)
+				coss.Spinner(c).Size(16).MarginX(-2)
 			})
 		}).Opacity(0.64)
 	})
@@ -286,7 +278,7 @@ func PInput16(c *ui.Context) {
 
 func PInput17(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "This is a read-only input" })
 	host.Children(func() {
 		coss.Input(c, val).ReadOnly(true).Background(t.Muted)
@@ -295,7 +287,7 @@ func PInput17(c *ui.Context) {
 
 func PInput18(c *ui.Context) {
 	const maxLen = 14
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.Field(c, func() {
@@ -310,7 +302,7 @@ func PInput18(c *ui.Context) {
 }
 
 func PInput19(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.Input(c, val).Placeholder("Enter text").Radius(999)
