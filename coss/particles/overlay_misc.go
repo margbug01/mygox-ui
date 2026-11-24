@@ -264,7 +264,7 @@ func PTooltip4(c *ui.Context) {
 				coss.Separator(c)
 			}
 			b := coss.IconButton(c, it.icon, it.label).Variant(coss.ButtonGhost).Radius(0)
-			coss.Tooltip(c, b, it.tip).MaxWidth(160)
+			coss.Tooltip(c, b, it.tip, coss.SideRight).MaxWidth(160)
 		}
 	})
 }
