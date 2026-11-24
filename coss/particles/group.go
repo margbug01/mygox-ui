@@ -98,6 +98,16 @@ func groupIconMenuItem(c *ui.Context, ic *ui.SVG, label string, destructive bool
 	}
 }
 
+// groupInput is an Input inside a Group, at the 188px a coss input takes
+// in a w-fit group.
+func groupInput(c *ui.Context, value *string, placeholder string) ui.Element {
+	var in ui.Element
+	ui.Box(c).Width(188).Shrink(0).Children(func() {
+		in = coss.InputGroupInput(c, value).Placeholder(placeholder).WidthPercent(100).Padding(0, 11)
+	})
+	return in
+}
+
 func PGroup1(c *ui.Context) {
 	host := ui.Box(c)
 	host.Children(func() {
@@ -106,12 +116,12 @@ func PGroup1(c *ui.Context) {
 }
 
 func PGroup2(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c)
 	val := ui.Local(host, "val", func() string { return "https://coss.com" })
 	copied := ui.Local(host, "copied", func() bool { return false })
 	host.Children(func() {
 		coss.Group(c, func() {
-			coss.InputGroupInput(c, val).Padding(0, 10)
+			groupInput(c, val, "")
 			coss.GroupSeparator(c)
 			ic := icons.Copy()
 			if *copied {
@@ -121,7 +131,7 @@ func PGroup2(c *ui.Context) {
 				OnClick(func() { *copied = !*copied })
 			btn.BorderWidth(0).Radius(0)
 			cossTooltip(c, btn.Element, "Copy to clipboard")
-		}).WidthPercent(100)
+		})
 	})
 }
 
@@ -154,26 +164,26 @@ func PGroup6(c *ui.Context) {
 }
 
 func PGroup7(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c)
 	val := ui.Local(host, "val", func() string { return "coss.com" })
 	host.Children(func() {
 		coss.Group(c, func() {
 			coss.GroupText(c, "https://")
 			coss.GroupSeparator(c)
-			coss.InputGroupInput(c, val).Padding(0, 10)
-		}).WidthPercent(100)
+			groupInput(c, val, "")
+		})
 	})
 }
 
 func PGroup8(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c)
 	val := ui.Local(host, "val", func() string { return "coss" })
 	host.Children(func() {
 		coss.Group(c, func() {
-			coss.InputGroupInput(c, val).Padding(0, 10)
+			groupInput(c, val, "")
 			coss.GroupSeparator(c)
 			coss.GroupText(c, ".com")
-		}).WidthPercent(100)
+		})
 	})
 }
 
@@ -204,9 +214,6 @@ func PGroup10(c *ui.Context) {
 				b := coss.Button(c, fmt.Sprintf("%d", num)).Variant(coss.ButtonOutline).
 					OnClick(func() { *page = num })
 				b.MinWidth(32).BorderWidth(0).Radius(0)
-				if *page == num {
-					b.Variant(coss.ButtonSecondary)
-				}
 			}
 		})
 		coss.Group(c, func() {
@@ -255,7 +262,7 @@ func PGroup11(c *ui.Context) {
 }
 
 func PGroup12(c *ui.Context) {
-	host := ui.Row(c).WidthPercent(100).MaxWidth(320).AlignItems(ui.Center).Gap(8)
+	host := ui.Row(c).AlignItems(ui.Center).Gap(8)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.IconButton(c, icons.Paperclip(), "Attach file").Variant(coss.ButtonOutline).Radius(999)
@@ -266,7 +273,7 @@ func PGroup12(c *ui.Context) {
 				mic.Radius(999)
 				cossTooltip(c, mic.Element, "Voice Mode")
 			})
-		}).Grow(1).Radius(999)
+		}).Width(212).Radius(999)
 	})
 }
 
@@ -296,19 +303,19 @@ func PGroup13(c *ui.Context) {
 
 func PGroup14(c *ui.Context) {
 	currencies := []selectOption{
-		{Label: "$ US Dollar", Value: "$"},
-		{Label: "€ Euro", Value: "€"},
-		{Label: "£ British Pound", Value: "£"},
+		{Label: "$", Value: "$"},
+		{Label: "€", Value: "€"},
+		{Label: "£", Value: "£"},
 	}
-	host := ui.Row(c).WidthPercent(100).MaxWidth(280).AlignItems(ui.Center).Gap(8)
+	host := ui.Row(c).AlignItems(ui.Center).Gap(8)
 	curr := ui.Local(host, "curr", func() string { return "$" })
 	amt := ui.Local(host, "amt", func() string { return "10" })
 	host.Children(func() {
 		coss.Group(c, func() {
-			cossSelect(c, curr, currencies, 56).BorderWidth(0).Radius(0)
+			cossSelect(c, curr, currencies, 51).BorderWidth(0).Radius(0)
 			coss.GroupSeparator(c)
-			coss.InputGroupInput(c, amt).Padding(0, 10).FontFeatures("tnum")
-		}).Grow(1)
+			groupInput(c, amt, "").FontFeatures("tnum")
+		})
 		coss.IconButton(c, icons.ArrowRight(), "Send").Variant(coss.ButtonOutline)
 	})
 }
@@ -325,44 +332,44 @@ func PGroup15(c *ui.Context) {
 		{Label: "api", Value: "api"},
 		{Label: "cdn", Value: "cdn"},
 	}
-	host := ui.Box(c).WidthPercent(100).MaxWidth(440)
+	host := ui.Box(c)
 	proto := ui.Local(host, "proto", func() string { return "both" })
 	url := ui.Local(host, "url", func() string { return "coss.com" })
 	sub := ui.Local(host, "sub", func() string { return "" })
 	host.Children(func() {
 		coss.Group(c, func() {
-			cossSelect(c, proto, protocols, 106).BorderWidth(0).Radius(0)
+			cossSelect(c, proto, protocols, 121).BorderWidth(0).Radius(0)
 			coss.GroupSeparator(c)
-			coss.InputGroupInput(c, url).Padding(0, 10)
+			groupInput(c, url, "")
 			coss.GroupSeparator(c)
-			cossSelect(c, sub, subdomains, 112).BorderWidth(0).Radius(0)
+			cossSelect(c, sub, subdomains, 127).BorderWidth(0).Radius(0)
 			coss.GroupSeparator(c)
 			coss.IconButton(c, icons.Search(), "Search").Variant(coss.ButtonOutline).BorderWidth(0).Radius(0)
-		}).WidthPercent(100)
+		})
 	})
 }
 
 func PGroup16(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.Group(c, func() {
 			coss.IconButton(c, icons.Plus(), "Add").Variant(coss.ButtonOutline).BorderWidth(0).Radius(0)
 			coss.GroupSeparator(c)
-			coss.InputGroupInput(c, val).Placeholder("Enter item name").Padding(0, 10)
-		}).WidthPercent(100)
+			groupInput(c, val, "Enter item name")
+		})
 	})
 }
 
 func PGroup17(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(260)
+	host := ui.Box(c)
 	val := ui.Local(host, "val", func() string { return "100" })
 	host.Children(func() {
 		coss.Group(c, func() {
-			coss.InputGroupInput(c, val).Padding(0, 10).TextAlign(ui.End).FontFeatures("tnum")
+			groupInput(c, val, "").FontFeatures("tnum")
 			coss.GroupSeparator(c)
 			coss.GroupText(c, "USD")
-		}).WidthPercent(100)
+		})
 	})
 }
 
@@ -373,15 +380,15 @@ func PGroup18(c *ui.Context) {
 		{Label: "ftp://", Value: "ftp"},
 		{Label: "sftp://", Value: "sftp"},
 	}
-	host := ui.Box(c).WidthPercent(100).MaxWidth(300)
+	host := ui.Box(c)
 	proto := ui.Local(host, "proto", func() string { return "https" })
 	ip := ui.Local(host, "ip", func() string { return "" })
 	host.Children(func() {
 		coss.Group(c, func() {
-			cossSelect(c, proto, protocols, 92).BorderWidth(0).Radius(0)
+			cossSelect(c, proto, protocols, 93).BorderWidth(0).Radius(0)
 			coss.GroupSeparator(c)
-			coss.InputGroupInput(c, ip).Placeholder("192.168.1.1").Padding(0, 10)
-		}).WidthPercent(100)
+			groupInput(c, ip, "192.168.1.1")
+		})
 	})
 }
 
@@ -391,41 +398,41 @@ func PGroup19(c *ui.Context) {
 		{Label: ".org", Value: "org"},
 		{Label: ".net", Value: "net"},
 	}
-	host := ui.Box(c).WidthPercent(100).MaxWidth(300)
+	host := ui.Box(c)
 	dom := ui.Local(host, "dom", func() string { return "com" })
 	name := ui.Local(host, "name", func() string { return "" })
 	host.Children(func() {
 		coss.Group(c, func() {
-			coss.InputGroupInput(c, name).Placeholder("example").Padding(0, 10)
+			groupInput(c, name, "example")
 			coss.GroupSeparator(c)
 			cossSelect(c, dom, domains, 76).BorderWidth(0).Radius(0)
-		}).WidthPercent(100)
+		})
 	})
 }
 
 func PGroup20(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(300)
+	host := ui.Box(c)
 	email := ui.Local(host, "email", func() string { return "" })
 	host.Children(func() {
 		coss.Group(c, func() {
-			coss.InputGroupInput(c, email).Placeholder("Email").Padding(0, 10)
+			groupInput(c, email, "Email")
 			coss.GroupSeparator(c)
 			coss.Button(c, "Subscribe").Variant(coss.ButtonOutline).BorderWidth(0).Radius(0)
-		}).WidthPercent(100)
+		})
 	})
 }
 
 func PGroup22(c *ui.Context) {
-	host := ui.Column(c).WidthPercent(100).MaxWidth(280).Gap(8)
+	host := ui.Column(c).Gap(8)
 	minVal := ui.Local(host, "minVal", func() string { return "" })
 	maxVal := ui.Local(host, "maxVal", func() string { return "" })
 	host.Children(func() {
 		coss.Label(c, "Range")
 		coss.Group(c, func() {
-			coss.InputGroupInput(c, minVal).Placeholder("From").Padding(0, 10).FontFeatures("tnum")
+			groupInput(c, minVal, "From").FontFeatures("tnum")
 			coss.GroupSeparator(c)
-			coss.InputGroupInput(c, maxVal).Placeholder("To").Padding(0, 10).FontFeatures("tnum")
-		}).WidthPercent(100)
+			groupInput(c, maxVal, "To").FontFeatures("tnum")
+		})
 	})
 }
 
@@ -461,8 +468,8 @@ func PGroup23(c *ui.Context) {
 		coss.Group(c, func() {
 			ui.Row(c).AlignItems(ui.Center).Height(28).Padding(0, 10).Gap(6).
 				Background(t.Popover).TextColor(t.Foreground).Children(func() {
-				ui.Icon(c, icons.Funnel()).Size(13, 13).Opacity(0.8)
-				ui.Text(c, "Member").SingleLine().FontSize(13).FontWeight(500)
+				ui.Icon(c, icons.Funnel()).Size(16, 16).Opacity(0.8)
+				ui.Text(c, "Member").SingleLine().FontWeight(500)
 			})
 			coss.GroupSeparator(c)
 			trig := coss.ButtonBox(c, func() {
