@@ -1,7 +1,9 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -28,11 +30,66 @@ type motionDemoEntry struct {
 	Name        string
 	Category    string
 	Description string
-	Code        string
-	Render      func(c *ui.Context, t motion.Theme, a *motionState)
+	// Code is Render's body, read from this file's source.
+	Code   string
+	Render func(c *ui.Context, t motion.Theme, a *motionState)
 }
 
+//go:embed motion_demos.go
+var motionDemosSource string
+
 func buildMotionCatalog() []motionDemoEntry {
+	demos := motionDemos()
+	for i := range demos {
+		demos[i].Code = renderSource(motionDemosSource, demos[i].ID)
+	}
+	return demos
+}
+
+// renderSource returns the body of the Render func of the demo with id,
+// dedented, as it is written in src.
+func renderSource(src, id string) string {
+	at := strings.Index(src, "ID:          \""+id+"\"")
+	if at < 0 {
+		return ""
+	}
+	at += strings.Index(src[at:], "Render: func(")
+	open := at + strings.Index(src[at:], "{\n")
+	depth := 0
+	for i := open; i < len(src); i++ {
+		switch src[i] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return dedent(src[open+2 : i])
+			}
+		}
+	}
+	return ""
+}
+
+func dedent(body string) string {
+	lines := strings.Split(strings.TrimRight(body, " \t\n"), "\n")
+	cut := -1
+	for _, l := range lines {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		if n := len(l) - len(strings.TrimLeft(l, "\t")); cut < 0 || n < cut {
+			cut = n
+		}
+	}
+	for i, l := range lines {
+		if len(l) >= cut {
+			lines[i] = strings.ReplaceAll(l[cut:], "\t", "    ")
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func motionDemos() []motionDemoEntry {
 	return []motionDemoEntry{
 		// ====================================================================
 		// 1. Cards & Surfaces (6)
@@ -42,13 +99,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "BorderTrail",
 			Category:    "surfaces",
 			Description: "Luminous monochrome comet gliding continuously around a card's hairline border.",
-			Code: `motion.BorderTrail(c, func() {
-    ui.Text(c, "Generating layout...").FontSize(13).FontWeight(500)
-}, motion.BorderTrailOptions{
-    Duration:    4500 * time.Millisecond,
-    BorderWidth: 1.5,
-    Radius:      12,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				barBg := ui.Hex("#e4e4e7")
 				if t.Dark {
@@ -79,11 +129,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "Spotlight",
 			Category:    "surfaces",
 			Description: "Restrained radial mouse-tracking surface spotlight with hairline border.",
-			Code: `motion.Spotlight(c, func() {
-    ui.Text(c, "Move pointer across").FontSize(14).FontWeight(600)
-}, motion.SpotlightOptions{
-    Size: 180,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				motion.Spotlight(c, func() {
 					ui.Column(c).Gap(6).Children(func() {
@@ -106,14 +151,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "Tilt",
 			Category:    "surfaces",
 			Description: "Subtle 3D perspective pointer tilt card with soft specular sheen.",
-			Code: `motion.Tilt(c, func() {
-    ui.Column(c).Padding(14).Children(func() {
-        ui.Text(c, "Ghost in the Shell").FontSize(13).FontWeight(600)
-    })
-}, motion.TiltOptions{
-    RotationFactor: 10,
-    IsReverse:      true,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				artFrom := ui.Hex("#e4e4e7")
 				artTo := ui.Hex("#a1a1aa")
@@ -151,12 +188,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "GlowEffect",
 			Category:    "surfaces",
 			Description: "Multi-mode ambient gradient halo behind buttons or cards.",
-			Code: `motion.GlowEffect(c, func() {
-    coss.Button(c, "Explore").Variant(coss.ButtonDefault)
-}, motion.GlowEffectOptions{
-    Mode: motion.GlowRotate,
-    Blur: 14,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).AlignItems(ui.Center).Gap(16).Children(func() {
 					motion.GlowEffect(c, func() {
@@ -208,10 +239,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "ProgressiveBlur",
 			Category:    "surfaces",
 			Description: "Layered frosted edge gradient blur scrim over media and gallery cards.",
-			Code: `motion.ProgressiveBlur(c, mediaFn, captionFn, motion.ProgressiveBlurOptions{
-    Direction: motion.BlurBottom,
-    Layers:    6,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				bgTop := ui.Hex("#d4d4d8")
 				bgBot := ui.Hex("#71717a")
@@ -250,10 +277,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "ImageComparison",
 			Category:    "surfaces",
 			Description: "Interactive draggable before/after split-pane comparison slider.",
-			Code: `motion.ImageComparison(c, leftPane, rightPane, motion.ImageComparisonOptions{
-    Position: &pos,
-    Height:   148,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).WidthPercent(100).Gap(8).AlignItems(ui.Center).Children(func() {
 					motion.ImageComparison(c, func() {
@@ -305,10 +328,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "SlidingNumber",
 			Category:    "text",
 			Description: "Vertical digit-by-digit odometer slot-machine rolling number.",
-			Code: `motion.SlidingNumber(c, float64(count), motion.SlidingNumberOptions{
-    PadStart: true,
-    FontSize: 28,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				now := c.Now()
 				c.After(250 * time.Millisecond)
@@ -341,9 +360,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "AnimatedNumber",
 			Category:    "text",
 			Description: "Spring-interpolated smooth numeric readout with tabular numerals.",
-			Code: `motion.AnimatedNumber(c, value, motion.AnimatedNumberOptions{
-    FontSize: 28,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).AlignItems(ui.Center).Gap(14).Children(func() {
 					motion.AnimatedNumber(c, a.animNumVal, motion.AnimatedNumberOptions{
@@ -369,9 +385,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "TextShimmer",
 			Category:    "text",
 			Description: "Restrained luminous sweep gliding across subtle muted text.",
-			Code: `motion.TextShimmer(c, "Generating code...", motion.TextShimmerOptions{
-    Duration: 1800 * time.Millisecond,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).AlignItems(ui.Center).Gap(8).Children(func() {
 					motion.TextShimmer(c, "Generating code...", motion.TextShimmerOptions{
@@ -388,9 +401,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "TextShimmerWave",
 			Category:    "text",
 			Description: "Per-character wave shimmer with subtle scale and vertical ripple.",
-			Code: `motion.TextShimmerWave(c, "Generating code...", motion.TextShimmerWaveOptions{
-    Duration: 1500 * time.Millisecond,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				motion.TextShimmerWave(c, "Generating code...", motion.TextShimmerWaveOptions{
 					Duration:      1500 * time.Millisecond,
@@ -406,12 +416,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "TextLoop",
 			Category:    "text",
 			Description: "Smooth vertical spring-cycling phrase loop.",
-			Code: `motion.TextLoop(c, []string{
-    "How can I assist you today?",
-    "Generate a logo",
-    "Create a component",
-    "Draw a diagram",
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Row(c).AlignItems(ui.Center).Gap(8).Padding(8, 14).Radius(10).Background(t.SurfaceSubtle).Border(1, t.Border).Children(func() {
 					ui.Icon(c, icons.Sparkles()).Size(14, 14).TextColor(t.TextMuted)
@@ -433,9 +437,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "TextMorph",
 			Category:    "text",
 			Description: "Smooth shared-character cross-morph between words.",
-			Code: `motion.TextMorph(c, label, motion.TextMorphOptions{
-    FontSize: 14,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				label := "Continue"
 				if a.textMorphConfirm {
@@ -469,10 +470,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "TextRoll",
 			Category:    "text",
 			Description: "Dual-layer staggered vertical rolling character wave on hover or trigger.",
-			Code: `motion.TextRoll(c, "motion-primitives", motion.TextRollOptions{
-    FontSize: 22,
-    Trigger:  trigger,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).AlignItems(ui.Center).Gap(12).Children(func() {
 					motion.TextRoll(c, "motion-primitives", motion.TextRollOptions{
@@ -491,10 +488,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "TextScramble",
 			Category:    "text",
 			Description: "Character-by-character cryptographic scramble decode.",
-			Code: `motion.TextScramble(c, "TEXT SCRAMBLE", motion.TextScrambleOptions{
-    Duration: 800 * time.Millisecond,
-    Trigger:  trigger,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).AlignItems(ui.Center).Gap(12).Children(func() {
 					motion.TextScramble(c, "TEXT SCRAMBLE", motion.TextScrambleOptions{
@@ -514,10 +507,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "TextEffect",
 			Category:    "text",
 			Description: "Per-word or per-character animated reveal with fade, slide, scale, and blur presets.",
-			Code: `motion.TextEffect(c, "Animate your ideas with motion-primitives", motion.TextEffectOptions{
-    Per:    motion.PerWord,
-    Preset: motion.PresetBlurSlide,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).AlignItems(ui.Center).Gap(12).Children(func() {
 					motion.TextEffect(c, "Animate your ideas with motion-primitives", motion.TextEffectOptions{
@@ -526,6 +515,7 @@ func buildMotionCatalog() []motionDemoEntry {
 						Trigger:    a.textEffectTrig,
 						FontSize:   15.5,
 						FontWeight: 500,
+						Align:      ui.Center,
 					})
 					ui.Row(c).Gap(6).Wrap().Justify(ui.Center).Children(func() {
 						for _, pr := range []struct {
@@ -556,10 +546,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "SpinningText",
 			Category:    "text",
 			Description: "Characters arranged along a circle rotating continuously around center.",
-			Code: `motion.SpinningText(c, "pre-order • pre-order • pre-order • ", motion.SpinningTextOptions{
-    Radius:   46,
-    Duration: 10 * time.Second,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				motion.SpinningText(c, "pre-order • pre-order • pre-order • ", motion.SpinningTextOptions{
 					Radius:     44,
@@ -578,9 +564,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "AnimatedBackground",
 			Category:    "interactive",
 			Description: "Shared spring-sliding hover/active highlight pill across tabs or segments.",
-			Code: `motion.AnimatedBackground(c, []string{"Day", "Week", "Month", "Year"}, &active, motion.AnimatedBackgroundOptions{
-    EnableHover: true,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).AlignItems(ui.Center).Gap(10).Children(func() {
 					motion.AnimatedBackground(c, []string{"Day", "Week", "Month", "Year"}, &a.animBgTab, motion.AnimatedBackgroundOptions{
@@ -595,11 +578,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "Dock",
 			Category:    "interactive",
 			Description: "macOS-style Gaussian spring magnification dock in monochrome zinc.",
-			Code: `motion.Dock(c, items, motion.DockOptions{
-    BaseSize:      38,
-    Magnification: 58,
-    ActiveIndex:   active,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				items := []motion.DockItem{
 					{Label: "Home", Icon: icons.Home(), OnClick: func() { a.dockActive = 0 }},
@@ -622,12 +600,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "Magnetic",
 			Category:    "interactive",
 			Description: "Spring-physics pointer-attracted wrapper with range and intensity.",
-			Code: `motion.Magnetic(c, func() {
-    coss.Button(c, "Submit").Variant(coss.ButtonOutline)
-}, motion.MagneticOptions{
-    Intensity: 0.45,
-    Range:     90,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).AlignItems(ui.Center).Gap(6).Children(func() {
 					motion.Magnetic(c, func() {
@@ -651,9 +623,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "Cursor",
 			Category:    "interactive",
 			Description: "Custom pointer-following floating badge cursor inside an interactive stage.",
-			Code: `motion.Cursor(c, stageContent, func() {
-    coss.Badge(c, "View →").Variant(coss.BadgeDefault)
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				motion.Cursor(c, func() {
 					ui.Column(c).AlignItems(ui.Center).Gap(4).Children(func() {
@@ -681,12 +650,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "ToolbarDynamic",
 			Category:    "interactive",
 			Description: "Compact pill toolbar that smoothly expands horizontally into a live search bar.",
-			Code: `motion.ToolbarDynamic(c, &query, motion.ToolbarDynamicOptions{
-    Open:       &open,
-    UserIcon:   icons.User(),
-    SearchIcon: icons.Search(),
-    BackIcon:   icons.ArrowLeft(),
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).AlignItems(ui.Center).Gap(10).Children(func() {
 					motion.ToolbarDynamic(c, &a.toolbarDynQuery, motion.ToolbarDynamicOptions{
@@ -711,10 +674,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "ToolbarExpandable",
 			Category:    "interactive",
 			Description: "Compact icon toolbar with smoothly expanding animated drawer panels above it.",
-			Code: `motion.ToolbarExpandable(c, items, &activeIdx, motion.ToolbarExpandableOptions{
-    Width:       280,
-    PanelHeight: 104,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				items := []motion.ExpandableToolbarItem{
 					{
@@ -769,9 +728,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "Accordion",
 			Category:    "overlays",
 			Description: "Spring-animated smooth expandable accordion items with hairline dividers.",
-			Code: `motion.Accordion(c, items, &expanded, motion.AccordionOptions{
-    AllowCollapse: true,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				items := []motion.AccordionItem{
 					{
@@ -809,9 +765,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "Disclosure",
 			Category:    "overlays",
 			Description: "Single smooth expandable disclosure card with spring clip reveal.",
-			Code: `motion.Disclosure(c, "Show more", &open, func() {
-    ui.Text(c, "Expandable details...")
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				motion.Disclosure(c, "Show more", &a.disclosureOpen, func() {
 					ui.Text(c, "This disclosure smoothly expands and collapses using spring height & opacity interpolation without layout flicker.").
@@ -826,10 +779,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "Dialog",
 			Category:    "overlays",
 			Description: "Spring scale and fade modal dialog with soft backdrop.",
-			Code: `motion.Dialog(c, &open, bodyFn, motion.DialogOptions{
-    Title:       "Join the waitlist",
-    Description: "Enter your email for early access.",
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).AlignItems(ui.Center).Gap(8).Children(func() {
 					coss.Button(c, "Join the waitlist").Variant(coss.ButtonDefault).OnClick(func() {
@@ -860,7 +809,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "MorphingDialog",
 			Category:    "overlays",
 			Description: "Preview card smoothly morphing into an expanded detail modal on click.",
-			Code: `motion.MorphingDialog(c, &open, previewCard, expandedModal)`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				thumbBg := ui.Hex("#e4e4e7")
 				if t.Dark {
@@ -897,9 +845,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "MorphingPopover",
 			Category:    "overlays",
 			Description: "Compact button smoothly morphing into a floating popover form.",
-			Code: `motion.MorphingPopover(c, &open, "Add Note", func() {
-    coss.Input(c, &note).Placeholder("Write a quick note...")
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).AlignItems(ui.Center).Gap(8).Children(func() {
 					motion.MorphingPopover(c, &a.morphPopOpen, "Add Note", func() {
@@ -929,9 +874,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "TransitionPanel",
 			Category:    "overlays",
 			Description: "Smooth animated tabbed content switcher with crossfade and subtle blur.",
-			Code: `motion.TransitionPanel(c, activeTab, panels, motion.TransitionPanelOptions{
-    Blur: true,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				tabs := []struct {
 					title    string
@@ -987,11 +929,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "AnimatedGroup",
 			Category:    "layout",
 			Description: "Staggered entrance group supporting fade, slide, scale, blur, and zoom presets.",
-			Code: `motion.AnimatedGroup(c, items, motion.AnimatedGroupOptions{
-    Preset:  motion.PresetScale,
-    Columns: 4,
-    Trigger: trigger,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				labels := []string{"01", "02", "03", "04"}
 				items := make([]func(), len(labels))
@@ -1045,12 +982,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "Carousel",
 			Category:    "layout",
 			Description: "Spring-sliding multi-card carousel with prev/next buttons and dot indicators.",
-			Code: `motion.Carousel(c, slides, &index, motion.CarouselOptions{
-    SlideWidth:     240,
-    SlideHeight:    116,
-    ShowNavigation: true,
-    ShowIndicator:  true,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				slideTitles := []string{"01 · Springs", "02 · Gestures", "03 · Surfaces", "04 · Typography"}
 				slides := make([]func(), len(slideTitles))
@@ -1084,12 +1015,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "InView",
 			Category:    "layout",
 			Description: "Viewport/mount reveal wrapper with replay trigger and blur-slide preset.",
-			Code: `motion.InView(c, func() {
-    ui.Text(c, "Revealed in viewport")
-}, motion.InViewOptions{
-    Preset:  motion.PresetBlurSlide,
-    Trigger: trigger,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).AlignItems(ui.Center).Gap(12).Children(func() {
 					motion.InView(c, func() {
@@ -1121,11 +1046,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "InfiniteSlider",
 			Category:    "layout",
 			Description: "Seamless infinite scrolling strip with smooth hover deceleration.",
-			Code: `motion.InfiniteSlider(c, items, motion.InfiniteSliderOptions{
-    Speed:        48,
-    SpeedOnHover: 14,
-    EdgeFade:     true,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				chips := []string{"Motion", "Springs", "Shaders", "Zinc", "MyGo", "60fps"}
 				items := make([]func(), len(chips))
@@ -1161,9 +1081,6 @@ func buildMotionCatalog() []motionDemoEntry {
 			Name:        "ScrollProgress",
 			Category:    "layout",
 			Description: "Live spring progress bar bound to a scrollable container's ui.ScrollState.",
-			Code: `motion.ScrollProgress(c, &scrollState, motion.ScrollProgressOptions{
-    Height: 3,
-})`,
 			Render: func(c *ui.Context, t motion.Theme, a *motionState) {
 				ui.Column(c).WidthPercent(100).Gap(8).Children(func() {
 					motion.ScrollProgress(c, &a.scrollDemoStat, motion.ScrollProgressOptions{

@@ -304,6 +304,9 @@ type TextEffectOptions struct {
 	FontSize   float32
 	FontWeight int
 	Color      ui.Color
+	// Align places the lines of text: ui.Start (the default), ui.Center or
+	// ui.End, as text-align does upstream.
+	Align ui.Align
 }
 
 type triggerTimerState struct {
@@ -358,10 +361,13 @@ func TextEffect(c *ui.Context, text string, opts ...TextEffectOptions) ui.Elemen
 	var container ui.Element
 	if o.Per == PerLine {
 		container = ui.Column(c).Gap(4)
+		if o.Align != ui.Start {
+			container.AlignItems(o.Align)
+		}
 	} else if o.Per == PerChar {
-		container = ui.Row(c).Wrap().AlignItems(ui.Center)
+		container = ui.Row(c).Wrap().AlignItems(ui.Center).Justify(o.Align)
 	} else {
-		container = ui.Row(c).Wrap().AlignItems(ui.Center).GapX(o.FontSize * 0.28).GapY(2)
+		container = ui.Row(c).Wrap().AlignItems(ui.Center).Justify(o.Align).GapX(o.FontSize * 0.28).GapY(2)
 	}
 
 	st := ui.Local(container, "te-state", func() triggerTimerState {

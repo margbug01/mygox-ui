@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/margbug01/mygox-ui/coss/icons"
 )
 
 // ============================================================================
@@ -71,7 +72,7 @@ func Accordion(c *ui.Context, items []AccordionItem, expanded *string, opts ...A
 						Center().
 						Rotate(p * 180).
 						Children(func() {
-							ui.Text(c, "⌄").FontSize(13).FontWeight(600).TextColor(t.TextMuted).SingleLine()
+							ui.Icon(c, icons.ChevronDown()).Size(16, 16).TextColor(t.TextMuted)
 						})
 				})
 				if hdr.Clicked() && expanded != nil {
@@ -148,11 +149,9 @@ func Disclosure(c *ui.Context, triggerLabel string, open *bool, content func(), 
 			Cursor(ui.CursorPointer)
 		trig.Children(func() {
 			ui.Text(c, triggerLabel).FontSize(13).FontWeight(500).TextColor(t.Text).SingleLine()
-			label := "Show"
-			if isOpen {
-				label = "Hide"
-			}
-			ui.Text(c, label).FontSize(11.5).TextColor(t.TextMuted).SingleLine()
+			ui.Box(c).Width(18).Height(18).Center().Rotate(p * 180).Children(func() {
+				ui.Icon(c, icons.ChevronDown()).Size(16, 16).TextColor(t.TextMuted)
+			})
 		})
 		if trig.Clicked() && open != nil {
 			*open = !*open

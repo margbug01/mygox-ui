@@ -170,7 +170,7 @@ func Spotlight(c *ui.Context, content func(), opts ...SpotlightOptions) ui.Eleme
 				Center: ui.Point{X: cx, Y: cy},
 				Radius: o.Size,
 				Stops: []ui.GradientStop{
-					{Color: glowCol.Alpha(float32(glowCol.A) / 255.0 * alpha), At: 0},
+					{Color: glowCol.Alpha(alpha), At: 0},
 					{Color: ui.Transparent, At: 1},
 				},
 			}, o.Radius)
@@ -277,7 +277,7 @@ func Tilt(c *ui.Context, content func(), opts ...TiltOptions) ui.Element {
 					Center: ui.Point{X: sheenX, Y: sheenY},
 					Radius: max(r.W, r.H) * 0.75,
 					Stops: []ui.GradientStop{
-						{Color: spec.Alpha(float32(spec.A) / 255.0 * sa * 0.65), At: 0},
+						{Color: spec.Alpha(sa * 0.65), At: 0},
 						{Color: ui.Transparent, At: 1},
 					},
 				}, o.Radius)
