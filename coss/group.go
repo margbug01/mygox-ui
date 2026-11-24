@@ -21,7 +21,7 @@ func Group(c *ui.Context, fn func()) ui.Element {
 // GroupSeparator renders a hairline separator inside a Group.
 func GroupSeparator(c *ui.Context) ui.Element {
 	t := theme.Of(c)
-	return ui.Box(c).Width(1).Height(20).Background(t.Border).Shrink(0)
+	return ui.Box(c).Width(1).AlignSelf(ui.Stretch).Background(t.Input).Shrink(0)
 }
 
 // GroupText renders a muted inline addon label inside a Group.
@@ -30,11 +30,11 @@ func GroupText(c *ui.Context, text string) ui.Element {
 	return ui.Row(c).
 		Center().
 		Height(32).
-		Padding(0, 10).
+		Padding(0, 11).
+		Gap(8).
 		Background(t.Muted).
 		TextColor(t.MutedForeground).
-		FontSize(13).
-		FontWeight(500).
+		FontSize(14).
 		Shrink(0).
 		Children(func() {
 			ui.Text(c, text).SingleLine()

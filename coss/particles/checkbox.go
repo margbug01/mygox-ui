@@ -2,11 +2,10 @@ package particles
 
 import (
 	_ "embed"
-	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/margbug01/mygox-ui/coss"
-	"github.com/margbug01/mygox-ui/coss/icons"
 	"github.com/margbug01/mygox-ui/coss/theme"
 )
 
@@ -27,37 +26,52 @@ func init() {
 	Register(Entry{ID: "p-checkbox-group-5", Family: "checkbox-group", Description: "Checkbox group form", View: PCheckboxGroup5, Source: extractFunc(checkboxSource, "PCheckboxGroup5")})
 }
 
-func triStateCheckbox(c *ui.Context, state ui.CheckState, label string, onToggle func()) ui.Element {
-	t := theme.Of(c)
-	btn := ui.ButtonBase(c).
-		AlignItems(ui.Center).
-		Gap(8).
-		Cursor(ui.CursorPointer).
-		FocusRingColor(t.Ring)
-	btn.Children(func() {
-		box := ui.Row(c).Center().Size(16, 16).Radius(4).Shrink(0)
-		switch state {
-		case ui.CheckOn:
-			box.Background(t.Primary).Border(1, t.Primary).TextColor(t.PrimaryForeground).Children(func() {
-				ui.Icon(c, icons.Check()).Size(12, 12)
-			})
-		case ui.CheckMixed:
-			box.Background(t.Primary).Border(1, t.Primary).TextColor(t.PrimaryForeground).Children(func() {
-				ui.Icon(c, icons.Minus()).Size(12, 12)
-			})
-		default:
-			bg := t.Background
-			if t.Dark {
-				bg = theme.Alpha(t.Input, 0.32)
-			}
-			box.Background(bg).Border(1, t.Input)
-		}
-		ui.Text(c, label).FontSize(14).FontWeight(500).TextColor(t.Foreground)
-	})
-	if btn.Clicked() && onToggle != nil {
-		onToggle()
+// disabledCheckbox is coss's <Label><Checkbox disabled />…</Label>: the
+// box fades to 64%, the label stays solid.
+func disabledCheckbox(c *ui.Context, checked *bool, label string) {
+	state := ui.CheckOff
+	if *checked {
+		state = ui.CheckOn
 	}
-	return btn
+	ui.CheckboxBase(c, checked).Disabled(true).DimDisabled(false).AlignItems(ui.Center).Gap(8).Children(func() {
+		coss.CheckboxBox(c, state, true)
+		coss.CheckboxLabel(c, label)
+	})
+}
+
+// groupState is a parent checkbox's state over its group's boxes.
+func groupState(boxes ...*bool) ui.CheckState {
+	n := 0
+	for _, b := range boxes {
+		if *b {
+			n++
+		}
+	}
+	switch n {
+	case 0:
+		return ui.CheckOff
+	case len(boxes):
+		return ui.CheckOn
+	}
+	return ui.CheckMixed
+}
+
+// setAll checks or clears every box.
+func setAll(on bool, boxes ...*bool) {
+	for _, b := range boxes {
+		*b = on
+	}
+}
+
+// formLoading starts an 800ms submit, as coss's form particles fake one,
+// and reports whether one is running.
+func formLoading(c *ui.Context, host ui.Element) (loading bool, start func()) {
+	until := ui.Local(host, "loading", func() time.Time { return time.Time{} })
+	loading = c.Now().Before(*until)
+	if loading {
+		c.After(150 * time.Millisecond)
+	}
+	return loading, func() { *until = c.Now().Add(800 * time.Millisecond) }
 }
 
 func PCheckbox1(c *ui.Context) {
@@ -71,76 +85,58 @@ func PCheckbox1(c *ui.Context) {
 func PCheckbox2(c *ui.Context) {
 	host := ui.Box(c)
 	checked := ui.Local(host, "checked", func() bool { return true })
-	host.Children(func() {
-		coss.Checkbox(c, checked, "Accept terms and conditions").Disabled(true).Opacity(0.64)
-	})
+	host.Children(func() { disabledCheckbox(c, checked, "Accept terms and conditions") })
 }
 
 func PCheckbox3(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Row(c).AlignItems(ui.Start).Gap(10).MaxWidth(360)
+	host := ui.Row(c).AlignItems(ui.Start).Gap(8)
 	checked := ui.Local(host, "checked", func() bool { return true })
 	host.Children(func() {
-		coss.Checkbox(c, checked).Margin(2, 0, 0, 0)
+		coss.Checkbox(c, checked).Label("Accept terms and conditions")
 		ui.Column(c).Gap(4).Children(func() {
-			coss.Label(c, "Accept terms and conditions")
+			coss.CheckboxLabel(c, "Accept terms and conditions")
 			ui.Text(c, "By clicking this checkbox, you agree to the terms and conditions.").
-				FontSize(12).TextColor(t.MutedForeground)
+				FontSize(12).FixedLineHeight(16).TextColor(t.MutedForeground)
 		})
 	})
 }
 
 func PCheckbox4(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).MaxWidth(360)
+	host := ui.Box(c)
 	checked := ui.Local(host, "checked", func() bool { return true })
 	host.Children(func() {
-		card := ui.ButtonBase(c).
-			AlignItems(ui.Start).
-			Gap(10).
-			Padding(12).
-			Radius(t.RadiusLG).
-			Border(1, t.Border).
-			Cursor(ui.CursorPointer)
+		card := ui.CheckboxBase(c, checked).AlignItems(ui.Start).Gap(8).Padding(12).
+			Radius(t.RadiusLG).Border(1, t.Border).Cursor(ui.CursorPointer).FocusRingColor(t.Ring)
+		state := ui.CheckOff
 		if *checked {
+			state = ui.CheckOn
 			card.Border(1, theme.Alpha(t.Primary, 0.48)).Background(theme.Alpha(t.Accent, 0.5))
 		} else if card.Hovered() {
 			card.Background(theme.Alpha(t.Accent, 0.5))
 		}
 		card.Children(func() {
-			coss.Checkbox(c, checked).Margin(2, 0, 0, 0)
+			coss.CheckboxBox(c, state, false)
 			ui.Column(c).Gap(4).Children(func() {
-				ui.Text(c, "Enable notifications").FontSize(14).FontWeight(500).TextColor(t.Foreground)
+				coss.CheckboxLabel(c, "Enable notifications")
 				ui.Text(c, "You can enable or disable notifications at any time.").
-					FontSize(12).TextColor(t.MutedForeground)
+					FontSize(12).FixedLineHeight(16).TextColor(t.MutedForeground)
 			})
 		})
-		if card.Clicked() {
-			*checked = !*checked
-		}
 	})
 }
 
 func PCheckbox5(c *ui.Context) {
-	t := theme.Of(c)
 	host := ui.Box(c)
 	checked := ui.Local(host, "checked", func() bool { return true })
-	submitted := ui.Local(host, "submitted", func() string { return "" })
+	loading, submit := formLoading(c, host)
 	host.Children(func() {
 		coss.Form(c, func() {
 			coss.Field(c, func() {
 				coss.Checkbox(c, checked, "Accept terms and conditions")
 			})
-			coss.Button(c, "Submit").OnClick(func() {
-				if *checked {
-					*submitted = "Terms: yes"
-				} else {
-					*submitted = "Terms: no"
-				}
-			})
-			if *submitted != "" {
-				ui.Text(c, *submitted).FontSize(12).TextColor(t.MutedForeground)
-			}
+			coss.Button(c, "Submit").Loading(loading).OnClick(submit)
 		})
 	})
 }
@@ -167,7 +163,7 @@ func PCheckboxGroup2(c *ui.Context) {
 	host.Children(func() {
 		coss.CheckboxGroup(c, func() {
 			coss.Checkbox(c, next, "Next.js")
-			coss.Checkbox(c, vite, "Vite").Disabled(true).Opacity(0.64)
+			disabledCheckbox(c, vite, "Vite")
 			coss.Checkbox(c, astro, "Astro")
 		})
 	})
@@ -179,32 +175,14 @@ func PCheckboxGroup3(c *ui.Context) {
 	vite := ui.Local(host, "vite", func() bool { return false })
 	astro := ui.Local(host, "astro", func() bool { return false })
 	host.Children(func() {
-		count := 0
-		if *next {
-			count++
-		}
-		if *vite {
-			count++
-		}
-		if *astro {
-			count++
-		}
-		parentState := ui.CheckOff
-		if count == 3 {
-			parentState = ui.CheckOn
-		} else if count > 0 {
-			parentState = ui.CheckMixed
-		}
 		coss.CheckboxGroup(c, func() {
-			triStateCheckbox(c, parentState, "Frameworks", func() {
-				v := count != 3
-				*next, *vite, *astro = v, v, v
-			})
-			ui.Column(c).Gap(10).Margin(0, 0, 0, 16).Children(func() {
-				coss.Checkbox(c, next, "Next.js")
-				coss.Checkbox(c, vite, "Vite")
-				coss.Checkbox(c, astro, "Astro")
-			})
+			all := groupState(next, vite, astro)
+			if coss.CheckboxParent(c, &all, "Frameworks").Changed() {
+				setAll(all == ui.CheckOn, next, vite, astro)
+			}
+			coss.Checkbox(c, next, "Next.js").Margin(0, 0, 0, 16)
+			coss.Checkbox(c, vite, "Vite").Margin(0, 0, 0, 16)
+			coss.Checkbox(c, astro, "Astro").Margin(0, 0, 0, 16)
 		})
 	})
 }
@@ -218,92 +196,54 @@ func PCheckboxGroup4(c *ui.Context) {
 	deleteUsr := ui.Local(host, "deleteUsr", func() bool { return false })
 	assignRol := ui.Local(host, "assignRol", func() bool { return false })
 	host.Children(func() {
-		mgmtCount := 0
-		for _, b := range []*bool{createUsr, editUsr, deleteUsr, assignRol} {
-			if *b {
-				mgmtCount++
-			}
-		}
-		mgmtState := ui.CheckOff
-		if mgmtCount == 4 {
-			mgmtState = ui.CheckOn
-		} else if mgmtCount > 0 {
-			mgmtState = ui.CheckMixed
-		}
-		totalChecked := mgmtCount
-		if *viewDash {
-			totalChecked++
-		}
-		if *accessRep {
-			totalChecked++
-		}
-		rootState := ui.CheckOff
-		if totalChecked == 6 {
-			rootState = ui.CheckOn
-		} else if totalChecked > 0 {
-			rootState = ui.CheckMixed
+		management := []*bool{createUsr, editUsr, deleteUsr, assignRol}
+		manage := groupState(management...)
+		// "Manage Users" counts toward the main group once every user
+		// management permission is on; the parent is mixed while some are.
+		manageUsers := manage == ui.CheckOn
+		root := groupState(viewDash, accessRep, &manageUsers)
+		if manage == ui.CheckMixed {
+			root = ui.CheckMixed
 		}
 		coss.CheckboxGroup(c, func() {
-			triStateCheckbox(c, rootState, "User Permissions", func() {
-				v := totalChecked != 6
-				*viewDash, *accessRep = v, v
-				*createUsr, *editUsr, *deleteUsr, *assignRol = v, v, v, v
-			})
-			ui.Column(c).Gap(10).Margin(0, 0, 0, 16).Children(func() {
-				coss.Checkbox(c, viewDash, "View Dashboard")
-				coss.Checkbox(c, accessRep, "Access Reports")
-				triStateCheckbox(c, mgmtState, "Manage Users", func() {
-					v := mgmtCount != 4
-					*createUsr, *editUsr, *deleteUsr, *assignRol = v, v, v, v
-				})
-				ui.Column(c).Gap(10).Margin(0, 0, 0, 16).Children(func() {
-					coss.Checkbox(c, createUsr, "Create User")
-					coss.Checkbox(c, editUsr, "Edit User")
-					coss.Checkbox(c, deleteUsr, "Delete User")
-					coss.Checkbox(c, assignRol, "Assign Roles")
-				})
-			})
+			if coss.CheckboxParent(c, &root, "User Permissions").Changed() {
+				on := root == ui.CheckOn
+				setAll(on, viewDash, accessRep)
+				setAll(on, management...)
+			}
+			coss.Checkbox(c, viewDash, "View Dashboard").Margin(0, 0, 0, 16)
+			coss.Checkbox(c, accessRep, "Access Reports").Margin(0, 0, 0, 16)
+			coss.CheckboxGroup(c, func() {
+				if coss.CheckboxParent(c, &manage, "Manage Users").Changed() {
+					setAll(manage == ui.CheckOn, management...)
+				}
+				coss.Checkbox(c, createUsr, "Create User").Margin(0, 0, 0, 16)
+				coss.Checkbox(c, editUsr, "Edit User").Margin(0, 0, 0, 16)
+				coss.Checkbox(c, deleteUsr, "Delete User").Margin(0, 0, 0, 16)
+				coss.Checkbox(c, assignRol, "Assign Roles").Margin(0, 0, 0, 16)
+			}).Margin(0, 0, 0, 16)
 		})
 	})
 }
 
 func PCheckboxGroup5(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100).MaxWidth(180)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(160)
 	next := ui.Local(host, "next", func() bool { return true })
 	vite := ui.Local(host, "vite", func() bool { return false })
 	astro := ui.Local(host, "astro", func() bool { return false })
-	result := ui.Local(host, "result", func() string { return "" })
+	loading, submit := formLoading(c, host)
 	host.Children(func() {
 		coss.Form(c, func() {
 			coss.Fieldset(c, func() {
-				coss.FieldsetLegend(c, "Frameworks")
+				ui.Text(c, "Frameworks").FontSize(14).FixedLineHeight(20).FontWeight(500).TextColor(t.Foreground)
 				coss.CheckboxGroup(c, func() {
 					coss.Checkbox(c, next, "Next.js")
 					coss.Checkbox(c, vite, "Vite")
 					coss.Checkbox(c, astro, "Astro")
 				})
-			})
-			coss.Button(c, "Submit").OnClick(func() {
-				var sel []string
-				if *next {
-					sel = append(sel, "next")
-				}
-				if *vite {
-					sel = append(sel, "vite")
-				}
-				if *astro {
-					sel = append(sel, "astro")
-				}
-				if len(sel) == 0 {
-					*result = "Selected: none"
-				} else {
-					*result = "Selected: " + strings.Join(sel, ", ")
-				}
-			})
-			if *result != "" {
-				ui.Text(c, *result).FontSize(12).TextColor(t.MutedForeground)
-			}
+			}).Gap(8)
+			coss.Button(c, "Submit").Loading(loading).AlignSelf(ui.Start).OnClick(submit)
 		})
 	})
 }
