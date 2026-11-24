@@ -1,0 +1,2741 @@
+package bencho
+
+import (
+	"fmt"
+	"math"
+	"time"
+
+	"github.com/egoist/mygo/ui"
+)
+
+func paAbs32(v float32) float32 {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
+func paDrawCircle(p *ui.Painter, cx, cy, r float32, col ui.Color) {
+	if r <= 0 {
+		return
+	}
+	p.Fill(ui.Rect{X: cx - r, Y: cy - r, W: r * 2, H: r * 2}, col, r)
+}
+
+func paStrokeCircle(p *ui.Painter, cx, cy, r, w float32, col ui.Color) {
+	if r <= 0 || w <= 0 {
+		return
+	}
+	p.Stroke(ui.Rect{X: cx - r, Y: cy - r, W: r * 2, H: r * 2}, col, r, w)
+}
+
+// =============================================================================
+// 1. Standing Calendar ("standing-calendar")
+// =============================================================================
+
+// StandingCalendarOptions configures StandingCalendar.
+type StandingCalendarOptions struct {
+	Month       string
+	StartDay    int
+	DaysInMonth int
+	AccentColor ui.Color
+	OnDayChange func(day int)
+}
+
+type standingCalendarState struct {
+	day       int
+	prevDay   int
+	flipping  bool
+	flippedAt time.Time
+}
+
+var paWeekdays = []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}
+
+// StandingCalendar renders a tactile 3D-style desk flip calendar whose day card
+// flips to the next day with a spring vertical page-turn squeeze animation.
+func StandingCalendar(c *ui.Context, opts ...StandingCalendarOptions) ui.Element {
+	var o StandingCalendarOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.Month == "" {
+		o.Month = "NOV"
+	}
+	if o.StartDay <= 0 {
+		o.StartDay = 24
+	}
+	if o.DaysInMonth <= 0 {
+		o.DaysInMonth = 30
+	}
+	accent := colorOr(o.AccentColor, ui.Hex("#e11d48"))
+
+	root := ui.Column(c).AlignItems(ui.Center).Gap(8)
+	st := ui.Local(root, "pa_standing_calendar", func() standingCalendarState {
+		return standingCalendarState{day: o.StartDay, prevDay: o.StartDay}
+	})
+
+	now := c.Now()
+	const flipDur = 360 * time.Millisecond
+	flipProg := float32(1)
+	if st.flipping {
+		elapsed := now.Sub(st.flippedAt)
+		if elapsed >= flipDur {
+			st.flipping = false
+			st.prevDay = st.day
+			flipProg = 1
+		} else {
+			c.AnimationFrame()
+			flipProg = clamp32(float32(elapsed.Seconds()/flipDur.Seconds()), 0, 1)
+		}
+	}
+
+	displayDay := st.day
+	if st.flipping && flipProg < 0.45 {
+		displayDay = st.prevDay
+	}
+	weekday := paWeekdays[(displayDay+1)%len(paWeekdays)]
+
+	// Vertical squeeze curve: compresses cleanly at midpoint then rebounds.
+	squeezeTarget := float32(1)
+	if st.flipping {
+		squeezeTarget = 1 - 0.52*float32(math.Sin(float64(flipProg)*math.Pi))
+	}
+
+	root.Children(func() {
+		stage := ui.Box(c).
+			Width(148).
+			Height(152).
+			Cursor(ui.CursorPointer)
+
+		hoverLift := float32(0)
+		if stage.Hovered() {
+			hoverLift = -2.5
+		}
+		pressScale := float32(1)
+		if stage.Pressed() {
+			pressScale = 0.96
+		}
+		liftY := stage.Spring("pa_cal_lift", hoverLift, ui.SpringOptions{Duration: 200 * time.Millisecond, Bounce: 0.2})
+		pScale := stage.Spring("pa_cal_press", pressScale, ui.SpringOptions{Duration: 150 * time.Millisecond, Bounce: 0.25})
+		squeezeY := stage.Spring("pa_cal_squeeze", squeezeTarget, ui.SpringOptions{Duration: 170 * time.Millisecond, Bounce: 0.3})
+
+		// Desk stand shadow + stacked paper thickness underneath.
+		stage.Draw(func(p *ui.Painter, r ui.Rect) {
+			// Soft cast shadow on desk.
+			p.Fill(ui.Rect{X: r.X + 14, Y: r.Y + r.H - 12, W: r.W - 28, H: 10}, t.Shadow, 5)
+			// Back easel stand silhouette.
+			p.Fill(ui.Rect{X: r.X + 18, Y: r.Y + 14, W: r.W - 36, H: r.H - 22}, t.BorderStrong.Alpha(0.55), 14)
+			// Paper stack thickness edges at bottom.
+			stack1 := ui.Rect{X: r.X + 14, Y: r.Y + r.H - 22, W: r.W - 28, H: 12}
+			p.Fill(stack1, t.SurfaceSubtle, 8)
+			p.Stroke(stack1, t.Border, 8, 1)
+			stack2 := ui.Rect{X: r.X + 11, Y: r.Y + r.H - 26, W: r.W - 22, H: 12}
+			p.Fill(stack2, t.Surface, 8)
+			p.Stroke(stack2, t.Border, 8, 1)
+		})
+
+		stage.Children(func() {
+			card := ui.Column(c).
+				Absolute().
+				Top(10).
+				Left(8).
+				Width(132).
+				Height(122).
+				Radius(14).
+				Background(t.Surface).
+				Border(1, t.BorderStrong).
+				Shadow(0, 8, 18, 0, t.Shadow).
+				Clip().
+				Translate(0, liftY).
+				Scale(pScale, pScale*squeezeY)
+
+			card.Children(func() {
+				// Colored month header bar.
+				header := ui.Row(c).
+					WidthPercent(100).
+					Height(34).
+					Padding(0, 12).
+					AlignItems(ui.Center).
+					Justify(ui.SpaceBetween).
+					Background(accent)
+				header.Children(func() {
+					ui.Text(c, o.Month).
+						FontSize(12).
+						FontWeight(700).
+						TextColor(ui.Hex("#ffffff")).
+						Unselectable()
+					ui.Text(c, weekday).
+						FontSize(10).
+						FontWeight(600).
+						TextColor(ui.Hex("#ffffff").Alpha(0.85)).
+						Unselectable()
+				})
+
+				// Day number body with subtle split-flap hinge crease and sweep shade.
+				body := ui.Column(c).
+					WidthPercent(100).
+					Height(88).
+					Center()
+				body.Draw(func(p *ui.Painter, r ui.Rect) {
+					midY := r.Y + r.H*0.5
+					p.Line(r.X+8, midY, r.X+r.W-8, midY, 1, t.Border.Alpha(0.75))
+					if st.flipping {
+						shade := float32(math.Sin(float64(flipProg)*math.Pi)) * 0.20
+						p.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W, H: r.H * 0.5}, ui.RGBA(0, 0, 0, shade), 0)
+					}
+				})
+				body.Children(func() {
+					ui.Text(c, fmt.Sprintf("%02d", displayDay)).
+						FontSize(42).
+						FontWeight(700).
+						TextColor(t.Text).
+						Unselectable()
+				})
+			})
+
+			// Twin metal spiral rings sitting on top edge.
+			rings := ui.Box(c).
+				Absolute().
+				Top(0).
+				Left(8).
+				Width(132).
+				Height(22).
+				ZIndex(4).
+				Translate(0, liftY)
+			rings.Draw(func(p *ui.Painter, r ui.Rect) {
+				ringCol := ui.Hex("#9ca3af")
+				holeCol := ui.RGBA(0, 0, 0, 0.35)
+				if !t.Dark {
+					ringCol = ui.Hex("#6b7280")
+				}
+				for _, rx := range []float32{32, r.W - 32} {
+					paDrawCircle(p, r.X+rx, r.Y+16, 4.5, holeCol)
+					p.Fill(ui.Rect{X: r.X + rx - 3, Y: r.Y + 2, W: 6, H: 16}, ringCol, 3)
+					p.Fill(ui.Rect{X: r.X + rx - 1.5, Y: r.Y + 4, W: 2, H: 12}, ui.Hex("#ffffff").Alpha(0.55), 1)
+				}
+			})
+		})
+
+		if stage.Clicked() {
+			st.prevDay = st.day
+			st.day++
+			if st.day > o.DaysInMonth {
+				st.day = 1
+			}
+			st.flipping = true
+			st.flippedAt = now
+			if o.OnDayChange != nil {
+				o.OnDayChange(st.day)
+			}
+		}
+
+		ui.Text(c, fmt.Sprintf("Click to flip · %s %d", o.Month, st.day)).
+			FontSize(11).
+			TextColor(t.TextSubtle).
+			Unselectable()
+	})
+
+	return root
+}
+
+// =============================================================================
+// 2. Piano ("piano")
+// =============================================================================
+
+type pianoKeySpec struct {
+	name      string
+	freq      float64
+	sharp     bool
+	whiteSlot int
+}
+
+var paOctaveKeys = []pianoKeySpec{
+	{name: "C", freq: 261.6, sharp: false, whiteSlot: 0},
+	{name: "C#", freq: 277.2, sharp: true, whiteSlot: 1},
+	{name: "D", freq: 293.7, sharp: false, whiteSlot: 1},
+	{name: "D#", freq: 311.1, sharp: true, whiteSlot: 2},
+	{name: "E", freq: 329.6, sharp: false, whiteSlot: 2},
+	{name: "F", freq: 349.2, sharp: false, whiteSlot: 3},
+	{name: "F#", freq: 370.0, sharp: true, whiteSlot: 4},
+	{name: "G", freq: 392.0, sharp: false, whiteSlot: 4},
+	{name: "G#", freq: 415.3, sharp: true, whiteSlot: 5},
+	{name: "A", freq: 440.0, sharp: false, whiteSlot: 5},
+	{name: "A#", freq: 466.2, sharp: true, whiteSlot: 6},
+	{name: "B", freq: 493.9, sharp: false, whiteSlot: 6},
+}
+
+// PianoOptions configures Piano.
+type PianoOptions struct {
+	Octave int
+	OnNote func(note string, freq float64)
+}
+
+type pianoState struct {
+	lastKey int
+	played  bool
+	lastAt  time.Time
+	hitAt   [12]time.Time
+}
+
+// Piano renders a playable 1-octave mini keyboard (7 white + 5 black sharps)
+// with tactile spring depression and a live note name + frequency readout.
+func Piano(c *ui.Context, opts ...PianoOptions) ui.Element {
+	var o PianoOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.Octave <= 0 {
+		o.Octave = 4
+	}
+	octScale := math.Pow(2, float64(o.Octave-4))
+
+	root := ui.Column(c).
+		Width(284).
+		Padding(10).
+		Gap(8).
+		Radius(14).
+		Background(t.Surface).
+		Border(1, t.Border).
+		Shadow(0, 6, 16, 0, t.Shadow)
+
+	st := ui.Local(root, "pa_piano", func() pianoState {
+		return pianoState{lastKey: 0}
+	})
+
+	now := c.Now()
+	const glowDur = 420 * time.Millisecond
+	sinceLast := now.Sub(st.lastAt)
+	if st.played && sinceLast < glowDur {
+		c.AnimationFrame()
+	}
+
+	curSpec := paOctaveKeys[st.lastKey]
+	curNote := fmt.Sprintf("%s%d", curSpec.name, o.Octave)
+	curFreq := curSpec.freq * octScale
+
+	triggerKey := func(idx int) {
+		st.lastKey = idx
+		st.played = true
+		st.lastAt = now
+		st.hitAt[idx] = now
+		if o.OnNote != nil {
+			spec := paOctaveKeys[idx]
+			o.OnNote(fmt.Sprintf("%s%d", spec.name, o.Octave), spec.freq*octScale)
+		}
+	}
+
+	root.Children(func() {
+		// Top readout bar: LED + note/freq + micro waveform pulse.
+		top := ui.Row(c).
+			WidthPercent(100).
+			AlignItems(ui.Center).
+			Justify(ui.SpaceBetween)
+		top.Children(func() {
+			left := ui.Row(c).AlignItems(ui.Center).Gap(7)
+			left.Children(func() {
+				ledCol := t.TextSubtle.Alpha(0.45)
+				if st.played && sinceLast < glowDur {
+					ledCol = t.Accent
+				}
+				ui.Box(c).Width(7).Height(7).Radius(4).Background(ledCol)
+				ui.Text(c, fmt.Sprintf("%s · %.1f Hz", curNote, curFreq)).
+					FontSize(12).
+					FontWeight(600).
+					TextColor(t.Text).
+					Unselectable()
+			})
+
+			// Compact live voice bars.
+			meter := ui.Box(c).Width(42).Height(14)
+			meter.Draw(func(p *ui.Painter, r ui.Rect) {
+				amp := float32(0.18)
+				if st.played && sinceLast < glowDur {
+					decay := 1 - clamp32(float32(sinceLast.Seconds()/glowDur.Seconds()), 0, 1)
+					amp = 0.18 + 0.82*decay
+				}
+				ph := phaseSeconds(now) * 14
+				for i := 0; i < 6; i++ {
+					wave := float32(0.45 + 0.55*math.Sin(ph+float64(i)*0.95+float64(st.lastKey)*0.6))
+					bh := clamp32(r.H*amp*wave, 2.5, r.H)
+					col := t.TextSubtle.Alpha(0.35)
+					if st.played && sinceLast < glowDur {
+						col = t.Accent
+					}
+					p.Fill(ui.Rect{
+						X: r.X + float32(i)*7,
+						Y: r.Y + (r.H-bh)*0.5,
+						W: 4,
+						H: bh,
+					}, col, 2)
+				}
+			})
+		})
+
+		// Keyboard bed: 7 white keys (37px pitch, 260px total) + 5 black sharps.
+		const (
+			whiteW   = float32(35)
+			whiteGap = float32(2)
+			whiteH   = float32(98)
+			blackW   = float32(22)
+			blackH   = float32(58)
+		)
+		bedW := 7*whiteW + 6*whiteGap
+		bed := ui.Box(c).
+			Width(bedW).
+			Height(whiteH + 6)
+
+		bed.Children(func() {
+			// Render white keys first.
+			for idx, spec := range paOctaveKeys {
+				if spec.sharp {
+					continue
+				}
+				kIdx := idx
+				kSpec := spec
+				x := float32(kSpec.whiteSlot) * (whiteW + whiteGap)
+				key := ui.Column(c).
+					Key(fmt.Sprintf("wk_%d", kIdx)).
+					Absolute().
+					Top(0).
+					Left(x).
+					Width(whiteW).
+					Height(whiteH).
+					AlignItems(ui.Center).
+					Justify(ui.End).
+					Padding(0, 0, 7, 0).
+					Radius(6).
+					Cursor(ui.CursorPointer)
+
+				recent := !st.hitAt[kIdx].IsZero() && now.Sub(st.hitAt[kIdx]) < 220*time.Millisecond
+				if recent {
+					c.AnimationFrame()
+				}
+				active := key.Pressed() || recent
+				depTarget := float32(0)
+				if active {
+					depTarget = 1
+				}
+				dep := key.Spring(fmt.Sprintf("pa_wk_%d", kIdx), depTarget, ui.SpringOptions{
+					Duration: 150 * time.Millisecond,
+					Bounce:   0.25,
+				})
+
+				baseBg := ui.Hex("#ffffff")
+				if t.Dark {
+					baseBg = ui.Hex("#ecece8")
+				}
+				bg := lerpColor(baseBg, t.Accent.Alpha(0.28), dep)
+				if t.Dark {
+					bg = lerpColor(baseBg, lerpColor(baseBg, t.Accent, 0.45), dep)
+				}
+				borderCol := lerpColor(t.BorderStrong, t.Accent, dep)
+				key.Background(bg).
+					Border(1, borderCol).
+					Translate(0, dep*3.5)
+
+				key.Children(func() {
+					labelCol := ui.Hex("#555552")
+					if active {
+						labelCol = t.Accent
+					}
+					ui.Text(c, kSpec.name).
+						FontSize(10).
+						FontWeight(600).
+						TextColor(labelCol).
+						Unselectable()
+				})
+
+				if key.Clicked() {
+					triggerKey(kIdx)
+				}
+			}
+
+			// Render black sharp keys above white keys.
+			for idx, spec := range paOctaveKeys {
+				if !spec.sharp {
+					continue
+				}
+				kIdx := idx
+				kSpec := spec
+				x := float32(kSpec.whiteSlot)*(whiteW+whiteGap) - blackW*0.5 - whiteGap*0.5
+				key := ui.Column(c).
+					Key(fmt.Sprintf("bk_%d", kIdx)).
+					Absolute().
+					Top(0).
+					Left(x).
+					Width(blackW).
+					Height(blackH).
+					ZIndex(5).
+					AlignItems(ui.Center).
+					Justify(ui.End).
+					Padding(0, 0, 5, 0).
+					Radius(5).
+					Shadow(0, 3, 6, 0, ui.RGBA(0, 0, 0, 0.32)).
+					Cursor(ui.CursorPointer)
+
+				recent := !st.hitAt[kIdx].IsZero() && now.Sub(st.hitAt[kIdx]) < 220*time.Millisecond
+				if recent {
+					c.AnimationFrame()
+				}
+				active := key.Pressed() || recent
+				depTarget := float32(0)
+				if active {
+					depTarget = 1
+				}
+				dep := key.Spring(fmt.Sprintf("pa_bk_%d", kIdx), depTarget, ui.SpringOptions{
+					Duration: 140 * time.Millisecond,
+					Bounce:   0.25,
+				})
+
+				bg := lerpColor(ui.Hex("#1a1a1d"), t.Accent, dep*0.72)
+				key.Background(bg).
+					Border(1, lerpColor(ui.Hex("#333338"), t.Accent, dep)).
+					Translate(0, dep*3)
+
+				key.Children(func() {
+					ui.Text(c, kSpec.name).
+						FontSize(8).
+						FontWeight(600).
+						TextColor(ui.Hex("#ffffff").Alpha(0.75 + dep*0.25)).
+						Unselectable()
+				})
+
+				if key.Clicked() {
+					triggerKey(kIdx)
+				}
+			}
+		})
+	})
+
+	return root
+}
+
+// =============================================================================
+// 3. Voice Chat ("voice-chat")
+// =============================================================================
+
+// VoiceParticipant describes one person in a VoiceChat room.
+type VoiceParticipant struct {
+	Name     string
+	Initials string
+	Color    ui.Color
+	Speaking bool
+	IsSelf   bool
+}
+
+// VoiceChatOptions configures VoiceChat.
+type VoiceChatOptions struct {
+	RoomName     string
+	Participants []VoiceParticipant
+	Width        float32
+	OnMuteChange func(muted bool)
+	OnJoinChange func(joined bool)
+}
+
+type voiceChatState struct {
+	joined bool
+	muted  bool
+}
+
+// VoiceChat renders a compact multi-participant voice room card with animated
+// speaking rings, a Mute Mic toggle, and Join/Leave state.
+func VoiceChat(c *ui.Context, opts ...VoiceChatOptions) ui.Element {
+	var o VoiceChatOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.RoomName == "" {
+		o.RoomName = "Studio Lounge"
+	}
+	if o.Width <= 0 {
+		o.Width = 294
+	}
+	if len(o.Participants) == 0 {
+		o.Participants = []VoiceParticipant{
+			{Name: "Mina", Initials: "MN", Color: ui.Hex("#6366f1"), Speaking: true},
+			{Name: "Theo", Initials: "TH", Color: ui.Hex("#0ea5e9"), Speaking: false},
+			{Name: "Aria", Initials: "AR", Color: ui.Hex("#f59e0b"), Speaking: true},
+			{Name: "You", Initials: "YO", Color: ui.Hex("#10b981"), IsSelf: true},
+		}
+	}
+
+	root := ui.Column(c).
+		Width(o.Width).
+		Padding(12).
+		Gap(12).
+		Radius(16).
+		Background(t.Surface).
+		Border(1, t.Border).
+		Shadow(0, 6, 18, 0, t.Shadow)
+
+	st := ui.Local(root, "pa_voice_chat", func() voiceChatState {
+		return voiceChatState{joined: true, muted: false}
+	})
+
+	now := c.Now()
+	if st.joined {
+		c.AnimationFrame()
+	}
+	ph := phaseSeconds(now)
+
+	root.Children(func() {
+		// Header row: status dot, room name, live pill.
+		header := ui.Row(c).
+			WidthPercent(100).
+			AlignItems(ui.Center).
+			Justify(ui.SpaceBetween)
+		header.Children(func() {
+			left := ui.Row(c).AlignItems(ui.Center).Gap(7)
+			left.Children(func() {
+				dotCol := t.TextSubtle
+				if st.joined {
+					dotCol = t.Success
+				}
+				ui.Box(c).Width(8).Height(8).Radius(4).Background(dotCol)
+				ui.Text(c, o.RoomName).
+					FontSize(13).
+					FontWeight(600).
+					TextColor(t.Text).
+					Unselectable()
+			})
+
+			badgeText := "Standby"
+			badgeBg := t.SurfaceSubtle
+			badgeCol := t.TextMuted
+			if st.joined {
+				badgeText = fmt.Sprintf("%d live", len(o.Participants))
+				badgeBg = t.Success.Alpha(0.14)
+				badgeCol = t.Success
+			}
+			ui.Row(c).
+				Padding(3, 8).
+				Radius(999).
+				Background(badgeBg).
+				Children(func() {
+					ui.Text(c, badgeText).
+						FontSize(10).
+						FontWeight(600).
+						TextColor(badgeCol).
+						Unselectable()
+				})
+		})
+
+		// Participant avatar row with animated speaking rings.
+		members := ui.Row(c).
+			WidthPercent(100).
+			Justify(ui.SpaceBetween).
+			AlignItems(ui.Center)
+		members.Children(func() {
+			for idx, p := range o.Participants {
+				member := p
+				mIdx := idx
+				activeSpeak := st.joined && ((member.IsSelf && !st.muted) || (!member.IsSelf && member.Speaking))
+				isMutedSelf := member.IsSelf && (!st.joined || st.muted)
+
+				cell := ui.Column(c).
+					Key(fmt.Sprintf("vc_m_%d", mIdx)).
+					AlignItems(ui.Center).
+					Gap(4)
+				cell.Children(func() {
+					ringBox := ui.Box(c).Width(50).Height(50).Center()
+					ringBox.Draw(func(pt *ui.Painter, r ui.Rect) {
+						cx, cy := r.X+r.W*0.5, r.Y+r.H*0.5
+						if activeSpeak {
+							pulse := float32(0.5 + 0.5*math.Sin(ph*4.6+float64(mIdx)*1.7))
+							r1 := 20 + pulse*3.5
+							r2 := 21.5 + pulse*4.5
+							paStrokeCircle(pt, cx, cy, r1, 2, member.Color.Alpha(0.75))
+							paStrokeCircle(pt, cx, cy, r2, 1.2, member.Color.Alpha(0.28*(1-pulse*0.4)))
+						} else {
+							paStrokeCircle(pt, cx, cy, 20, 1.2, t.Border)
+						}
+					})
+					ringBox.Children(func() {
+						avOpacity := float32(1)
+						if !st.joined && member.IsSelf {
+							avOpacity = 0.45
+						}
+						av := ui.Row(c).
+							Width(36).
+							Height(36).
+							Radius(18).
+							Center().
+							Background(member.Color).
+							Opacity(avOpacity)
+						av.Children(func() {
+							ui.Text(c, member.Initials).
+								FontSize(12).
+								FontWeight(700).
+								TextColor(ui.Hex("#ffffff")).
+								Unselectable()
+						})
+
+						if isMutedSelf && st.joined {
+							// Small red mute indicator dot at bottom-right.
+							ui.Box(c).
+								Absolute().
+								Bottom(4).
+								Right(4).
+								Width(14).
+								Height(14).
+								Radius(7).
+								Background(t.Danger).
+								Border(2, t.Surface).
+								Draw(func(pt *ui.Painter, r ui.Rect) {
+									pt.Line(r.X+4, r.Y+4, r.X+r.W-4, r.Y+r.H-4, 1.5, ui.Hex("#ffffff"))
+								})
+						}
+					})
+
+					ui.Text(c, member.Name).
+						FontSize(10).
+						FontWeight(500).
+						TextColor(t.TextMuted).
+						Unselectable()
+				})
+			}
+		})
+
+		// Controls row: Mute Mic + Leave/Join.
+		controls := ui.Row(c).
+			WidthPercent(100).
+			Gap(8).
+			AlignItems(ui.Center)
+		controls.Children(func() {
+			muteLabel := "Mute Mic"
+			muteBg := t.SurfaceSubtle
+			muteBorder := t.BorderStrong
+			muteText := t.Text
+			if st.muted {
+				muteLabel = "Muted"
+				muteBg = t.Warning.Alpha(0.16)
+				muteBorder = t.Warning.Alpha(0.55)
+				muteText = t.Warning
+			}
+			muteBtn := ui.Row(c).
+				Key("vc_mute").
+				Grow(1).
+				Height(32).
+				Center().
+				Radius(10).
+				Background(muteBg).
+				Border(1, muteBorder).
+				Cursor(ui.CursorPointer)
+			if !st.joined {
+				muteBtn.Opacity(0.45)
+			}
+			muteScaleTarget := float32(1)
+			if muteBtn.Pressed() {
+				muteScaleTarget = 0.96
+			}
+			mSc := muteBtn.Spring("pa_vc_m_sc", muteScaleTarget, ui.SpringOptions{Duration: 150 * time.Millisecond, Bounce: 0.2})
+			muteBtn.Scale(mSc, mSc).Children(func() {
+				ui.Text(c, muteLabel).
+					FontSize(12).
+					FontWeight(600).
+					TextColor(muteText).
+					Unselectable()
+			})
+			if muteBtn.Clicked() && st.joined {
+				st.muted = !st.muted
+				if o.OnMuteChange != nil {
+					o.OnMuteChange(st.muted)
+				}
+			}
+
+			joinLabel := "Leave"
+			joinBg := t.Danger.Alpha(0.15)
+			joinBorder := t.Danger.Alpha(0.50)
+			joinText := t.Danger
+			if !st.joined {
+				joinLabel = "Join Room"
+				joinBg = t.Accent
+				joinBorder = t.Accent
+				joinText = ui.Hex("#ffffff")
+			}
+			joinBtn := ui.Row(c).
+				Key("vc_join").
+				Grow(1).
+				Height(32).
+				Center().
+				Radius(10).
+				Background(joinBg).
+				Border(1, joinBorder).
+				Cursor(ui.CursorPointer)
+			joinScaleTarget := float32(1)
+			if joinBtn.Pressed() {
+				joinScaleTarget = 0.96
+			}
+			jSc := joinBtn.Spring("pa_vc_j_sc", joinScaleTarget, ui.SpringOptions{Duration: 150 * time.Millisecond, Bounce: 0.2})
+			joinBtn.Scale(jSc, jSc).Children(func() {
+				ui.Text(c, joinLabel).
+					FontSize(12).
+					FontWeight(600).
+					TextColor(joinText).
+					Unselectable()
+			})
+			if joinBtn.Clicked() {
+				st.joined = !st.joined
+				if !st.joined {
+					st.muted = false
+				}
+				if o.OnJoinChange != nil {
+					o.OnJoinChange(st.joined)
+				}
+			}
+		})
+	})
+
+	return root
+}
+
+// =============================================================================
+// 4. Asset Swap ("asset-swap")
+// =============================================================================
+
+// SwapAsset describes one side of an AssetSwap currency pair.
+type SwapAsset struct {
+	Symbol   string
+	Name     string
+	PriceUSD float64
+	Color    ui.Color
+}
+
+// AssetSwapOptions configures AssetSwap.
+type AssetSwapOptions struct {
+	Base            SwapAsset
+	Quote           SwapAsset
+	Amounts         []float64
+	Width           float32
+	OnSwapDirection func(flipped bool)
+}
+
+type assetSwapState struct {
+	flipped   bool
+	rotTarget float32
+	amountIdx int
+	swappedAt time.Time
+}
+
+// AssetSwap renders a compact crypto/currency swap widget with an animated
+// swap-direction flip button that exchanges top/bottom rows and recalculates
+// the quoted output.
+func AssetSwap(c *ui.Context, opts ...AssetSwapOptions) ui.Element {
+	var o AssetSwapOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.Base.Symbol == "" {
+		o.Base = SwapAsset{Symbol: "USDC", Name: "USD Coin", PriceUSD: 1.0, Color: ui.Hex("#2775ca")}
+	}
+	if o.Quote.Symbol == "" {
+		o.Quote = SwapAsset{Symbol: "ETH", Name: "Ethereum", PriceUSD: 2600.0, Color: ui.Hex("#627eea")}
+	}
+	if len(o.Amounts) == 0 {
+		o.Amounts = []float64{1000, 2500, 500}
+	}
+	if o.Width <= 0 {
+		o.Width = 286
+	}
+
+	root := ui.Column(c).
+		Width(o.Width).
+		Padding(10).
+		Gap(6).
+		Radius(16).
+		Background(t.Surface).
+		Border(1, t.Border).
+		Shadow(0, 6, 18, 0, t.Shadow)
+
+	st := ui.Local(root, "pa_asset_swap", func() assetSwapState {
+		return assetSwapState{}
+	})
+
+	now := c.Now()
+	topAsset, botAsset := o.Base, o.Quote
+	payAmt := o.Amounts[st.amountIdx%len(o.Amounts)]
+	if st.flipped {
+		topAsset, botAsset = o.Quote, o.Base
+		// Scale ETH input cleanly so numbers stay human-sized.
+		payAmt = payAmt / 1000.0
+	}
+	recvAmt := 0.0
+	if botAsset.PriceUSD > 0 {
+		recvAmt = payAmt * (topAsset.PriceUSD / botAsset.PriceUSD)
+	}
+
+	formatAmt := func(a SwapAsset, v float64) string {
+		if a.PriceUSD >= 100 {
+			return fmt.Sprintf("%.4f", v)
+		}
+		return fmt.Sprintf("%.2f", v)
+	}
+
+	// Brief spring nudge on swap so the rows visibly exchange.
+	nudgeTarget := float32(0)
+	if !st.swappedAt.IsZero() && now.Sub(st.swappedAt) < 140*time.Millisecond {
+		c.AnimationFrame()
+		nudgeTarget = 5
+	}
+	nudge := root.Spring("pa_swap_nudge", nudgeTarget, ui.SpringOptions{
+		Duration: 260 * time.Millisecond,
+		Bounce:   0.35,
+	})
+
+	renderRow := func(key, role string, asset SwapAsset, amtStr string, dy float32, clickable bool) ui.Element {
+		row := ui.Row(c).
+			Key(key).
+			WidthPercent(100).
+			Height(58).
+			Padding(8, 12).
+			Radius(12).
+			Background(t.SurfaceSubtle).
+			Border(1, t.Border).
+			AlignItems(ui.Center).
+			Justify(ui.SpaceBetween).
+			Translate(0, dy)
+		if clickable {
+			row.Cursor(ui.CursorPointer)
+		}
+		row.Children(func() {
+			left := ui.Row(c).AlignItems(ui.Center).Gap(9)
+			left.Children(func() {
+				badge := ui.Row(c).
+					Width(30).
+					Height(30).
+					Radius(15).
+					Center().
+					Background(asset.Color)
+				badge.Children(func() {
+					sym := asset.Symbol
+					if len(sym) > 1 {
+						sym = sym[:1]
+					}
+					ui.Text(c, sym).
+						FontSize(13).
+						FontWeight(700).
+						TextColor(ui.Hex("#ffffff")).
+						Unselectable()
+				})
+				meta := ui.Column(c).Gap(1)
+				meta.Children(func() {
+					ui.Text(c, role).FontSize(10).TextColor(t.TextSubtle).Unselectable()
+					ui.Text(c, asset.Symbol).FontSize(13).FontWeight(700).TextColor(t.Text).Unselectable()
+				})
+			})
+
+			right := ui.Column(c).AlignItems(ui.End).Gap(1)
+			right.Children(func() {
+				ui.Text(c, amtStr).FontSize(15).FontWeight(700).TextColor(t.Text).Unselectable()
+				usdVal := payAmt * topAsset.PriceUSD
+				ui.Text(c, fmt.Sprintf("$%.0f", usdVal)).FontSize(10).TextColor(t.TextSubtle).Unselectable()
+			})
+		})
+		return row
+	}
+
+	root.Children(func() {
+		stack := ui.Box(c).WidthPercent(100).Height(124)
+		stack.Children(func() {
+			rows := ui.Column(c).WidthPercent(100).Gap(8)
+			rows.Children(func() {
+				topRow := renderRow("swap_top", "You pay", topAsset, formatAmt(topAsset, payAmt), nudge, true)
+				if topRow.Clicked() {
+					st.amountIdx = (st.amountIdx + 1) % len(o.Amounts)
+				}
+				renderRow("swap_bot", "You receive", botAsset, formatAmt(botAsset, recvAmt), -nudge, false)
+			})
+
+			// Floating circular flip button centered between rows.
+			flipBtn := ui.Row(c).
+				Key("swap_flip_btn").
+				Absolute().
+				Top(46).
+				Left((o.Width-20-32)*0.5).
+				Width(32).
+				Height(32).
+				ZIndex(4).
+				Radius(16).
+				Center().
+				Background(t.Surface).
+				Border(1.5, t.BorderStrong).
+				Shadow(0, 3, 8, 0, t.Shadow).
+				Cursor(ui.CursorPointer)
+
+			rot := flipBtn.Spring("pa_swap_rot", st.rotTarget, ui.SpringOptions{
+				Duration: 320 * time.Millisecond,
+				Bounce:   0.32,
+			})
+			btnScaleTarget := float32(1)
+			if flipBtn.Pressed() {
+				btnScaleTarget = 0.88
+			} else if flipBtn.Hovered() {
+				btnScaleTarget = 1.08
+			}
+			bSc := flipBtn.Spring("pa_swap_sc", btnScaleTarget, ui.SpringOptions{
+				Duration: 180 * time.Millisecond,
+				Bounce:   0.25,
+			})
+			flipBtn.Scale(bSc, bSc).Rotate(rot)
+			flipBtn.Draw(func(p *ui.Painter, r ui.Rect) {
+				cx, cy := r.X+r.W*0.5, r.Y+r.H*0.5
+				col := t.Text
+				if flipBtn.Hovered() {
+					col = t.Accent
+				}
+				// Up arrow on left, down arrow on right.
+				var up, down ui.Path
+				up.Cap(ui.RoundCap).Join(ui.RoundJoin).
+					MoveTo(cx-3.5, cy+4.5).LineTo(cx-3.5, cy-4.5).
+					MoveTo(cx-6.2, cy-1.8).LineTo(cx-3.5, cy-4.5).LineTo(cx-0.8, cy-1.8)
+				down.Cap(ui.RoundCap).Join(ui.RoundJoin).
+					MoveTo(cx+3.5, cy-4.5).LineTo(cx+3.5, cy+4.5).
+					MoveTo(cx+0.8, cy+1.8).LineTo(cx+3.5, cy+4.5).LineTo(cx+6.2, cy+1.8)
+				p.StrokePath(&up, 1.7, col)
+				p.StrokePath(&down, 1.7, col)
+			})
+			if flipBtn.Clicked() {
+				st.flipped = !st.flipped
+				st.rotTarget += 180
+				st.swappedAt = now
+				if o.OnSwapDirection != nil {
+					o.OnSwapDirection(st.flipped)
+				}
+			}
+		})
+
+		// Rate footer line.
+		rate := topAsset.PriceUSD / botAsset.PriceUSD
+		rateStr := fmt.Sprintf("1 %s = %.4f %s", topAsset.Symbol, rate, botAsset.Symbol)
+		if rate >= 10 {
+			rateStr = fmt.Sprintf("1 %s = %.2f %s", topAsset.Symbol, rate, botAsset.Symbol)
+		}
+		footer := ui.Row(c).
+			WidthPercent(100).
+			Padding(2, 4, 0, 4).
+			AlignItems(ui.Center).
+			Justify(ui.SpaceBetween)
+		footer.Children(func() {
+			ui.Text(c, rateStr).FontSize(10).TextColor(t.TextSubtle).Unselectable()
+			ui.Text(c, "Tap amount to cycle").FontSize(10).TextColor(t.Accent).Unselectable()
+		})
+	})
+
+	return root
+}
+
+// =============================================================================
+// 5. Generate ("generate")
+// =============================================================================
+
+// GenerateOptions configures GenerateButton.
+type GenerateOptions struct {
+	Label           string
+	GeneratingLabel string
+	TagSets         [][]string
+	Duration        time.Duration
+	OnComplete      func(tags []string)
+}
+
+type generateState struct {
+	generating bool
+	startedAt  time.Time
+	doneAt     time.Time
+	setIdx     int
+	completed  int
+}
+
+func paDrawSparkle(p *ui.Painter, cx, cy, rad float32, col ui.Color) {
+	if rad <= 0 {
+		return
+	}
+	in := rad * 0.28
+	var path ui.Path
+	path.MoveTo(cx, cy-rad).
+		LineTo(cx+in, cy-in).
+		LineTo(cx+rad, cy).
+		LineTo(cx+in, cy+in).
+		LineTo(cx, cy+rad).
+		LineTo(cx-in, cy+in).
+		LineTo(cx-rad, cy).
+		LineTo(cx-in, cy-in).
+		Close()
+	p.FillPath(&path, col)
+}
+
+// GenerateButton renders an AI generation CTA button with an animated sparkle
+// progress sweep while generating, cycling through crisp output tags on completion.
+func GenerateButton(c *ui.Context, opts ...GenerateOptions) ui.Element {
+	var o GenerateOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.Label == "" {
+		o.Label = "Generate"
+	}
+	if o.GeneratingLabel == "" {
+		o.GeneratingLabel = "Generating..."
+	}
+	if o.Duration <= 0 {
+		o.Duration = 1150 * time.Millisecond
+	}
+	if len(o.TagSets) == 0 {
+		o.TagSets = [][]string{
+			{"Spring physics", "Glass card", "Dark OLED"},
+			{"Kinetic type", "Fluid tab", "Haptic pop"},
+			{"Ambient glow", "Soft depth", "60fps GPU"},
+			{"Micro badge", "Zero jank", "Crisp ink"},
+		}
+	}
+
+	root := ui.Column(c).
+		Width(286).
+		AlignItems(ui.Center).
+		Gap(12)
+
+	st := ui.Local(root, "pa_generate", func() generateState {
+		return generateState{}
+	})
+
+	now := c.Now()
+	prog := float32(0)
+	if st.generating {
+		elapsed := now.Sub(st.startedAt)
+		if elapsed >= o.Duration {
+			st.generating = false
+			st.doneAt = now
+			st.completed++
+			st.setIdx = st.completed % len(o.TagSets)
+			if o.OnComplete != nil {
+				o.OnComplete(o.TagSets[st.setIdx])
+			}
+		} else {
+			c.AnimationFrame()
+			prog = clamp32(float32(elapsed.Seconds()/o.Duration.Seconds()), 0, 1)
+		}
+	}
+
+	justFinished := !st.doneAt.IsZero() && now.Sub(st.doneAt) < 420*time.Millisecond
+	if justFinished {
+		c.AnimationFrame()
+	}
+
+	root.Children(func() {
+		btn := ui.Row(c).
+			Key("pa_gen_btn").
+			Width(196).
+			Height(44).
+			Padding(0, 18).
+			Gap(9).
+			Center().
+			Radius(999).
+			Clip().
+			Cursor(ui.CursorPointer)
+
+		scaleTarget := float32(1)
+		if btn.Pressed() {
+			scaleTarget = 0.95
+		} else if btn.Hovered() {
+			scaleTarget = 1.03
+		}
+		sc := btn.Spring("pa_gen_sc", scaleTarget, ui.SpringOptions{Duration: 180 * time.Millisecond, Bounce: 0.28})
+
+		bg := t.Text
+		textCol := t.Background
+		borderCol := t.Text
+		if st.generating {
+			bg = t.SurfaceSubtle
+			textCol = t.Text
+			borderCol = t.Accent.Alpha(0.70)
+		} else if justFinished {
+			bg = t.Accent
+			textCol = ui.Hex("#ffffff")
+			borderCol = t.Accent
+		}
+
+		btn.Background(bg).
+			Border(1.2, borderCol).
+			Shadow(0, 6, 16, 0, t.Shadow).
+			Scale(sc, sc)
+
+		btn.Draw(func(p *ui.Painter, r ui.Rect) {
+			if !st.generating {
+				return
+			}
+			// Progress fill bar.
+			p.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W * prog, H: r.H}, t.Accent.Alpha(0.22), r.H*0.5)
+			// Sweeping bright shimmer band.
+			sweep := float32(mod1(phaseSeconds(now) * 1.45))
+			bandW := r.W * 0.34
+			bx := r.X - bandW + (r.W+bandW)*sweep
+			p.FillGradient(ui.Rect{X: bx, Y: r.Y, W: bandW, H: r.H}, ui.LinearGradient{
+				Angle: 90,
+				Stops: []ui.GradientStop{
+					{Color: ui.RGBA(255, 255, 255, 0), At: 0},
+					{Color: t.Accent.Alpha(0.45), At: 0.5},
+					{Color: ui.RGBA(255, 255, 255, 0), At: 1},
+				},
+			}, 0)
+		})
+
+		btn.Children(func() {
+			// Sparkle icon box.
+			spark := ui.Box(c).Width(16).Height(16)
+			sparkRot := float32(0)
+			if st.generating {
+				sparkRot = float32(mod1(phaseSeconds(now)*1.2)) * 360
+			}
+			spark.Rotate(sparkRot).Draw(func(p *ui.Painter, r ui.Rect) {
+				cx, cy := r.X+r.W*0.5, r.Y+r.H*0.5
+				col := textCol
+				if st.generating {
+					col = t.Accent
+				}
+				paDrawSparkle(p, cx, cy, 6.5, col)
+				paDrawSparkle(p, cx+5.2, cy-4.8, 2.2, col.Alpha(0.75))
+			})
+
+			lbl := o.Label
+			if st.generating {
+				lbl = fmt.Sprintf("%s %d%%", o.GeneratingLabel, int(prog*100))
+			}
+			ui.Text(c, lbl).
+				FontSize(13).
+				FontWeight(600).
+				TextColor(textCol).
+				Unselectable()
+		})
+
+		if btn.Clicked() && !st.generating {
+			st.generating = true
+			st.startedAt = now
+		}
+
+		// Generated output tag chips.
+		tags := o.TagSets[st.setIdx]
+		tagLiftTarget := float32(0)
+		tagOpTarget := float32(1)
+		if st.generating {
+			tagLiftTarget = 6
+			tagOpTarget = 0.42
+		}
+		tagY := root.Spring("pa_gen_tag_y", tagLiftTarget, ui.SpringOptions{Duration: 260 * time.Millisecond, Bounce: 0.25})
+		tagOp := root.Spring("pa_gen_tag_op", tagOpTarget, ui.SpringOptions{Duration: 220 * time.Millisecond, Bounce: 0.1})
+
+		tagRow := ui.Row(c).
+			Gap(6).
+			Center().
+			Translate(0, tagY).
+			Opacity(tagOp)
+		tagRow.Children(func() {
+			for i, tag := range tags {
+				ui.Row(c).
+					Key(fmt.Sprintf("gen_tag_%d", i)).
+					Padding(4, 9).
+					Radius(999).
+					Background(t.SurfaceSubtle).
+					Border(1, t.Border).
+					Children(func() {
+						ui.Text(c, tag).
+							FontSize(10).
+							FontWeight(500).
+							TextColor(t.TextMuted).
+							Unselectable()
+					})
+			}
+		})
+
+		status := "Click to synthesize"
+		if st.generating {
+			status = "Streaming tokens..."
+		} else if st.completed > 0 {
+			status = fmt.Sprintf("Set #%d ready · click for next", st.completed)
+		}
+		ui.Text(c, status).FontSize(10).TextColor(t.TextSubtle).Unselectable()
+	})
+
+	return root
+}
+
+// =============================================================================
+// 6. Step Player ("step-player")
+// =============================================================================
+
+// WalkthroughStep defines one slide inside StepPlayer.
+type WalkthroughStep struct {
+	Title   string
+	Caption string
+	Accent  ui.Color
+}
+
+// StepPlayerOptions configures StepPlayer.
+type StepPlayerOptions struct {
+	Steps        []WalkthroughStep
+	StepDuration time.Duration
+	Width        float32
+	OnStepChange func(index int)
+}
+
+type stepPlayerState struct {
+	index     int
+	playing   bool
+	startedAt time.Time
+	changedAt time.Time
+}
+
+// StepPlayer renders an interactive walkthrough player with Play/Pause
+// auto-advance, scrubber dots, Prev/Next buttons, and step captions.
+func StepPlayer(c *ui.Context, opts ...StepPlayerOptions) ui.Element {
+	var o StepPlayerOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.Width <= 0 {
+		o.Width = 294
+	}
+	if o.StepDuration <= 0 {
+		o.StepDuration = 2400 * time.Millisecond
+	}
+	if len(o.Steps) == 0 {
+		o.Steps = []WalkthroughStep{
+			{Title: "Connect workspace", Caption: "Link your repository to index design tokens automatically.", Accent: ui.Hex("#6366f1")},
+			{Title: "Tune spring curves", Caption: "Adjust stiffness and bounce with live 60fps GPU previews.", Accent: ui.Hex("#0ea5e9")},
+			{Title: "Inspect dark mode", Caption: "Verify surface contrast and ink legibility in both themes.", Accent: ui.Hex("#10b981")},
+			{Title: "Ship native UI", Caption: "Export zero-dependency Go components ready for production.", Accent: ui.Hex("#f59e0b")},
+		}
+	}
+
+	root := ui.Column(c).
+		Width(o.Width).
+		Padding(12).
+		Gap(10).
+		Radius(16).
+		Background(t.Surface).
+		Border(1, t.Border).
+		Shadow(0, 6, 18, 0, t.Shadow)
+
+	now := c.Now()
+	st := ui.Local(root, "pa_step_player", func() stepPlayerState {
+		return stepPlayerState{index: 0, playing: true, startedAt: now, changedAt: now}
+	})
+
+	n := len(o.Steps)
+	if st.index >= n {
+		st.index = 0
+	}
+
+	setStep := func(next int) {
+		next = ((next % n) + n) % n
+		st.index = next
+		st.startedAt = now
+		st.changedAt = now
+		if o.OnStepChange != nil {
+			o.OnStepChange(next)
+		}
+	}
+
+	stepFrac := float32(0)
+	if st.playing {
+		elapsed := now.Sub(st.startedAt)
+		if elapsed >= o.StepDuration {
+			setStep(st.index + 1)
+			stepFrac = 0
+		} else {
+			c.AnimationFrame()
+			stepFrac = clamp32(float32(elapsed.Seconds()/o.StepDuration.Seconds()), 0, 1)
+		}
+	}
+
+	cur := o.Steps[st.index]
+	accent := colorOr(cur.Accent, t.Accent)
+
+	// Brief caption entrance nudge on step change.
+	slideTarget := float32(0)
+	if now.Sub(st.changedAt) < 120*time.Millisecond {
+		c.AnimationFrame()
+		slideTarget = 6
+	}
+	slideY := root.Spring("pa_sp_slide", slideTarget, ui.SpringOptions{
+		Duration: 220 * time.Millisecond,
+		Bounce:   0.25,
+	})
+
+	root.Children(func() {
+		// Top row: step counter pill + title.
+		header := ui.Row(c).
+			WidthPercent(100).
+			AlignItems(ui.Center).
+			Justify(ui.SpaceBetween)
+		header.Children(func() {
+			ui.Row(c).AlignItems(ui.Center).Gap(7).Children(func() {
+				ui.Box(c).Width(8).Height(8).Radius(4).Background(accent)
+				ui.Text(c, cur.Title).
+					FontSize(13).
+					FontWeight(600).
+					TextColor(t.Text).
+					Unselectable()
+			})
+			ui.Row(c).
+				Padding(2, 7).
+				Radius(999).
+				Background(accent.Alpha(0.14)).
+				Children(func() {
+					ui.Text(c, fmt.Sprintf("%02d / %02d", st.index+1, n)).
+						FontSize(10).
+						FontWeight(600).
+						TextColor(accent).
+						Unselectable()
+				})
+		})
+
+		// Caption card with live progress underline.
+		capBox := ui.Column(c).
+			WidthPercent(100).
+			Height(56).
+			Padding(9, 10).
+			Radius(10).
+			Background(t.SurfaceSubtle).
+			Border(1, t.Border).
+			Clip().
+			Justify(ui.Center)
+		capBox.Draw(func(p *ui.Painter, r ui.Rect) {
+			barH := float32(2.5)
+			p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - barH, W: r.W, H: barH}, t.Border.Alpha(0.6), 0)
+			if st.playing {
+				p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - barH, W: r.W * stepFrac, H: barH}, accent, 0)
+			}
+		})
+		capBox.Children(func() {
+			ui.Text(c, cur.Caption).
+				FontSize(11).
+				TextColor(t.TextMuted).
+				Translate(0, slideY).
+				Unselectable()
+		})
+
+		// Transport bar: Prev, Play/Pause, Scrubber dots, Next.
+		bar := ui.Row(c).
+			WidthPercent(100).
+			AlignItems(ui.Center).
+			Justify(ui.SpaceBetween)
+		bar.Children(func() {
+			navBtns := ui.Row(c).AlignItems(ui.Center).Gap(5)
+			navBtns.Children(func() {
+				prevBtn := ui.Row(c).
+					Key("sp_prev").
+					Width(26).
+					Height(26).
+					Center().
+					Radius(8).
+					Background(t.SurfaceSubtle).
+					Border(1, t.Border).
+					Cursor(ui.CursorPointer)
+				prevBtn.Children(func() {
+					ui.Text(c, "<").FontSize(12).FontWeight(700).TextColor(t.Text).Unselectable()
+				})
+				if prevBtn.Clicked() {
+					setStep(st.index - 1)
+				}
+
+				playLbl := "Play"
+				playBg := accent
+				playCol := ui.Hex("#ffffff")
+				if st.playing {
+					playLbl = "Pause"
+					playBg = t.SurfaceSubtle
+					playCol = t.Text
+				}
+				playBtn := ui.Row(c).
+					Key("sp_play").
+					Height(26).
+					Padding(0, 10).
+					Center().
+					Radius(8).
+					Background(playBg).
+					Border(1, lerpColor(t.Border, accent, func() float32 {
+						if st.playing {
+							return 0
+						}
+						return 1
+					}())).
+					Cursor(ui.CursorPointer)
+				playBtn.Children(func() {
+					ui.Text(c, playLbl).FontSize(11).FontWeight(600).TextColor(playCol).Unselectable()
+				})
+				if playBtn.Clicked() {
+					st.playing = !st.playing
+					st.startedAt = now
+				}
+
+				nextBtn := ui.Row(c).
+					Key("sp_next").
+					Width(26).
+					Height(26).
+					Center().
+					Radius(8).
+					Background(t.SurfaceSubtle).
+					Border(1, t.Border).
+					Cursor(ui.CursorPointer)
+				nextBtn.Children(func() {
+					ui.Text(c, ">").FontSize(12).FontWeight(700).TextColor(t.Text).Unselectable()
+				})
+				if nextBtn.Clicked() {
+					setStep(st.index + 1)
+				}
+			})
+
+			// Scrubber dots with spring width expansion on active dot.
+			dots := ui.Row(c).AlignItems(ui.Center).Gap(5)
+			dots.Children(func() {
+				for i := 0; i < n; i++ {
+					idx := i
+					active := idx == st.index
+					wTarget := float32(7)
+					if active {
+						wTarget = 20
+					}
+					dot := ui.Box(c).
+						Key(fmt.Sprintf("sp_dot_%d", idx)).
+						Height(7).
+						Radius(4).
+						Cursor(ui.CursorPointer)
+					dw := dot.Spring(fmt.Sprintf("pa_sp_dw_%d", idx), wTarget, ui.SpringOptions{
+						Duration: 240 * time.Millisecond,
+						Bounce:   0.3,
+					})
+					col := t.BorderStrong
+					if active {
+						col = accent
+					}
+					dot.Width(dw).Background(col)
+					if dot.Clicked() {
+						setStep(idx)
+					}
+				}
+			})
+		})
+	})
+
+	return root
+}
+
+// =============================================================================
+// 7. Stories ("stories")
+// =============================================================================
+
+// StoryItem defines one avatar ring inside Stories.
+type StoryItem struct {
+	Name     string
+	Initials string
+	Preview  string
+	ColorA   ui.Color
+	ColorB   ui.Color
+}
+
+// StoriesOptions configures Stories.
+type StoriesOptions struct {
+	Items  []StoryItem
+	OnView func(index int)
+}
+
+type storiesState struct {
+	viewed [8]bool
+}
+
+// Stories renders a row of circular story avatars with vibrant gradient rings;
+// hovering lifts/scales the ring and displays a floating preview pill, and
+// clicking marks the story viewed.
+func Stories(c *ui.Context, opts ...StoriesOptions) ui.Element {
+	var o StoriesOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if len(o.Items) == 0 {
+		o.Items = []StoryItem{
+			{Name: "Mina", Initials: "MN", Preview: "New shader pass · 2m", ColorA: ui.Hex("#f43f5e"), ColorB: ui.Hex("#f59e0b")},
+			{Name: "Leo", Initials: "LE", Preview: "Studio desk · 14m", ColorA: ui.Hex("#8b5cf6"), ColorB: ui.Hex("#ec4899")},
+			{Name: "Kira", Initials: "KR", Preview: "Tokyo coffee · 38m", ColorA: ui.Hex("#06b6d4"), ColorB: ui.Hex("#6366f1")},
+			{Name: "Sam", Initials: "SM", Preview: "Synth patch · 1h", ColorA: ui.Hex("#10b981"), ColorB: ui.Hex("#0ea5e9")},
+			{Name: "Zoe", Initials: "ZO", Preview: "Weekend hike · 3h", ColorA: ui.Hex("#f97316"), ColorB: ui.Hex("#eab308")},
+		}
+	}
+	if len(o.Items) > 8 {
+		o.Items = o.Items[:8]
+	}
+
+	root := ui.Box(c).
+		Width(296).
+		Height(112)
+
+	st := ui.Local(root, "pa_stories", func() storiesState {
+		return storiesState{}
+	})
+
+	hoveredIdx := -1
+	root.Children(func() {
+		row := ui.Row(c).
+			Absolute().
+			Top(36).
+			Left(0).
+			Width(296).
+			Justify(ui.SpaceBetween).
+			AlignItems(ui.Center)
+		row.Children(func() {
+			for i, item := range o.Items {
+				idx := i
+				it := item
+				viewed := st.viewed[idx]
+
+				col := ui.Column(c).
+					Key(fmt.Sprintf("story_%d", idx)).
+					AlignItems(ui.Center).
+					Gap(5).
+					Cursor(ui.CursorPointer)
+
+				hov := col.Hovered()
+				if hov {
+					hoveredIdx = idx
+				}
+
+				liftTarget := float32(0)
+				scaleTarget := float32(1)
+				if hov {
+					liftTarget = -5
+					scaleTarget = 1.10
+				}
+				if col.Pressed() {
+					scaleTarget = 0.96
+				}
+				lift := col.Spring(fmt.Sprintf("pa_st_y_%d", idx), liftTarget, ui.SpringOptions{
+					Duration: 220 * time.Millisecond,
+					Bounce:   0.35,
+				})
+				sc := col.Spring(fmt.Sprintf("pa_st_s_%d", idx), scaleTarget, ui.SpringOptions{
+					Duration: 220 * time.Millisecond,
+					Bounce:   0.35,
+				})
+
+				col.Children(func() {
+					ring := ui.Box(c).
+						Width(46).
+						Height(46).
+						Center().
+						Translate(0, lift).
+						Scale(sc, sc)
+					ring.Draw(func(p *ui.Painter, r ui.Rect) {
+						if viewed {
+							p.Stroke(r, t.BorderStrong, r.W*0.5, 2)
+							return
+						}
+						p.FillConicGradient(r, ui.ConicGradient{
+							Angle: 45,
+							Stops: []ui.GradientStop{
+								{Color: it.ColorA, At: 0},
+								{Color: it.ColorB, At: 0.5},
+								{Color: it.ColorA, At: 1},
+							},
+						}, r.W*0.5)
+						inner := ui.Rect{X: r.X + 2.5, Y: r.Y + 2.5, W: r.W - 5, H: r.H - 5}
+						p.Fill(inner, t.Background, inner.W*0.5)
+					})
+					ring.Children(func() {
+						avBg := lerpColor(it.ColorA, it.ColorB, 0.35)
+						if viewed {
+							avBg = t.SurfaceSubtle
+						}
+						av := ui.Row(c).
+							Width(36).
+							Height(36).
+							Radius(18).
+							Center().
+							Background(avBg)
+						av.Children(func() {
+							txtCol := ui.Hex("#ffffff")
+							if viewed {
+								txtCol = t.TextMuted
+							}
+							ui.Text(c, it.Initials).
+								FontSize(12).
+								FontWeight(700).
+								TextColor(txtCol).
+								Unselectable()
+						})
+					})
+
+					nameCol := t.Text
+					if viewed {
+						nameCol = t.TextSubtle
+					}
+					ui.Text(c, it.Name).
+						FontSize(10).
+						FontWeight(500).
+						TextColor(nameCol).
+						Unselectable()
+				})
+
+				if col.Clicked() {
+					st.viewed[idx] = !st.viewed[idx]
+					if st.viewed[idx] && o.OnView != nil {
+						o.OnView(idx)
+					}
+				}
+			}
+		})
+
+		// Floating preview pill above the story row.
+		pillOpTarget := float32(0.65)
+		pillYTarget := float32(4)
+		pillText := "Hover to preview · Click to view"
+		dotCol := t.Accent
+		if hoveredIdx >= 0 {
+			pillOpTarget = 1
+			pillYTarget = 0
+			it := o.Items[hoveredIdx]
+			dotCol = it.ColorA
+			if st.viewed[hoveredIdx] {
+				pillText = fmt.Sprintf("%s · Viewed", it.Name)
+				dotCol = t.TextSubtle
+			} else {
+				pillText = fmt.Sprintf("%s · %s", it.Name, it.Preview)
+			}
+		}
+		pOp := root.Spring("pa_st_pop", pillOpTarget, ui.SpringOptions{Duration: 200 * time.Millisecond, Bounce: 0.1})
+		pY := root.Spring("pa_st_py", pillYTarget, ui.SpringOptions{Duration: 220 * time.Millisecond, Bounce: 0.3})
+
+		ui.Row(c).
+			Absolute().
+			Top(pY).
+			Left(0).
+			Width(296).
+			Center().
+			Opacity(pOp).
+			Children(func() {
+				ui.Row(c).
+					Padding(4, 10).
+					Gap(6).
+					AlignItems(ui.Center).
+					Radius(999).
+					Background(t.Surface).
+					Border(1, t.Border).
+					Shadow(0, 4, 10, 0, t.Shadow).
+					Children(func() {
+						ui.Box(c).Width(6).Height(6).Radius(3).Background(dotCol)
+						ui.Text(c, pillText).
+							FontSize(11).
+							FontWeight(500).
+							TextColor(t.Text).
+							Unselectable()
+					})
+			})
+	})
+
+	return root
+}
+
+// =============================================================================
+// 8. Liquid Tooltip ("glide-tip")
+// =============================================================================
+
+// GlideTipItem describes one trigger and its tooltip text inside GlideTip.
+type GlideTipItem struct {
+	Icon  string
+	Label string
+	Tip   string
+}
+
+// GlideTipOptions configures GlideTip.
+type GlideTipOptions struct {
+	Items []GlideTipItem
+}
+
+type glideTipState struct {
+	lastIdx int
+}
+
+func paDrawToolIcon(p *ui.Painter, kind string, r ui.Rect, col ui.Color) {
+	cx, cy := r.X+r.W*0.5, r.Y+r.H*0.5
+	switch kind {
+	case "copy":
+		p.Stroke(ui.Rect{X: cx - 5, Y: cy - 3, W: 7.5, H: 8.5}, col, 1.8, 1.4)
+		p.Stroke(ui.Rect{X: cx - 2, Y: cy - 6, W: 7.5, H: 8.5}, col, 1.8, 1.4)
+	case "share":
+		var path ui.Path
+		path.Cap(ui.RoundCap).Join(ui.RoundJoin).
+			MoveTo(cx, cy+1).LineTo(cx, cy-6).
+			MoveTo(cx-3, cy-3).LineTo(cx, cy-6).LineTo(cx+3, cy-3).
+			MoveTo(cx-5.5, cy-1).LineTo(cx-5.5, cy+5.5).LineTo(cx+5.5, cy+5.5).LineTo(cx+5.5, cy-1)
+		p.StrokePath(&path, 1.5, col)
+	case "pin":
+		paStrokeCircle(p, cx, cy-2.2, 3.6, 1.5, col)
+		p.Line(cx, cy+1.5, cx, cy+6.5, 1.5, col)
+	default:
+		paDrawCircle(p, cx-4.2, cy, 1.5, col)
+		paDrawCircle(p, cx, cy, 1.5, col)
+		paDrawCircle(p, cx+4.2, cy, 1.5, col)
+	}
+}
+
+// GlideTip renders a horizontal row of 4 triggers sharing ONE floating tooltip
+// pill that smoothly glides horizontally with spring physics between hovered items.
+func GlideTip(c *ui.Context, opts ...GlideTipOptions) ui.Element {
+	var o GlideTipOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if len(o.Items) == 0 {
+		o.Items = []GlideTipItem{
+			{Icon: "copy", Label: "Copy", Tip: "Copy link · ⌘C"},
+			{Icon: "share", Label: "Share", Tip: "Share card · ⌘S"},
+			{Icon: "pin", Label: "Pin", Tip: "Pin to board · P"},
+			{Icon: "more", Label: "More", Tip: "More actions · ⋯"},
+		}
+	}
+
+	const (
+		itemW   = float32(62)
+		itemGap = float32(8)
+		tipW    = float32(118)
+	)
+	n := len(o.Items)
+	totalW := float32(n)*itemW + float32(n-1)*itemGap
+
+	root := ui.Box(c).
+		Width(totalW).
+		Height(104)
+
+	st := ui.Local(root, "pa_glide_tip", func() glideTipState {
+		return glideTipState{lastIdx: 0}
+	})
+
+	hoveredIdx := -1
+	root.Children(func() {
+		// Trigger row sitting in the lower half of the stage.
+		bar := ui.Row(c).
+			Absolute().
+			Top(42).
+			Left(0).
+			Width(totalW).
+			Gap(itemGap).
+			AlignItems(ui.Center)
+		bar.Children(func() {
+			for i, item := range o.Items {
+				idx := i
+				it := item
+				btn := ui.Column(c).
+					Key(fmt.Sprintf("gt_item_%d", idx)).
+					Width(itemW).
+					Height(54).
+					Center().
+					Gap(4).
+					Radius(12).
+					Cursor(ui.CursorPointer)
+
+				hov := btn.Hovered()
+				if hov {
+					hoveredIdx = idx
+					st.lastIdx = idx
+				}
+				bg := t.Surface
+				border := t.Border
+				fg := t.TextMuted
+				if hov {
+					bg = t.SurfaceHover
+					border = t.Accent.Alpha(0.55)
+					fg = t.Text
+				}
+				btn.Background(bg).Border(1, border)
+
+				btn.Children(func() {
+					ui.Box(c).Width(18).Height(18).Draw(func(p *ui.Painter, r ui.Rect) {
+						paDrawToolIcon(p, it.Icon, r, fg)
+					})
+					ui.Text(c, it.Label).
+						FontSize(10).
+						FontWeight(600).
+						TextColor(fg).
+						Unselectable()
+				})
+			}
+		})
+
+		// Single shared floating tooltip pill that glides smoothly along X.
+		activeIdx := st.lastIdx
+		if activeIdx < 0 || activeIdx >= n {
+			activeIdx = 0
+		}
+		targetCenter := float32(activeIdx)*(itemW+itemGap) + itemW*0.5
+		targetLeft := clamp32(targetCenter-tipW*0.5, 0, totalW-tipW)
+
+		showTarget := float32(0)
+		yTarget := float32(10)
+		if hoveredIdx >= 0 {
+			showTarget = 1
+			yTarget = 2
+		}
+
+		tipX := root.Spring("pa_gt_x", targetLeft, ui.SpringOptions{
+			Duration: 280 * time.Millisecond,
+			Bounce:   0.26,
+		})
+		tipOp := root.Spring("pa_gt_op", showTarget, ui.SpringOptions{
+			Duration: 180 * time.Millisecond,
+			Bounce:   0.05,
+		})
+		tipY := root.Spring("pa_gt_y", yTarget, ui.SpringOptions{
+			Duration: 220 * time.Millisecond,
+			Bounce:   0.28,
+		})
+
+		pill := ui.Row(c).
+			Key("gt_shared_pill").
+			Absolute().
+			Top(tipY).
+			Left(tipX).
+			Width(tipW).
+			Height(28).
+			ZIndex(6).
+			Center().
+			Radius(999).
+			Background(t.Text).
+			Shadow(0, 6, 14, 0, t.Shadow).
+			Opacity(tipOp)
+		pill.Children(func() {
+			ui.Text(c, o.Items[activeIdx].Tip).
+				FontSize(10).
+				FontWeight(600).
+				TextColor(t.Background).
+				Unselectable()
+		})
+	})
+
+	return root
+}
+
+// =============================================================================
+// 9. Avatar Group ("avatar-group")
+// =============================================================================
+
+// AvatarGroupMember describes one person in AvatarGroup.
+type AvatarGroupMember struct {
+	Name     string
+	Role     string
+	Initials string
+	Color    ui.Color
+}
+
+// AvatarGroupOptions configures AvatarGroup.
+type AvatarGroupOptions struct {
+	Members []AvatarGroupMember
+}
+
+type avatarGroupState struct {
+	lastHovered int
+}
+
+// AvatarGroup renders an overlapping circular avatar stack that fans apart on
+// hover while lifting the hovered avatar and revealing their name badge.
+func AvatarGroup(c *ui.Context, opts ...AvatarGroupOptions) ui.Element {
+	var o AvatarGroupOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if len(o.Members) == 0 {
+		o.Members = []AvatarGroupMember{
+			{Name: "Elena Park", Role: "Design", Initials: "EP", Color: ui.Hex("#6366f1")},
+			{Name: "Devon Cruz", Role: "Systems", Initials: "DC", Color: ui.Hex("#0ea5e9")},
+			{Name: "Sora Sato", Role: "Motion", Initials: "SS", Color: ui.Hex("#ec4899")},
+			{Name: "Noah Reed", Role: "Infra", Initials: "NR", Color: ui.Hex("#10b981")},
+			{Name: "Maya Lin", Role: "Product", Initials: "ML", Color: ui.Hex("#f59e0b")},
+		}
+	}
+
+	const (
+		avSize     = float32(42)
+		stageW     = float32(280)
+		stageH     = float32(114)
+		collapsedS = float32(27)
+		expandedS  = float32(48)
+	)
+	n := len(o.Members)
+
+	root := ui.Box(c).Width(stageW).Height(stageH)
+	st := ui.Local(root, "pa_avatar_group", func() avatarGroupState {
+		return avatarGroupState{lastHovered: 0}
+	})
+
+	groupHov := root.Hovered()
+	hoveredIdx := -1
+
+	// Smooth fan factor for the stack.
+	fanTarget := float32(0)
+	if groupHov {
+		fanTarget = 1
+	}
+	fan := root.Spring("pa_ag_fan", fanTarget, ui.SpringOptions{
+		Duration: 280 * time.Millisecond,
+		Bounce:   0.3,
+	})
+
+	spacing := lerp32(collapsedS, expandedS, fan)
+	totalSpan := avSize + float32(n-1)*spacing
+	startX := (stageW - totalSpan) * 0.5
+
+	root.Children(func() {
+		for i, m := range o.Members {
+			idx := i
+			mem := m
+			x := startX + float32(idx)*spacing
+
+			av := ui.Row(c).
+				Key(fmt.Sprintf("ag_av_%d", idx)).
+				Absolute().
+				Top(46).
+				Left(x).
+				Width(avSize).
+				Height(avSize).
+				Radius(avSize*0.5).
+				Center().
+				Background(mem.Color).
+				Border(2.5, t.Background).
+				Shadow(0, 4, 10, 0, t.Shadow).
+				Cursor(ui.CursorPointer)
+
+			hov := av.Hovered()
+			if hov {
+				hoveredIdx = idx
+				st.lastHovered = idx
+			}
+
+			z := idx + 1
+			liftTarget := float32(0)
+			scTarget := float32(1)
+			if hov {
+				z = 20
+				liftTarget = -9
+				scTarget = 1.14
+			}
+			lift := av.Spring(fmt.Sprintf("pa_ag_y_%d", idx), liftTarget, ui.SpringOptions{
+				Duration: 220 * time.Millisecond,
+				Bounce:   0.35,
+			})
+			sc := av.Spring(fmt.Sprintf("pa_ag_s_%d", idx), scTarget, ui.SpringOptions{
+				Duration: 220 * time.Millisecond,
+				Bounce:   0.35,
+			})
+			av.ZIndex(z).Translate(0, lift).Scale(sc, sc)
+			av.Children(func() {
+				ui.Text(c, mem.Initials).
+					FontSize(13).
+					FontWeight(700).
+					TextColor(ui.Hex("#ffffff")).
+					Unselectable()
+			})
+		}
+
+		// Floating name badge above stack when hovered.
+		showBadge := hoveredIdx >= 0
+		activeIdx := st.lastHovered
+		if activeIdx < 0 || activeIdx >= n {
+			activeIdx = 0
+		}
+		mem := o.Members[activeIdx]
+
+		bOpTarget := float32(0)
+		bYTarget := float32(14)
+		if showBadge {
+			bOpTarget = 1
+			bYTarget = 4
+		}
+		bOp := root.Spring("pa_ag_bop", bOpTarget, ui.SpringOptions{Duration: 180 * time.Millisecond, Bounce: 0.1})
+		bY := root.Spring("pa_ag_by", bYTarget, ui.SpringOptions{Duration: 220 * time.Millisecond, Bounce: 0.3})
+
+		badgeWrap := ui.Row(c).
+			Absolute().
+			Top(bY).
+			Left(0).
+			Width(stageW).
+			Center().
+			Opacity(bOp)
+		badgeWrap.Children(func() {
+			ui.Row(c).
+				Padding(4, 10).
+				Gap(6).
+				AlignItems(ui.Center).
+				Radius(999).
+				Background(t.Surface).
+				Border(1, t.Border).
+				Shadow(0, 4, 12, 0, t.Shadow).
+				Children(func() {
+					ui.Box(c).Width(7).Height(7).Radius(4).Background(mem.Color)
+					ui.Text(c, mem.Name).FontSize(11).FontWeight(600).TextColor(t.Text).Unselectable()
+					ui.Text(c, "· "+mem.Role).FontSize(10).TextColor(t.TextSubtle).Unselectable()
+				})
+		})
+
+		// Subtle resting prompt underneath.
+		hintOp := 1 - clamp32(fan, 0, 1)
+		ui.Row(c).
+			Absolute().
+			Bottom(2).
+			Left(0).
+			Width(stageW).
+			Center().
+			Opacity(hintOp).
+			Children(func() {
+				ui.Text(c, "Hover stack to fan out").FontSize(10).TextColor(t.TextSubtle).Unselectable()
+			})
+	})
+
+	return root
+}
+
+// =============================================================================
+// 10. Profile Hover Card ("profile-card")
+// =============================================================================
+
+// ProfileHoverCardOptions configures ProfileHoverCard.
+type ProfileHoverCardOptions struct {
+	Handle         string
+	Name           string
+	Initials       string
+	Bio            string
+	Followers      int
+	Following      int
+	AvatarColor    ui.Color
+	OnFollowChange func(following bool)
+}
+
+type profileCardState struct {
+	pinned    bool
+	following bool
+}
+
+// ProfileHoverCard renders a compact @handle trigger pill that springs open a
+// rich mini profile card (avatar, bio, follower count, Follow toggle) when
+// hovered or clicked.
+func ProfileHoverCard(c *ui.Context, opts ...ProfileHoverCardOptions) ui.Element {
+	var o ProfileHoverCardOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.Handle == "" {
+		o.Handle = "@maya.design"
+	}
+	if o.Name == "" {
+		o.Name = "Maya Lin"
+	}
+	if o.Initials == "" {
+		o.Initials = "ML"
+	}
+	if o.Bio == "" {
+		o.Bio = "Crafting tactile micro-interactions & GPU-native UI kits."
+	}
+	if o.Followers <= 0 {
+		o.Followers = 4280
+	}
+	if o.Following <= 0 {
+		o.Following = 312
+	}
+	avCol := colorOr(o.AvatarColor, ui.Hex("#6366f1"))
+
+	root := ui.Column(c).
+		Width(284).
+		Height(176).
+		AlignItems(ui.Center).
+		Gap(8)
+
+	st := ui.Local(root, "pa_profile_card", func() profileCardState {
+		return profileCardState{}
+	})
+
+	isOpen := root.Hovered() || st.pinned
+	openTarget := float32(0)
+	if isOpen {
+		openTarget = 1
+	}
+	open := root.Spring("pa_pc_open", openTarget, ui.SpringOptions{
+		Duration: 260 * time.Millisecond,
+		Bounce:   0.26,
+	})
+
+	followers := o.Followers
+	if st.following {
+		followers++
+	}
+
+	root.Children(func() {
+		// Compact @handle trigger pill.
+		trigger := ui.Row(c).
+			Key("pc_trigger").
+			Padding(5, 11).
+			Gap(7).
+			AlignItems(ui.Center).
+			Radius(999).
+			Background(t.Surface).
+			Border(1, lerpColor(t.BorderStrong, t.Accent, open)).
+			Shadow(0, 3, 10, 0, t.Shadow).
+			Cursor(ui.CursorPointer)
+		trigger.Children(func() {
+			ui.Row(c).
+				Width(18).
+				Height(18).
+				Radius(9).
+				Center().
+				Background(avCol).
+				Children(func() {
+					ui.Text(c, o.Initials).FontSize(8).FontWeight(700).TextColor(ui.Hex("#ffffff")).Unselectable()
+				})
+			ui.Text(c, o.Handle).FontSize(12).FontWeight(600).TextColor(t.Text).Unselectable()
+		})
+		if trigger.Clicked() {
+			st.pinned = !st.pinned
+		}
+
+		// Mini profile card that springs open below the trigger.
+		cardScale := lerp32(0.92, 1.0, open)
+		cardY := lerp32(-10, 0, open)
+		cardOp := clamp32(open, 0, 1)
+
+		card := ui.Column(c).
+			Key("pc_card").
+			Width(276).
+			Padding(11).
+			Gap(8).
+			Radius(14).
+			Background(t.Surface).
+			Border(1, t.Border).
+			Shadow(0, 10, 24, 0, t.Shadow).
+			Translate(0, cardY).
+			Scale(cardScale, cardScale).
+			Opacity(cardOp)
+
+		card.Children(func() {
+			// Top row: avatar + name/handle + Follow toggle.
+			top := ui.Row(c).
+				WidthPercent(100).
+				AlignItems(ui.Center).
+				Justify(ui.SpaceBetween)
+			top.Children(func() {
+				id := ui.Row(c).AlignItems(ui.Center).Gap(9)
+				id.Children(func() {
+					ui.Row(c).
+						Width(34).
+						Height(34).
+						Radius(17).
+						Center().
+						Background(avCol).
+						Children(func() {
+							ui.Text(c, o.Initials).FontSize(12).FontWeight(700).TextColor(ui.Hex("#ffffff")).Unselectable()
+						})
+					names := ui.Column(c).Gap(1)
+					names.Children(func() {
+						ui.Text(c, o.Name).FontSize(12).FontWeight(700).TextColor(t.Text).Unselectable()
+						ui.Text(c, o.Handle).FontSize(10).TextColor(t.TextSubtle).Unselectable()
+					})
+				})
+
+				fLbl := "Follow"
+				fBg := t.Text
+				fText := t.Background
+				fBorder := t.Text
+				if st.following {
+					fLbl = "Following"
+					fBg = t.SurfaceSubtle
+					fText = t.Text
+					fBorder = t.BorderStrong
+				}
+				fBtn := ui.Row(c).
+					Key("pc_follow").
+					Padding(5, 11).
+					Radius(999).
+					Background(fBg).
+					Border(1, fBorder).
+					Cursor(ui.CursorPointer)
+				fBtn.Children(func() {
+					ui.Text(c, fLbl).FontSize(11).FontWeight(600).TextColor(fText).Unselectable()
+				})
+				if fBtn.Clicked() && cardOp > 0.25 {
+					st.following = !st.following
+					st.pinned = true
+					if o.OnFollowChange != nil {
+						o.OnFollowChange(st.following)
+					}
+				}
+			})
+
+			ui.Text(c, o.Bio).
+				FontSize(11).
+				TextColor(t.TextMuted).
+				Unselectable()
+
+			stats := ui.Row(c).Gap(14).AlignItems(ui.Center)
+			stats.Children(func() {
+				ui.Row(c).Gap(4).Children(func() {
+					ui.Text(c, fmt.Sprintf("%d", followers)).FontSize(11).FontWeight(700).TextColor(t.Text).Unselectable()
+					ui.Text(c, "Followers").FontSize(11).TextColor(t.TextSubtle).Unselectable()
+				})
+				ui.Row(c).Gap(4).Children(func() {
+					ui.Text(c, fmt.Sprintf("%d", o.Following)).FontSize(11).FontWeight(700).TextColor(t.Text).Unselectable()
+					ui.Text(c, "Following").FontSize(11).TextColor(t.TextSubtle).Unselectable()
+				})
+			})
+		})
+	})
+
+	return root
+}
+
+// =============================================================================
+// 11. Toast Stack ("toast-stack")
+// =============================================================================
+
+// ToastStackItem describes one notification card in ToastStack.
+type ToastStackItem struct {
+	Title    string
+	Subtitle string
+	TimeAgo  string
+	Tone     ui.Color
+}
+
+// ToastStackOptions configures ToastStack.
+type ToastStackOptions struct {
+	Items []ToastStackItem
+	Width float32
+}
+
+// ToastStack renders a collapsed stack of 3 overlapping notification cards that
+// fans vertically into an expanded readable list when hovered.
+func ToastStack(c *ui.Context, opts ...ToastStackOptions) ui.Element {
+	var o ToastStackOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.Width <= 0 {
+		o.Width = 288
+	}
+	if len(o.Items) == 0 {
+		o.Items = []ToastStackItem{
+			{Title: "Deploy succeeded", Subtitle: "bencho-v2.4 live on edge", TimeAgo: "now", Tone: ui.Hex("#16a34a")},
+			{Title: "New PR review", Subtitle: "Mina approved spring physics", TimeAgo: "4m", Tone: ui.Hex("#6366f1")},
+			{Title: "Build cache warm", Subtitle: "94% hit rate · 1.2s saved", TimeAgo: "12m", Tone: ui.Hex("#f59e0b")},
+		}
+	}
+	if len(o.Items) > 3 {
+		o.Items = o.Items[:3]
+	}
+
+	const (
+		cardH = float32(52)
+		gap   = float32(7)
+	)
+	stageH := float32(174)
+	root := ui.Box(c).
+		Width(o.Width).
+		Height(stageH).
+		Cursor(ui.CursorPointer)
+
+	expandTarget := float32(0)
+	if root.Hovered() {
+		expandTarget = 1
+	}
+	exp := root.Spring("pa_ts_expand", expandTarget, ui.SpringOptions{
+		Duration: 300 * time.Millisecond,
+		Bounce:   0.26,
+	})
+
+	n := len(o.Items)
+	root.Children(func() {
+		// Subtle resting hint below collapsed stack.
+		hintOp := 1 - clamp32(exp*1.6, 0, 1)
+		ui.Row(c).
+			Absolute().
+			Bottom(18).
+			Left(0).
+			Width(o.Width).
+			Center().
+			Opacity(hintOp).
+			Children(func() {
+				ui.Text(c, fmt.Sprintf("%d notifications · Hover to fan", n)).
+					FontSize(10).
+					TextColor(t.TextSubtle).
+					Unselectable()
+			})
+
+		// Render back-to-front so index 0 sits cleanly on top when collapsed.
+		for i := n - 1; i >= 0; i-- {
+			idx := i
+			it := o.Items[idx]
+
+			collapsedY := float32(42) + float32(idx)*11
+			expandedY := float32(2) + float32(idx)*(cardH+gap)
+			y := lerp32(collapsedY, expandedY, exp)
+
+			collapsedScale := 1 - float32(idx)*0.055
+			sc := lerp32(collapsedScale, 1.0, exp)
+
+			collapsedOp := 1 - float32(idx)*0.18
+			op := clamp32(lerp32(collapsedOp, 1.0, exp), 0, 1)
+
+			card := ui.Row(c).
+				Key(fmt.Sprintf("ts_card_%d", idx)).
+				Absolute().
+				Top(y).
+				Left(4).
+				Width(o.Width-8).
+				Height(cardH).
+				ZIndex(10-idx).
+				Padding(8, 11).
+				Gap(9).
+				AlignItems(ui.Center).
+				Radius(12).
+				Background(t.Surface).
+				Border(1, t.Border).
+				Shadow(0, 6, 16, 0, t.Shadow).
+				Scale(sc, sc).
+				Opacity(op)
+
+			card.Children(func() {
+				tone := colorOr(it.Tone, t.Accent)
+				ui.Box(c).Width(8).Height(8).Radius(4).Background(tone)
+
+				body := ui.Column(c).Grow(1).Gap(2)
+				body.Children(func() {
+					top := ui.Row(c).WidthPercent(100).Justify(ui.SpaceBetween).AlignItems(ui.Center)
+					top.Children(func() {
+						ui.Text(c, it.Title).FontSize(12).FontWeight(600).TextColor(t.Text).Unselectable()
+						ui.Text(c, it.TimeAgo).FontSize(10).TextColor(t.TextSubtle).Unselectable()
+					})
+					ui.Text(c, it.Subtitle).FontSize(10).TextColor(t.TextMuted).Unselectable()
+				})
+			})
+		}
+	})
+
+	return root
+}
+
+// =============================================================================
+// 12. Emoji Reactions ("emoji-reactions")
+// =============================================================================
+
+// ReactionItem defines one reaction pill inside EmojiReactions.
+type ReactionItem struct {
+	Emoji string
+	Count int
+	Mine  bool
+}
+
+// EmojiReactionsOptions configures EmojiReactions.
+type EmojiReactionsOptions struct {
+	Message  string
+	Author   string
+	Items    []ReactionItem
+	OnToggle func(index int, mine bool, count int)
+}
+
+type emojiReactionsState struct {
+	counts [8]int
+	mine   [8]bool
+	ready  bool
+	popIdx int
+	popAt  time.Time
+}
+
+// EmojiReactions renders a compact message bubble with a dock-style reaction bar
+// where hovering magnifies nearby reaction pills and clicking toggles your count.
+func EmojiReactions(c *ui.Context, opts ...EmojiReactionsOptions) ui.Element {
+	var o EmojiReactionsOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	t := ThemeFrom(c)
+	if o.Message == "" {
+		o.Message = "Shipped the spring physics pass!"
+	}
+	if o.Author == "" {
+		o.Author = "Mina · 2m"
+	}
+	if len(o.Items) == 0 {
+		o.Items = []ReactionItem{
+			{Emoji: "🔥", Count: 6, Mine: true},
+			{Emoji: "❤️", Count: 4},
+			{Emoji: "👏", Count: 3},
+			{Emoji: "✨", Count: 5},
+			{Emoji: "🚀", Count: 2},
+		}
+	}
+	if len(o.Items) > 8 {
+		o.Items = o.Items[:8]
+	}
+	n := len(o.Items)
+
+	root := ui.Column(c).
+		Width(294).
+		AlignItems(ui.Center).
+		Gap(10)
+
+	st := ui.Local(root, "pa_emoji_reactions", func() emojiReactionsState {
+		return emojiReactionsState{popIdx: -1}
+	})
+	if !st.ready {
+		for i, it := range o.Items {
+			st.counts[i] = it.Count
+			st.mine[i] = it.Mine
+		}
+		st.ready = true
+	}
+
+	now := c.Now()
+	if st.popIdx >= 0 && now.Sub(st.popAt) < 160*time.Millisecond {
+		c.AnimationFrame()
+	}
+
+	// Store last hovered index in local state so dock neighbors react cleanly on the same pass.
+	type dockHover struct {
+		idx int
+	}
+	dh := ui.Local(root, "pa_emoji_dock_hov", func() dockHover {
+		return dockHover{idx: -1}
+	})
+
+	root.Children(func() {
+		// Compact chat message card.
+		msg := ui.Column(c).
+			WidthPercent(100).
+			Padding(10, 12).
+			Gap(3).
+			Radius(14).
+			Background(t.Surface).
+			Border(1, t.Border).
+			Shadow(0, 4, 12, 0, t.Shadow)
+		msg.Children(func() {
+			ui.Text(c, o.Author).FontSize(10).FontWeight(600).TextColor(t.TextSubtle).Unselectable()
+			ui.Text(c, o.Message).FontSize(12).FontWeight(500).TextColor(t.Text).Unselectable()
+		})
+
+		// Dock-style reaction pill row.
+		curHov := -1
+		dock := ui.Row(c).
+			Padding(5, 8).
+			Gap(6).
+			AlignItems(ui.Center).
+			Radius(999).
+			Background(t.Surface).
+			Border(1, t.Border).
+			Shadow(0, 6, 16, 0, t.Shadow)
+
+		dock.Children(func() {
+			for i := 0; i < n; i++ {
+				idx := i
+				it := o.Items[idx]
+				mine := st.mine[idx]
+
+				pill := ui.Row(c).
+					Key(fmt.Sprintf("er_pill_%d", idx)).
+					Padding(4, 8).
+					Gap(4).
+					AlignItems(ui.Center).
+					Radius(999).
+					Cursor(ui.CursorPointer)
+
+				if pill.Hovered() {
+					curHov = idx
+				}
+
+				// Compute dock magnification based on distance to hovered pill.
+				scTarget := float32(1)
+				liftTarget := float32(0)
+				refHov := dh.idx
+				if pill.Hovered() {
+					refHov = idx
+				}
+				if refHov >= 0 {
+					dist := paAbs32(float32(idx - refHov))
+					if dist == 0 {
+						scTarget = 1.24
+						liftTarget = -6
+					} else if dist == 1 {
+						scTarget = 1.10
+						liftTarget = -2.5
+					}
+				}
+				if st.popIdx == idx && now.Sub(st.popAt) < 140*time.Millisecond {
+					scTarget += 0.12
+				}
+				if pill.Pressed() {
+					scTarget = 0.94
+				}
+
+				sc := pill.Spring(fmt.Sprintf("pa_er_sc_%d", idx), scTarget, ui.SpringOptions{
+					Duration: 220 * time.Millisecond,
+					Bounce:   0.36,
+				})
+				lift := pill.Spring(fmt.Sprintf("pa_er_y_%d", idx), liftTarget, ui.SpringOptions{
+					Duration: 220 * time.Millisecond,
+					Bounce:   0.36,
+				})
+
+				bg := t.SurfaceSubtle
+				border := t.Border
+				cntCol := t.TextMuted
+				if mine {
+					bg = t.AccentSoft
+					border = t.Accent.Alpha(0.65)
+					cntCol = t.Accent
+				}
+				z := 1
+				if refHov == idx {
+					z = 5
+				}
+
+				pill.Background(bg).
+					Border(1, border).
+					ZIndex(z).
+					Translate(0, lift).
+					Scale(sc, sc)
+
+				pill.Children(func() {
+					ui.Text(c, it.Emoji).FontSize(13).Unselectable()
+					ui.Text(c, fmt.Sprintf("%d", st.counts[idx])).
+						FontSize(11).
+						FontWeight(600).
+						TextColor(cntCol).
+						Unselectable()
+				})
+
+				if pill.Clicked() {
+					if st.mine[idx] {
+						st.mine[idx] = false
+						if st.counts[idx] > 0 {
+							st.counts[idx]--
+						}
+					} else {
+						st.mine[idx] = true
+						st.counts[idx]++
+					}
+					st.popIdx = idx
+					st.popAt = now
+					if o.OnToggle != nil {
+						o.OnToggle(idx, st.mine[idx], st.counts[idx])
+					}
+				}
+			}
+		})
+		dh.idx = curHov
+	})
+
+	return root
+}
+
+// =============================================================================
+// Demo registrations
+// =============================================================================
+
+func init() {
+	registerDemo(
+		"standing-calendar",
+		"Tactile 3D desk flip calendar with spring vertical page-turn squeeze.",
+		func(c *ui.Context) {
+			StandingCalendar(c)
+		},
+	)
+
+	registerDemo(
+		"piano",
+		"Playable 1-octave mini keyboard with spring key depression and live frequency readout.",
+		func(c *ui.Context) {
+			Piano(c)
+		},
+	)
+
+	registerDemo(
+		"voice-chat",
+		"Compact voice room card with animated speaking rings, mic mute, and join/leave controls.",
+		func(c *ui.Context) {
+			VoiceChat(c)
+		},
+	)
+
+	registerDemo(
+		"asset-swap",
+		"Currency swap widget with spring-rotating flip button that swaps pairs and recalculates quotes.",
+		func(c *ui.Context) {
+			AssetSwap(c)
+		},
+	)
+
+	registerDemo(
+		"generate",
+		"AI generation CTA with sparkle progress sweep and cycling output tags.",
+		func(c *ui.Context) {
+			GenerateButton(c)
+		},
+	)
+
+	registerDemo(
+		"step-player",
+		"Walkthrough step player with Play/Pause auto-advance, scrubber dots, and Prev/Next controls.",
+		func(c *ui.Context) {
+			StepPlayer(c)
+		},
+	)
+
+	registerDemo(
+		"stories",
+		"Story avatar rings with vibrant gradients, hover preview pill, and click-to-view state.",
+		func(c *ui.Context) {
+			Stories(c)
+		},
+	)
+
+	registerDemo(
+		"glide-tip",
+		"Four icon triggers sharing one floating tooltip pill that glides with spring physics.",
+		func(c *ui.Context) {
+			GlideTip(c)
+		},
+	)
+
+	registerDemo(
+		"avatar-group",
+		"Overlapping avatar stack that fans apart on hover and lifts the active member badge.",
+		func(c *ui.Context) {
+			AvatarGroup(c)
+		},
+	)
+
+	registerDemo(
+		"profile-card",
+		"Compact @handle pill that springs open a rich mini profile card with Follow toggle.",
+		func(c *ui.Context) {
+			ProfileHoverCard(c)
+		},
+	)
+
+	registerDemo(
+		"toast-stack",
+		"Collapsed stack of 3 overlapping notifications that fans into a readable list on hover.",
+		func(c *ui.Context) {
+			ToastStack(c)
+		},
+	)
+
+	registerDemo(
+		"emoji-reactions",
+		"Dock-magnifying message reaction bar with spring hover scaling and click count toggle.",
+		func(c *ui.Context) {
+			EmojiReactions(c)
+		},
+	)
+}

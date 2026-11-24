@@ -5,6 +5,7 @@ A unified, coss-styled pure-Go UI suite for [MyGo](https://github.com/egoist/myg
 - **`mygox-ui/coss`** — All **56 primitives** and **530 particles** ported 1:1 from [coss.com/ui](https://coss.com/ui/particles), 102 lazy-parsed Lucide SVG icons, Light & Dark design tokens, and a shadcn-style source copier CLI (`cmd/mygox-ui`).
 - **`mygox-ui/flow`** — Interactive GPU-accelerated node graph canvas porting all **17 / 17** [React Flow UI](https://reactflow.dev/ui) components: `BaseNode`, `BaseHandle`, `LabeledHandle`, `ButtonHandle`, `DatabaseSchemaNode`, `LabeledGroupNode`, `PlaceholderNode`, `NodeAppendix`, `NodeTooltip`, `NodeStatusIndicator` (`border` conic spinner & `overlay` scrim spinner), `ButtonEdge`, `DataEdge`, `AnimatedSvgEdge` (glowing path packets), `ZoomSlider`, `ZoomSelect`, `NodeSearch` (`Cmd/Ctrl+K`), and `DevTools` (`ViewportLogger` / `NodeInspector` / `ChangeLogger`), plus `AnnotationNode`, `NodeToolbar`, interactive `MiniMap`, Kahn auto-layout, Undo/Redo, and JSON persistence.
 - **`mygox-ui/motion`** — All **33 / 33 components** ported 1:1 from [ibelick/motion-primitives](https://github.com/ibelick/motion-primitives) in restrained monochrome `coss` style (`BorderTrail`, `Spotlight`, `Tilt`, `GlowEffect`, `ProgressiveBlur`, `ImageComparison`, `AnimatedNumber`, `SlidingNumber`, `SpinningText`, `TextEffect`, `TextLoop`, `TextMorph`, `TextRoll`, `TextScramble`, `TextShimmer`, `TextShimmerWave`, `AnimatedBackground`, `Dock`, `Magnetic`, `Cursor`, `ToolbarDynamic`, `ToolbarExpandable`, `Accordion`, `Disclosure`, `Dialog`, `MorphingDialog`, `MorphingPopover`, `TransitionPanel`, `AnimatedGroup`, `Carousel`, `InView`, `InfiniteSlider`, `ScrollProgress`).
+- **`mygox-ui/bencho`** — All **184 / 184 interactive UI blocks** modeled after [bencho.dev](https://bencho.dev/) across all 8 interaction categories (`Press` 63, `Hover` 48, `Drag` 40, `Loading` 13, `Type` 8, `Select` 6, `Swipe` 4, `Slide` 2), verified headless in both Light and Dark themes.
 
 **Live Showcase & WebGL 2 WASM Playground**: https://margbug01.github.io/mygox-ui/
 
@@ -20,6 +21,7 @@ import (
     "github.com/margbug01/mygox-ui/coss"
     "github.com/margbug01/mygox-ui/flow"
     "github.com/margbug01/mygox-ui/motion"
+    "github.com/margbug01/mygox-ui/bencho"
 )
 ```
 

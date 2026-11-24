@@ -38,6 +38,26 @@ func TestUnifiedShowcaseAllThreeSuites(t *testing.T) {
 		t.Fatalf("expected Motion tab UI with BorderTrail, got: %v", tt.Texts())
 	}
 
+	// 4. Switch to Bencho tab (184 / 184 catalog blocks, paginated 12 per page)
+	app.setSection(sectionBencho)
+	tt.Frame()
+	tt.Advance(80 * time.Millisecond)
+	tt.Frame()
+	if !tt.HasText("Bencho Blocks") || !tt.HasText("Thinking orb") || !tt.HasText("Elastic slider") || !tt.HasText("Page 1 of 16") {
+		t.Fatalf("expected Bencho tab UI with live blocks and pagination, got: %v", tt.Texts())
+	}
+	app.bencho.page = 2
+	tt.Frame()
+	if !tt.HasText("Page 2 of 16") {
+		t.Fatalf("expected Bencho page 2 of 16, got: %v", tt.Texts())
+	}
+	app.bencho.selectKind("Loading")
+	tt.Frame()
+	if !tt.HasText("Loading Blocks") || !tt.HasText("Race bars") {
+		t.Fatalf("expected filtered Loading blocks, got: %v", tt.Texts())
+	}
+	app.bencho.selectKind("")
+
 	if dir := os.Getenv("MYGOX_UI_SNAPSHOT_DIR"); dir != "" {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("mkdir snapshot dir: %v", err)
@@ -86,6 +106,22 @@ func TestUnifiedShowcaseAllThreeSuites(t *testing.T) {
 		tt.Advance(140 * time.Millisecond)
 		tt.Frame()
 		savePNG(t, filepath.Join(dir, "motion-dark.png"), tt)
+
+		// Bencho 184 — Light (Page 1 live blocks) & Dark (Drag sliders & physics)
+		app.setSection(sectionBencho)
+		app.bencho.selectKind("")
+		app.dark = false
+		tt.Frame()
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+		savePNG(t, filepath.Join(dir, "bencho-light.png"), tt)
+
+		app.dark = true
+		app.bencho.selectKind("Drag")
+		tt.Frame()
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+		savePNG(t, filepath.Join(dir, "bencho-dark.png"), tt)
 	}
 }
 
@@ -108,6 +144,14 @@ func TestUnifiedShowcaseMobileResponsive(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText("BorderTrail") {
 		t.Fatalf("expected mobile Motion tab with BorderTrail, got: %v", tt.Texts())
+	}
+
+	app.setSection(sectionBencho)
+	tt.Frame()
+	tt.Advance(60 * time.Millisecond)
+	tt.Frame()
+	if !tt.HasText("Bencho Blocks") || !tt.HasText("Thinking orb") {
+		t.Fatalf("expected mobile Bencho tab with Thinking orb, got: %v", tt.Texts())
 	}
 
 	if dir := os.Getenv("MYGOX_UI_SNAPSHOT_DIR"); dir != "" {

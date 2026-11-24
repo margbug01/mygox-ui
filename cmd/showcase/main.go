@@ -22,6 +22,7 @@ const (
 	sectionCoss   activeSection = "coss"
 	sectionFlow   activeSection = "flow"
 	sectionMotion activeSection = "motion"
+	sectionBencho activeSection = "bencho"
 )
 
 type showcaseApp struct {
@@ -38,9 +39,10 @@ type showcaseApp struct {
 	sidebarScroll ui.ScrollState
 	contentScroll ui.ScrollState
 
-	// Flow Canvas & Motion Effects states
+	// Flow Canvas, Motion Effects & Bencho Blocks states
 	flow   *flowState
 	motion *motionState
+	bencho *benchoState
 }
 
 func newShowcaseApp() *showcaseApp {
@@ -52,6 +54,7 @@ func newShowcaseApp() *showcaseApp {
 		copiedUntil: map[string]time.Time{},
 		flow:        newFlowState("schema"),
 		motion:      newMotionState(""),
+		bencho:      newBenchoState(""),
 	}
 	app.applyHash(initialHash())
 	watchHashChange(func(h string) {
@@ -80,6 +83,9 @@ func (a *showcaseApp) applyHash(raw string) {
 	case "motion":
 		a.section = sectionMotion
 		a.motion.selectCategory(sub)
+	case "bencho":
+		a.section = sectionBencho
+		a.bencho = newBenchoState(sub)
 	case "coss", "ui":
 		a.section = sectionCoss
 		if sub != "" && len(particles.ByFamily(sub)) > 0 {
@@ -103,6 +109,12 @@ func (a *showcaseApp) updateHash() {
 			syncHash("motion/" + a.motion.selectedCat)
 		} else {
 			syncHash("motion")
+		}
+	case sectionBencho:
+		if a.bencho.selectedKind != "" {
+			syncHash("bencho/" + strings.ToLower(string(a.bencho.selectedKind)))
+		} else {
+			syncHash("bencho")
 		}
 	default:
 		if a.selectedFam != "" {
@@ -193,6 +205,8 @@ func (a *showcaseApp) view(c *ui.Context) {
 				a.renderFlowTab(c, t, winW, winH, isMobile)
 			case sectionMotion:
 				a.renderMotionTab(c, t, isMobile)
+			case sectionBencho:
+				a.renderBenchoTab(c, t, isMobile)
 			default:
 				a.renderCossTab(c, t, isMobile)
 			}
@@ -237,6 +251,7 @@ func (a *showcaseApp) suiteTopBar(c *ui.Context, t theme.Tokens, isMobile bool) 
 						a.suiteTabButton(c, t, "UI", "530", sectionCoss, isMobile)
 						a.suiteTabButton(c, t, "Flow", "Canvas", sectionFlow, isMobile)
 						a.suiteTabButton(c, t, "Motion", "33", sectionMotion, isMobile)
+						a.suiteTabButton(c, t, "Bencho", "184", sectionBencho, isMobile)
 					})
 			})
 
@@ -498,6 +513,8 @@ func (a *showcaseApp) mobileDrawer(c *ui.Context, t theme.Tokens) {
 					heading = "Node Palette"
 				} else if a.section == sectionMotion {
 					heading = "Motion Categories"
+				} else if a.section == sectionBencho {
+					heading = "Bencho Interactions"
 				}
 				ui.Row(c).
 					WidthPercent(100).
@@ -520,6 +537,8 @@ func (a *showcaseApp) mobileDrawer(c *ui.Context, t theme.Tokens) {
 					})
 				case sectionMotion:
 					a.motionCategoryNav(c, t, true)
+				case sectionBencho:
+					a.benchoCategoryNav(c, t, true)
 				default:
 					a.cossFamilyNav(c, t, particles.Families(), len(particles.All()), true)
 				}

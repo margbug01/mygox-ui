@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>mygox-ui — Native Go UI, Node Canvas &amp; GPU Motion for MyGo</title>
-  <meta name="description" content="A unified pure-Go UI suite for MyGo v0.10.0: 56 coss primitives, 530 particles, React Flow UI node canvas, and 33 Motion Primitives GPU effects." />
+  <title>mygox-ui — Native Go UI, Node Canvas, GPU Motion &amp; Bencho 184 for MyGo</title>
+  <meta name="description" content="A unified pure-Go UI suite for MyGo v0.10.0: 56 coss primitives, 530 particles, React Flow UI node canvas, 33 Motion Primitives, and all 184 Bencho interactive blocks." />
   <style>
     :root {
       --bg: #ffffff;
@@ -441,6 +441,7 @@
       </a>
       <div class="nav-links">
         <a class="nav-link nav-hide-sm" href="#packages">Packages</a>
+        <a class="nav-link nav-hide-sm" href="#bencho">Bencho</a>
         <a class="nav-link nav-hide-sm" href="#flow">Flow</a>
         <a class="nav-link nav-hide-sm" href="#motion">Motion</a>
         <a class="nav-link nav-hide-sm" href="#coss">Particles</a>
@@ -455,18 +456,20 @@
     <section class="hero">
       <div class="hero-eyebrow">
         <span class="dot"></span>
-        <span>56 Primitives · 530 Particles · React Flow UI Canvas · 33 Motion Primitives</span>
+        <span>530 Coss Particles · React Flow Canvas · 33 Motion Primitives · 184 Bencho Blocks</span>
       </div>
       <h1>One Go UI suite for MyGo.</h1>
       <p>
         A cohesive, coss-styled native component suite for <strong>MyGo</strong> — porting
         <code>coss</code> UI (56 primitives &amp; 530 particles), <code>flow</code> (React Flow UI node canvas),
-        and <code>motion</code> (all 33 Motion Primitives) in one pure-Go module with zero WebView.
+        <code>motion</code> (all 33 Motion Primitives), and <code>bencho</code> (all 184 Bencho micro-interactions)
+        in one pure-Go module with zero WebView.
       </p>
       <div class="hero-actions">
-        <a class="btn btn-primary btn-lg" href="./playground/#coss">Open Unified WASM Playground →</a>
-        <a class="btn btn-lg" href="./playground/#flow/schema">Try Flow Canvas</a>
-        <a class="btn btn-lg" href="./playground/#motion">Try Motion 33</a>
+        <a class="btn btn-primary btn-lg" href="./playground/#bencho">Try Bencho 184 Live →</a>
+        <a class="btn btn-lg" href="./playground/#coss">UI 530</a>
+        <a class="btn btn-lg" href="./playground/#flow/schema">Flow Canvas</a>
+        <a class="btn btn-lg" href="./playground/#motion">Motion 33</a>
       </div>
       <div class="install-bar">
         <code id="installCmd">go get github.com/margbug01/mygox-ui</code>
@@ -488,36 +491,52 @@
         <div class="stat-lbl">Motion Primitives ported 1:1 in pure Go</div>
       </div>
       <div class="stat">
-        <div class="stat-val">0 WebView</div>
-        <div class="stat-lbl">Native Metal / D3D11 / WebGL 2 rendering</div>
+        <div class="stat-val">184 / 184</div>
+        <div class="stat-lbl">Bencho interactive blocks in pure Go</div>
       </div>
     </div>
 
     <div class="frame">
       <div class="frame-bar">
         <div class="tabs" role="tablist">
-          <button class="tab active" data-src="screenshots/ui-light.png" data-href="./playground/#coss">UI · Light</button>
+          <button class="tab active" data-src="screenshots/bencho-light.png" data-href="./playground/#bencho">Bencho · Light</button>
+          <button class="tab" data-src="screenshots/bencho-dark.png" data-href="./playground/#bencho/drag">Bencho · Dark</button>
+          <button class="tab" data-src="screenshots/ui-light.png" data-href="./playground/#coss">UI · Light</button>
           <button class="tab" data-src="screenshots/ui-dark.png" data-href="./playground/#coss">UI · Dark</button>
           <button class="tab" data-src="screenshots/flow-light.png" data-href="./playground/#flow/schema">Flow · DB Schema</button>
           <button class="tab" data-src="screenshots/flow-dark.png" data-href="./playground/#flow/subflows">Flow · Sub-Flows</button>
           <button class="tab" data-src="screenshots/motion-light.png" data-href="./playground/#motion/surfaces">Motion · Surfaces</button>
           <button class="tab" data-src="screenshots/motion-dark.png" data-href="./playground/#motion/text">Motion · Text</button>
         </div>
-        <a class="btn" id="frameOpenBtn" href="./playground/#coss">Open in WebGL 2 Playground →</a>
+        <a class="btn" id="frameOpenBtn" href="./playground/#bencho">Open in WebGL 2 Playground →</a>
       </div>
       <div class="frame-panel">
-        <img id="previewImg" src="screenshots/ui-light.png" alt="mygox-ui native MyGo preview" />
+        <img id="previewImg" src="screenshots/bencho-light.png" alt="mygox-ui native MyGo preview" />
       </div>
     </div>
 
     <section id="packages">
       <div class="sec-head">
         <div>
-          <h2>Three packages, one design language</h2>
+          <h2>Four packages, one design language</h2>
           <p>Zero package-name collisions with <code>github.com/egoist/mygo/ui</code>. Import only what you need.</p>
         </div>
       </div>
-      <div class="three-col">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-head">
+            <h3>bencho · 184 Interactive Blocks</h3>
+            <span class="pkg-chip">mygox-ui/bencho</span>
+          </div>
+          <p>All 184 interactive UI blocks and micro-interactions from bencho.dev across Press (63), Hover (48), Drag (40), Loading (13), Type (8), Select (6), Swipe (4), and Slide (2).</p>
+          <pre><code>import "github.com/margbug01/mygox-ui/bencho"
+
+bencho.ThinkingOrb(c)
+bencho.ElasticSlider(c, &amp;val)
+bencho.ConfirmSend(c, onSend)</code></pre>
+          <div><a class="btn" href="./playground/#bencho">Explore 184 Blocks →</a></div>
+        </div>
+
         <div class="card">
           <div class="card-head">
             <h3>coss · UI Components</h3>
@@ -563,6 +582,26 @@ motion.BorderTrail(c, func() {
 })</code></pre>
           <div><a class="btn" href="./playground/#motion">Explore 33 Primitives →</a></div>
         </div>
+      </div>
+    </section>
+
+    <section id="bencho">
+      <div class="sec-head">
+        <div>
+          <h2>Bencho · All 184 Interactive Blocks</h2>
+          <p>Native MyGo implementations of all 184 blocks from <a href="https://bencho.dev/" target="_blank" rel="noreferrer" style="text-decoration:underline;text-underline-offset:3px">bencho.dev</a>, organized by gesture.</p>
+        </div>
+        <a class="btn" href="./playground/#bencho">Open All 184 →</a>
+      </div>
+      <div class="chip-grid">
+        <a class="fam-card" href="./playground/#bencho/press"><span>Press</span><span class="fam-count">63</span></a>
+        <a class="fam-card" href="./playground/#bencho/hover"><span>Hover</span><span class="fam-count">48</span></a>
+        <a class="fam-card" href="./playground/#bencho/drag"><span>Drag</span><span class="fam-count">40</span></a>
+        <a class="fam-card" href="./playground/#bencho/loading"><span>Loading</span><span class="fam-count">13</span></a>
+        <a class="fam-card" href="./playground/#bencho/type"><span>Type</span><span class="fam-count">8</span></a>
+        <a class="fam-card" href="./playground/#bencho/select"><span>Select</span><span class="fam-count">6</span></a>
+        <a class="fam-card" href="./playground/#bencho/swipe"><span>Swipe</span><span class="fam-count">4</span></a>
+        <a class="fam-card" href="./playground/#bencho/slide"><span>Slide</span><span class="fam-count">2</span></a>
       </div>
     </section>
 
@@ -614,7 +653,7 @@ motion.BorderTrail(c, func() {
   <footer>
     <div class="container foot">
       <div>Built with pure Go &amp; <a href="https://github.com/egoist/mygo" target="_blank" rel="noreferrer">MyGo v0.10.0</a> · MIT License © 2026 margbug01</div>
-      <div>Ported from <a href="https://coss.com/ui/particles" target="_blank" rel="noreferrer">coss.com/ui</a> · <a href="https://reactflow.dev/ui" target="_blank" rel="noreferrer">React Flow UI</a> · <a href="https://motion-primitives.com" target="_blank" rel="noreferrer">Motion Primitives</a></div>
+      <div>Ported from <a href="https://coss.com/ui/particles" target="_blank" rel="noreferrer">coss.com/ui</a> · <a href="https://reactflow.dev/ui" target="_blank" rel="noreferrer">React Flow UI</a> · <a href="https://motion-primitives.com" target="_blank" rel="noreferrer">Motion Primitives</a> · <a href="https://bencho.dev/" target="_blank" rel="noreferrer">Bencho</a></div>
     </div>
   </footer>
 
