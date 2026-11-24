@@ -45,7 +45,9 @@ func PBadge7(c *ui.Context)  { coss.Badge(c, "Badge").Variant(coss.BadgeWarning)
 func PBadge8(c *ui.Context)  { coss.Badge(c, "Badge").Variant(coss.BadgeError) }
 func PBadge9(c *ui.Context)  { coss.Badge(c, "Badge").Size(coss.BadgeSizeSM) }
 func PBadge10(c *ui.Context) { coss.Badge(c, "Badge").Size(coss.BadgeSizeLG) }
-func PBadge11(c *ui.Context) { coss.Badge(c, "Verified").Variant(coss.BadgeOutline).Icon(icons.Check()) }
+func PBadge11(c *ui.Context) {
+	coss.Badge(c, "Verified").Variant(coss.BadgeOutline).Icon(icons.Check())
+}
 func PBadge12(c *ui.Context) { coss.BadgeButton(c, "Badge") }
 func PBadge13(c *ui.Context) { coss.Badge(c, "7").Round() }
 func PBadge14(c *ui.Context) { coss.Badge(c, "Badge").Round() }
@@ -67,8 +69,12 @@ func PBadge15(c *ui.Context) {
 }
 
 func PBadge16(c *ui.Context) { coss.Badge(c, "Paid").Variant(coss.BadgeOutline).Dot(ui.Hex("#00bc7d")) }
-func PBadge17(c *ui.Context) { coss.Badge(c, "Pending").Variant(coss.BadgeOutline).Dot(ui.Hex("#fe9a00")) }
-func PBadge18(c *ui.Context) { coss.Badge(c, "Failed").Variant(coss.BadgeOutline).Dot(ui.Hex("#fb2c36")) }
+func PBadge17(c *ui.Context) {
+	coss.Badge(c, "Pending").Variant(coss.BadgeOutline).Dot(ui.Hex("#fe9a00"))
+}
+func PBadge18(c *ui.Context) {
+	coss.Badge(c, "Failed").Variant(coss.BadgeOutline).Dot(ui.Hex("#fb2c36"))
+}
 
 func PBadge19(c *ui.Context) {
 	host := ui.Box(c)
