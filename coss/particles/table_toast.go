@@ -3,6 +3,7 @@ package particles
 import (
 	_ "embed"
 	"fmt"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"strings"
@@ -391,185 +392,255 @@ func PTable8(c *ui.Context) {
 	})
 }
 
+// anchoredToastShowing reports whether an anchored toast shown until
+// *until still shows, and asks for the frame that hides it.
+func anchoredToastShowing(c *ui.Context, until *time.Time) bool {
+	left := until.Sub(c.Now())
+	if left <= 0 {
+		return false
+	}
+	c.After(left)
+	return true
+}
+
 func PToast1(c *ui.Context) {
-	host := ui.Column(c).Center().Gap(10)
-	shown := ui.Local(host, "shown", func() bool { return true })
-	host.Children(func() {
-		coss.Button(c, "Show Toast").Variant(coss.ButtonOutline).OnClick(func() { *shown = true })
-		if *shown {
-			coss.ToastCard(c, coss.ToastSpec{
-				Title:       "Event has been created",
-				Description: "Monday, November 23, 2026 at 9:00 AM",
-				OnClose:     func() { *shown = false },
-			})
-		}
+	coss.ToastViewport(c)
+	coss.Button(c, "Default Toast").Variant(coss.ButtonOutline).OnClick(func() {
+		c.AddToast(ui.Toast{Title: "Event has been created", Description: "Monday, January 3rd at 6:00pm"})
 	})
 }
 
 func PToast2(c *ui.Context) {
-	host := ui.Column(c).Center().Gap(10)
-	kind := ui.Local(host, "kind", func() coss.ToastVariant { return coss.ToastSuccess })
-	host.Children(func() {
-		ui.Row(c).Gap(6).Wrap().Children(func() {
-			coss.Button(c, "Success").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() { *kind = coss.ToastSuccess })
-			coss.Button(c, "Error").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() { *kind = coss.ToastError })
-			coss.Button(c, "Info").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() { *kind = coss.ToastInfo })
-			coss.Button(c, "Warning").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() { *kind = coss.ToastWarning })
-		})
-		titles := map[coss.ToastVariant]string{
-			coss.ToastSuccess: "Changes saved",
-			coss.ToastError:   "Something went wrong",
-			coss.ToastInfo:    "New update available",
-			coss.ToastWarning: "Approaching rate limit",
+	coss.ToastViewport(c)
+	toasts := []ui.Toast{
+		{Type: "success", Title: "Success!", Description: "Your changes have been saved."},
+		{Type: "error", Title: "Uh oh! Something went wrong.", Description: "There was a problem with your request."},
+		{Type: "info", Title: "Heads up!", Description: "You can add components to your app using the cli."},
+		{Type: "warning", Title: "Warning!", Description: "Your session is about to expire."},
+	}
+	ui.Row(c).Wrap().Gap(8).Children(func() {
+		for _, ts := range toasts {
+			label := strings.ToUpper(ts.Type[:1]) + ts.Type[1:] + " Toast"
+			coss.Button(c, label).Variant(coss.ButtonOutline).OnClick(func() { c.AddToast(ts) })
 		}
-		coss.ToastCard(c, coss.ToastSpec{Variant: *kind, Title: titles[*kind], Description: "Semantic toast notification preview."})
 	})
 }
 
 func PToast3(c *ui.Context) {
-	coss.ToastCard(c, coss.ToastSpec{
-		Variant:     coss.ToastLoading,
-		Title:       "Uploading files…",
-		Description: "Please wait while your assets finish syncing.",
+	coss.ToastViewport(c)
+	coss.Button(c, "Loading Toast").Variant(coss.ButtonOutline).OnClick(func() {
+		c.AddToast(ui.Toast{Type: "loading", Title: "Loading…", Description: "Please wait while we process your request."})
 	})
 }
 
 func PToast4(c *ui.Context) {
-	host := ui.Column(c).Center().Gap(8)
-	undone := ui.Local(host, "undone", func() bool { return false })
-	host.Children(func() {
-		title := "Message archived"
-		if *undone {
-			title = "Archive undone"
-		}
-		coss.ToastCard(c, coss.ToastSpec{
-			Title:       title,
-			Description: "Moved to your Archive folder.",
-			ActionLabel: "Undo",
-			OnAction:    func() { *undone = true },
+	coss.ToastViewport(c)
+	coss.Button(c, "Perform Action").Variant(coss.ButtonOutline).OnClick(func() {
+		c.AddToast(ui.Toast{
+			Type:        "success",
+			Title:       "Action performed",
+			Description: "You can undo this action.",
+			Timeout:     1000 * time.Second,
+			Action:      "Undo",
+			OnAction: func() {
+				c.AddToast(ui.Toast{Type: "info", Title: "Action undone", Description: "The action has been reverted."})
+			},
 		})
 	})
 }
 
 func PToast5(c *ui.Context) {
-	type st struct {
-		running bool
-		done    bool
-		until   time.Time
+	coss.ToastViewport(c)
+	host := ui.Box(c)
+	type promise struct {
+		id      string
+		settles time.Time
 	}
-	host := ui.Column(c).Center().Gap(10)
-	s := ui.Local(host, "s", func() st { return st{} })
-	if s.running {
-		if c.Now().After(s.until) {
-			s.running = false
-			s.done = true
+	p := ui.Local(host, "p", func() promise { return promise{} })
+	if p.id != "" {
+		if c.Now().Before(p.settles) {
+			c.After(p.settles.Sub(c.Now()))
+		} else if rand.Float64() > 0.3 {
+			c.AddToast(ui.Toast{ID: p.id, Type: "success", Title: "This is a success toast!", Description: "Success: Data loaded successfully"})
+			p.id = ""
 		} else {
-			c.After(150 * time.Millisecond)
+			c.AddToast(ui.Toast{ID: p.id, Type: "error", Title: "Something went wrong", Description: "Please try again."})
+			p.id = ""
 		}
 	}
 	host.Children(func() {
 		coss.Button(c, "Run Promise").Variant(coss.ButtonOutline).OnClick(func() {
-			s.running = true
-			s.done = false
-			s.until = c.Now().Add(1200 * time.Millisecond)
+			p.id = c.AddToast(ui.Toast{Type: "loading", Title: "Loading…", Description: "The promise is loading.", Timeout: -1})
+			p.settles = c.Now().Add(2 * time.Second)
 		})
-		if s.running {
-			coss.ToastCard(c, coss.ToastSpec{Variant: coss.ToastLoading, Title: "Deploying…", Description: "Building release artifact."})
-		} else if s.done {
-			coss.ToastCard(c, coss.ToastSpec{Variant: coss.ToastSuccess, Title: "Deployed!", Description: "Production release is live."})
-		}
 	})
 }
 
 func PToast6(c *ui.Context) {
-	ui.Column(c).Gap(8).Children(func() {
-		coss.ToastCard(c, coss.ToastSpec{Title: "Quick note"})
-		coss.ToastCard(c, coss.ToastSpec{Variant: coss.ToastInfo, Title: "Workspace synced", Description: "All 56 primitives and 530 particles are indexed locally for fast browsing."})
+	coss.ToastViewport(c)
+	texts := []string{
+		"Short message.",
+		"A bit longer message that spans two lines.",
+		"This is a longer description that intentionally takes more vertical space to demonstrate stacking with varying heights.",
+		"An even longer description that should span multiple lines so we can verify the clamped collapsed height and smooth expansion animation when hovering or focusing the viewport.",
+	}
+	host := ui.Box(c)
+	count := ui.Local(host, "count", func() int { return 0 })
+	host.Children(func() {
+		coss.Button(c, "With Varying Heights").Variant(coss.ButtonOutline).OnClick(func() {
+			*count++
+			c.AddToast(ui.Toast{Title: fmt.Sprintf("Toast %d created", *count), Description: texts[rand.IntN(len(texts))]})
+		})
 	})
 }
 
 func PToast7(c *ui.Context) {
-	host := ui.Column(c).Center().Gap(8)
-	copied := ui.Local(host, "copied", func() bool { return false })
+	host := ui.Box(c)
+	until := ui.Local(host, "until", func() time.Time { return time.Time{} })
+	copied := anchoredToastShowing(c, until)
 	host.Children(func() {
 		ic := icons.Copy()
-		if *copied {
+		if copied {
 			ic = icons.Check()
 		}
-		coss.Button(c, "Copy snippet").Variant(coss.ButtonOutline).LeadingIcon(ic).OnClick(func() {
-			c.WriteClipboard("go get github.com/margbug01/cossgo")
-			*copied = true
+		btn := coss.IconButton(c, ic, "Copy link").Variant(coss.ButtonOutline).Disabled(copied).OnClick(func() {
+			c.WriteClipboard("https://coss.com")
+			*until = c.Now().Add(2 * time.Second)
 		})
-		if *copied {
-			coss.Badge(c, "Copied!").Variant(coss.BadgeSuccess)
+		cossTooltip(c, btn.Element, "Copy to clipboard")
+		if copied {
+			coss.AnchoredToast(c, btn.Element, ui.Toast{Title: "Copied!"}, 4, true)
 		}
 	})
 }
 
 func PToast8(c *ui.Context) {
-	host := ui.Column(c).Center().Gap(8)
-	failed := ui.Local(host, "failed", func() bool { return true })
+	host := ui.Box(c)
+	type form struct{ submitted, failed time.Time }
+	f := ui.Local(host, "f", func() form { return form{} })
+	now := c.Now()
+	submitting := now.Before(f.submitted.Add(2 * time.Second))
+	if submitting {
+		c.After(f.submitted.Add(2 * time.Second).Sub(now))
+	} else if !f.submitted.IsZero() && f.failed.IsZero() {
+		f.failed = now
+	}
+	errorUntil := f.failed.Add(5 * time.Second)
+	showing := !f.failed.IsZero() && anchoredToastShowing(c, &errorUntil)
 	host.Children(func() {
-		coss.Button(c, "Trigger Error").Variant(coss.ButtonDestructiveOutline).OnClick(func() { *failed = true })
-		if *failed {
-			coss.ToastCard(c, coss.ToastSpec{Variant: coss.ToastError, Title: "Request failed", Description: "Could not reach upstream server.", OnClose: func() { *failed = false }})
+		label := "Submit"
+		if submitting {
+			label = "Submitting…"
+		}
+		btn := coss.Button(c, label).Variant(coss.ButtonOutline).Loading(submitting).Disabled(submitting).OnClick(func() {
+			*f = form{submitted: c.Now()}
+		})
+		if showing {
+			coss.AnchoredToast(c, btn.Element, ui.Toast{
+				Type:        "error",
+				Title:       "Error submitting form",
+				Description: "The server is not responding. Please try again later.",
+			}, 4, false)
 		}
 	})
 }
 
 func PToast9(c *ui.Context) {
-	host := ui.Column(c).Center().Gap(8)
-	active := ui.Local(host, "active", func() bool { return true })
-	host.Children(func() {
-		coss.Button(c, "Download report").Variant(coss.ButtonOutline).LeadingIcon(icons.Download()).OnClick(func() { *active = true })
-		if *active {
-			coss.ToastCard(c, coss.ToastSpec{
-				Variant:     coss.ToastLoading,
-				Title:       "Generating report…",
-				Description: "Your download will start shortly.",
-				ActionLabel: "Cancel",
-				OnAction:    func() { *active = false },
-			})
+	coss.ToastViewport(c)
+	host := ui.Box(c)
+	type job struct {
+		id       string
+		ready    time.Time
+		progress int
+		tick     time.Time
+	}
+	j := ui.Local(host, "job", func() job { return job{} })
+	if j.id != "" {
+		now := c.Now()
+		for !now.Before(j.tick) {
+			j.progress = min(99, j.progress+rand.IntN(9)+2)
+			j.tick = j.tick.Add(300 * time.Millisecond)
 		}
+		if now.Before(j.ready) {
+			c.After(min(j.ready.Sub(now), j.tick.Sub(now)))
+		} else {
+			if rand.Float64() > 0.2 {
+				c.AddToast(ui.Toast{ID: j.id, Type: "success", Title: "Download started", Description: "Your file is now downloading."})
+			} else {
+				c.AddToast(ui.Toast{ID: j.id, Type: "error", Title: "Failed to generate report", Description: "Please try again later."})
+			}
+			*j = job{}
+		}
+	}
+	host.Children(func() {
+		generating := j.id != ""
+		var b *coss.ButtonElement
+		if generating {
+			b = coss.Button(c, fmt.Sprintf("Loading… %2d%%", j.progress)).Variant(coss.ButtonOutline)
+		} else {
+			b = coss.Button(c, "Download").Variant(coss.ButtonOutline).LeadingIcon(icons.Download())
+		}
+		b.Disabled(generating).OnClick(func() {
+			id := c.AddToast(ui.Toast{
+				Type:        "loading",
+				Title:       "Generating report…",
+				Description: "Your download will begin once ready.",
+				Timeout:     -1,
+				Action:      "Cancel",
+				OnAction: func() {
+					c.AddToast(ui.Toast{Type: "info", Title: "Cancelled", Description: "Report generation was cancelled."})
+					*j = job{}
+				},
+			})
+			now := c.Now()
+			*j = job{id: id, ready: now.Add(4 * time.Second), tick: now.Add(300 * time.Millisecond)}
+		})
 	})
 }
 
 func PToast10(c *ui.Context) {
-	host := ui.Column(c).Center().Gap(8)
-	count := ui.Local(host, "n", func() int { return 1 })
-	host.Children(func() {
-		coss.Button(c, "Trigger Success").Variant(coss.ButtonOutline).OnClick(func() { *count++ })
-		coss.ToastCard(c, coss.ToastSpec{Variant: coss.ToastSuccess, Title: fmt.Sprintf("Saved (×%d)", *count), Description: "Deduplicated toast updates in place."})
+	coss.ToastViewport(c)
+	coss.Button(c, "One Success Toast").Variant(coss.ButtonOutline).OnClick(func() {
+		c.AddToast(ui.Toast{
+			ID:          "coss-demo-dedup-toast",
+			Type:        "success",
+			Title:       "Saved",
+			Description: "Repeated clicks update this toast instead of stacking another.",
+		})
 	})
 }
 
 func PToast11(c *ui.Context) {
-	host := ui.Column(c).Center().Gap(8)
-	count := ui.Local(host, "n", func() int { return 1 })
-	host.Children(func() {
-		coss.Button(c, "Trigger Error").Variant(coss.ButtonOutline).OnClick(func() { *count++ })
-		coss.ToastCard(c, coss.ToastSpec{Variant: coss.ToastError, Title: fmt.Sprintf("Sync failed (×%d)", *count), Description: "Deduplicated error toast."})
+	coss.ToastViewport(c)
+	coss.Button(c, "One Error Toast").Variant(coss.ButtonOutline).OnClick(func() {
+		c.AddToast(ui.Toast{
+			ID:          "coss-demo-error-toast",
+			Type:        "error",
+			Title:       "Something went wrong",
+			Description: "Repeated clicks update this toast; errors use a shake animation.",
+		})
 	})
 }
 
-func PToast12(c *ui.Context) {
-	host := ui.Column(c).Center().Gap(8)
-	saved := ui.Local(host, "saved", func() bool { return true })
+// saveDraftToast is p-toast-12 and p-toast-13: a Save button that shows
+// toast beside it for two seconds.
+func saveDraftToast(c *ui.Context, toast ui.Toast) {
+	host := ui.Box(c)
+	until := ui.Local(host, "until", func() time.Time { return time.Time{} })
+	showing := anchoredToastShowing(c, until)
 	host.Children(func() {
-		coss.Button(c, "Save").Variant(coss.ButtonOutline).LeadingIcon(icons.Save()).OnClick(func() { *saved = true })
-		if *saved {
-			coss.ToastCard(c, coss.ToastSpec{Variant: coss.ToastSuccess, Title: "Changes saved"})
+		btn := coss.IconButton(c, icons.Save(), "Save").Variant(coss.ButtonOutline).OnClick(func() {
+			*until = c.Now().Add(2 * time.Second)
+		})
+		cossTooltip(c, btn.Element, "Save")
+		if showing {
+			coss.AnchoredToast(c, btn.Element, toast, 6, true)
 		}
 	})
 }
+
+func PToast12(c *ui.Context) { saveDraftToast(c, ui.Toast{Title: "Draft saved"}) }
 
 func PToast13(c *ui.Context) {
-	host := ui.Column(c).Center().Gap(8)
-	errShown := ui.Local(host, "err", func() bool { return true })
-	host.Children(func() {
-		coss.Button(c, "Save").Variant(coss.ButtonOutline).LeadingIcon(icons.Save()).OnClick(func() { *errShown = true })
-		if *errShown {
-			coss.ToastCard(c, coss.ToastSpec{Variant: coss.ToastError, Title: "Failed to save changes"})
-		}
-	})
+	saveDraftToast(c, ui.Toast{Type: "error", Title: "Couldn't save draft"})
 }
