@@ -37,7 +37,7 @@ func Alert(c *ui.Context, title string) *AlertElement {
 	el := ui.Row(c).
 		WidthPercent(100).
 		AlignItems(ui.Start).
-		Gap(10).
+		Gap(8).
 		Padding(12, 14).
 		Radius(t.RadiusXL).
 		FontSize(14)
@@ -49,9 +49,9 @@ func Alert(c *ui.Context, title string) *AlertElement {
 	}
 	a.Element.Children(func() {
 		a.iconSlot = ui.Box(c).Padding(2, 0, 0, 0).Shrink(0).Hidden(true)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 			if title != "" {
-				ui.Text(c, title).FontSize(14).FontWeight(500).TextColor(t.CardForeground)
+				ui.Text(c, title).FontWeight(500).FixedLineHeight(20).TextColor(t.CardForeground)
 			}
 			a.descSlot = ui.Column(c).WidthPercent(100).Hidden(true)
 		})
@@ -88,7 +88,7 @@ func (a *AlertElement) Description(desc string) *AlertElement {
 	}
 	a.hasDesc = true
 	a.descSlot.Hidden(false).Children(func() {
-		ui.Text(a.c, desc).FontSize(13).TextColor(a.tokens.MutedForeground)
+		ui.Text(a.c, desc).FixedLineHeight(20).TextColor(a.tokens.MutedForeground)
 	})
 	return a
 }
@@ -116,19 +116,19 @@ func (a *AlertElement) applyStyle() {
 		border = t.Border
 		iconColor = t.MutedForeground
 	case AlertInfo:
-		bg = theme.Alpha(t.Info, 0.05)
+		bg = theme.Alpha(t.Info, 0.04)
 		border = theme.Alpha(t.Info, 0.32)
 		iconColor = t.Info
 	case AlertSuccess:
-		bg = theme.Alpha(t.Success, 0.05)
+		bg = theme.Alpha(t.Success, 0.04)
 		border = theme.Alpha(t.Success, 0.32)
 		iconColor = t.Success
 	case AlertWarning:
-		bg = theme.Alpha(t.Warning, 0.05)
+		bg = theme.Alpha(t.Warning, 0.04)
 		border = theme.Alpha(t.Warning, 0.32)
 		iconColor = t.Warning
 	case AlertError:
-		bg = theme.Alpha(t.Destructive, 0.05)
+		bg = theme.Alpha(t.Destructive, 0.04)
 		border = theme.Alpha(t.Destructive, 0.32)
 		iconColor = t.Destructive
 	}

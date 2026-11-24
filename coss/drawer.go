@@ -2,7 +2,6 @@ package coss
 
 import (
 	"github.com/egoist/mygo/ui"
-	"github.com/margbug01/mygox-ui/coss/icons"
 	"github.com/margbug01/mygox-ui/coss/theme"
 )
 
@@ -16,77 +15,140 @@ const (
 	DrawerTop
 )
 
+// DrawerVariant is DrawerPopup's variant.
+type DrawerVariant uint8
+
+const (
+	// DrawerDefault rounds the edge facing the window's middle.
+	DrawerDefault DrawerVariant = iota
+	// DrawerInset floats the drawer 16px off the window's edges, rounded
+	// and bordered all round.
+	DrawerInset
+	// DrawerStraight has no rounded corners.
+	DrawerStraight
+)
+
 // DrawerSpec configures a coss-styled edge Drawer built on ui.DialogBase.
 type DrawerSpec struct {
-	Open        *bool
-	Side        DrawerSide
+	Open    *bool
+	Side    DrawerSide
+	Variant DrawerVariant
+	// ShowBar draws the drag bar (DrawerPopup showBar); ShowClose the
+	// close button at end-2 top-2 (showCloseButton).
+	ShowBar   bool
+	ShowClose bool
+	// Center is DrawerHeader className="text-center" with a centered footer.
+	Center bool
+	// Height fixes a bottom or top drawer's height (a snap point); Tall
+	// makes it the window's height less 48 (calc(100dvh-3rem)).
+	Height      float32
+	Tall        bool
 	Title       string
 	Description string
 	Body        func(close func())
 	Footer      func(close func())
+	BareFooter  bool
 }
 
-// Drawer renders an edge-aligned slide-in drawer panel with backdrop dimming.
+// Drawer renders an edge drawer as ui/drawer.tsx: full width at the
+// bottom (8px below the window's top at most) or top (48px clear),
+// w-[calc(100%-48px)] max-w-md and full height at the sides, a border on
+// its inner edge, with Dialog's header, panel and footer.
 func Drawer(c *ui.Context, spec DrawerSpec) ui.Element {
 	t := theme.Of(c)
-	black := ui.RGB(0, 0, 0)
-	closeFn := func() {
-		if spec.Open != nil {
-			*spec.Open = false
-		}
-	}
 	return ui.DialogBase(c, spec.Open, func(backdrop, panel ui.Element) {
-		backdrop.Background(theme.Alpha(black, 0.36))
-		panel.
-			Background(t.Popover).
-			TextColor(t.PopoverForeground).
-			Border(1, t.Border).
-			Shadow(0, 12, 32, 0, theme.Alpha(black, 0.24)).
-			Clip()
-		switch spec.Side {
-		case DrawerRight:
-			backdrop.Justify(ui.End).AlignItems(ui.Stretch)
-			panel.Width(380).MaxWidthPercent(92).HeightPercent(100).AlignSelf(ui.End).Radius(t.Radius2XL, 0, 0, t.Radius2XL)
-		case DrawerLeft:
-			backdrop.Justify(ui.Start).AlignItems(ui.Stretch)
-			panel.Width(380).MaxWidthPercent(92).HeightPercent(100).AlignSelf(ui.Start).Radius(0, t.Radius2XL, t.Radius2XL, 0)
-		case DrawerTop:
-			backdrop.Justify(ui.Center).AlignItems(ui.Start)
-			panel.WidthPercent(100).MaxWidth(560).AlignSelf(ui.Start).Radius(0, 0, t.Radius2XL, t.Radius2XL)
-		default:
-			backdrop.Justify(ui.Center).AlignItems(ui.End)
-			panel.WidthPercent(100).MaxWidth(560).AlignSelf(ui.End).Radius(t.Radius2XL, t.Radius2XL, 0, 0)
+		dialogBackdrop(backdrop)
+		backdrop.Padding(0)
+		inset := spec.Variant == DrawerInset
+		r := t.Radius2XL
+		if spec.Variant == DrawerStraight {
+			r = 0
 		}
-		panel.Children(func() {
-			if spec.Side == DrawerBottom {
-				ui.Row(c).WidthPercent(100).Center().Padding(10, 0, 4, 0).Children(func() {
-					ui.Box(c).Width(42).Height(4).Radius(999).Background(t.Border)
-				})
+		panel.Clip().BorderColor(t.Border)
+		// The backdrop is a column: Justify places top and bottom drawers,
+		// AlignSelf side ones.
+		switch spec.Side {
+		case DrawerBottom:
+			backdrop.Justify(ui.End).Padding(8, 0, 0, 0)
+			panel.WidthPercent(100).BorderWidth(1, 0, 0, 0).Radius(r, r, 0, 0)
+			if spec.Tall {
+				backdrop.Padding(48, 0, 0, 0)
+				panel.HeightPercent(100)
 			}
-			ui.Row(c).WidthPercent(100).AlignItems(ui.Start).Justify(ui.SpaceBetween).Padding(16, 20, 10, 20).Children(func() {
-				ui.Column(c).Grow(1).Gap(4).Children(func() {
-					if spec.Title != "" {
-						ui.Text(c, spec.Title).FontSize(16).FontWeight(600).TextColor(t.PopoverForeground)
-					}
-					if spec.Description != "" {
-						ui.Text(c, spec.Description).FontSize(13).TextColor(t.MutedForeground)
-					}
-				})
-				IconButton(c, icons.X(), "Close drawer").Size(SizeIconSM).Variant(ButtonGhost).OnClick(closeFn)
-			})
-			if spec.Body != nil {
-				ui.Column(c).WidthPercent(100).Grow(1).Padding(8, 20, 18, 20).Gap(12).Children(func() {
-					spec.Body(closeFn)
-				})
+			if inset {
+				backdrop.Padding(8, 16, 16, 16)
 			}
-			if spec.Footer != nil {
-				ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.End).Gap(8).
-					Padding(14, 20).
-					Background(theme.Alpha(t.Muted, 0.72)).
-					BorderWidth(1, 0, 0, 0).
-					BorderColor(t.Border).
-					Children(func() { spec.Footer(closeFn) })
+		case DrawerTop:
+			backdrop.Justify(ui.Start).Padding(0, 0, 48, 0)
+			panel.WidthPercent(100).BorderWidth(0, 0, 1, 0).Radius(0, 0, r, r)
+			if inset {
+				backdrop.Padding(16, 16, 48, 16)
 			}
+		case DrawerLeft:
+			panel.AlignSelf(ui.Start).WidthPercent(100).MaxWidth(448).HeightPercent(100).
+				Margin(0, 48, 0, 0).BorderWidth(0, 1, 0, 0).Radius(0, r, r, 0)
+		case DrawerRight:
+			panel.AlignSelf(ui.End).WidthPercent(100).MaxWidth(448).HeightPercent(100).
+				Margin(0, 0, 0, 48).BorderWidth(0, 0, 0, 1).Radius(r, 0, 0, r)
+		}
+		if inset {
+			if spec.Side == DrawerLeft || spec.Side == DrawerRight {
+				backdrop.Padding(16)
+			}
+			panel.Border(1, t.Border).Radius(t.Radius2XL)
+		}
+		if spec.Height > 0 {
+			panel.Height(spec.Height)
+		}
+		var overlay func()
+		if spec.ShowBar {
+			// has-data-[slot=drawer-bar]: 8px on the bar's side.
+			switch spec.Side {
+			case DrawerBottom:
+				panel.Padding(8, 0, 0, 0)
+			case DrawerTop:
+				panel.Padding(0, 0, 8, 0)
+			case DrawerLeft:
+				panel.Padding(0, 8, 0, 0)
+			case DrawerRight:
+				panel.Padding(0, 0, 0, 8)
+			}
+			overlay = func() { drawerBar(c, t, spec.Side) }
+		}
+		dialogPopup(c, t, panel, dialogContent{
+			open:        spec.Open,
+			title:       spec.Title,
+			description: spec.Description,
+			hideClose:   !spec.ShowClose,
+			body:        spec.Body,
+			footer:      spec.Footer,
+			bareFooter:  spec.BareFooter,
+			growBody:    spec.Tall || spec.Height > 0,
+			center:      spec.Center,
+			overlay:     overlay,
 		})
 	})
+}
+
+// drawerBar is DrawerBar: a 48x4 bg-input pill in a p-3 strip along the
+// drawer's open edge (4x48 for side drawers).
+func drawerBar(c *ui.Context, t theme.Tokens, side DrawerSide) {
+	bar := ui.Row(c).Absolute().Padding(12).Center()
+	pill := func(w, h float32) {
+		bar.Children(func() { ui.Box(c).Size(w, h).Radius(999).Background(t.Input) })
+	}
+	switch side {
+	case DrawerBottom:
+		bar.Top(0).Left(0).Right(0)
+		pill(48, 4)
+	case DrawerTop:
+		bar.Bottom(0).Left(0).Right(0)
+		pill(48, 4)
+	case DrawerLeft:
+		bar.Right(0).Top(0).Bottom(0)
+		pill(4, 48)
+	case DrawerRight:
+		bar.Left(0).Top(0).Bottom(0)
+		pill(4, 48)
+	}
 }

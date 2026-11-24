@@ -7,6 +7,19 @@ import (
 
 // Kbd renders a keyboard shortcut keycap matching coss kbd.tsx.
 func Kbd(c *ui.Context, key string) ui.Element {
+	return kbdBox(c).Children(func() {
+		ui.Text(c, key).SingleLine()
+	})
+}
+
+// KbdIcon renders a keycap holding an icon at kbd.tsx's svg size-3.
+func KbdIcon(c *ui.Context, icon *ui.SVG) ui.Element {
+	return kbdBox(c).Children(func() {
+		ui.Icon(c, icon).Size(12, 12)
+	})
+}
+
+func kbdBox(c *ui.Context) ui.Element {
 	t := theme.Of(c)
 	return ui.Row(c).
 		Center().
@@ -15,14 +28,11 @@ func Kbd(c *ui.Context, key string) ui.Element {
 		MinWidth(20).
 		Padding(0, 4).
 		Radius(4).
+		Gap(4).
 		Background(t.Muted).
-		Border(1, t.Border).
 		TextColor(t.MutedForeground).
-		FontSize(11).
-		FontWeight(500).
-		Children(func() {
-			ui.Text(c, key).SingleLine()
-		})
+		FontSize(12).
+		FontWeight(500)
 }
 
 // KbdGroup arranges multiple Kbd badges horizontally with tight spacing.

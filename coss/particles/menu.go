@@ -34,16 +34,51 @@ func init() {
 }
 
 func PMenu1(c *ui.Context) {
+	type st struct {
+		open                 bool
+		shuffle, repeat, enh bool
+		sortBy               string
+		autoSave             bool
+	}
 	host := ui.Box(c)
-	open := ui.Local(host, "open", func() bool { return false })
+	s := ui.Local(host, "s", func() st { return st{} })
 	host.Children(func() {
-		coss.Menu(c, open, "Open menu", []coss.MenuEntry{
-			{Label: "Play", Icon: icons.Play(), Shortcut: "Space"},
-			{Label: "Pause", Icon: icons.Pause()},
+		coss.Menu(c, &s.open, "Open menu", []coss.MenuEntry{
+			{Label: "Playback", GroupLabel: true},
+			{Label: "Play", Icon: icons.Play(), Shortcut: "⌘P"},
+			{Label: "Pause", Icon: icons.Pause(), Shortcut: "⇧⌘P", Disabled: true},
 			{Label: "Previous", Icon: icons.SkipBack(), Shortcut: "⌘["},
 			{Label: "Next", Icon: icons.SkipForward(), Shortcut: "⌘]"},
 			{Separator: true},
-			{Label: "Delete", Icon: icons.Trash(), Destructive: true},
+			{Label: "Shuffle", Checked: &s.shuffle},
+			{Label: "Repeat", Checked: &s.repeat},
+			{Label: "Enhanced Audio", Checked: &s.enh, Disabled: true},
+			{Separator: true},
+			{Label: "Sort by", GroupLabel: true},
+			{Label: "Artist", Radio: &s.sortBy, Value: "artist"},
+			{Label: "Album", Radio: &s.sortBy, Value: "album"},
+			{Label: "Title", Radio: &s.sortBy, Value: "title"},
+			{Separator: true},
+			{Label: "Auto save", Checked: &s.autoSave, Switch: true},
+			{Separator: true},
+			{Label: "Add to Playlist", Sub: []coss.MenuEntry{
+				{Label: "Jazz"},
+				{Label: "Rock", Sub: []coss.MenuEntry{
+					{Label: "Hard Rock"},
+					{Label: "Soft Rock"},
+					{Label: "Classic Rock"},
+					{Separator: true},
+					{Label: "Metal"},
+					{Label: "Punk"},
+					{Label: "Grunge"},
+					{Label: "Alternative"},
+					{Label: "Indie"},
+					{Label: "Electronic"},
+				}},
+				{Label: "Pop"},
+			}},
+			{Separator: true},
+			{Label: "Delete", Icon: icons.Trash(), Shortcut: "⌘⌫", Destructive: true},
 		})
 	})
 }
@@ -52,10 +87,9 @@ func PMenu2(c *ui.Context) {
 	host := ui.Box(c)
 	open := ui.Local(host, "open", func() bool { return false })
 	host.Children(func() {
-		tr := coss.Menu(c, open, "Hover or click", []coss.MenuEntry{
-			{Label: "Profile"},
-			{Label: "Billing"},
-			{Label: "Team"},
+		tr := coss.Menu(c, open, "Hover me", []coss.MenuEntry{
+			{Label: "Item one"},
+			{Label: "Item two"},
 		})
 		if tr.Hovered() {
 			*open = true
@@ -64,38 +98,29 @@ func PMenu2(c *ui.Context) {
 }
 
 func PMenu3(c *ui.Context) {
+	type st struct{ open, autoSave, notifications bool }
 	host := ui.Box(c)
-	open := ui.Local(host, "open", func() bool { return false })
-	opts := ui.Local(host, "opts", func() [2]bool { return [2]bool{true, false} })
+	s := ui.Local(host, "s", func() st { return st{autoSave: true} })
 	host.Children(func() {
-		mark := func(b bool) *ui.SVG {
-			if b {
-				return icons.Check()
-			}
-			return nil
-		}
-		coss.Menu(c, open, "View options", []coss.MenuEntry{
-			{Label: "Show toolbar", Icon: mark(opts[0]), OnClick: func() { opts[0] = !opts[0] }},
-			{Label: "Show minimap", Icon: mark(opts[1]), OnClick: func() { opts[1] = !opts[1] }},
+		coss.Menu(c, &s.open, "Open menu", []coss.MenuEntry{
+			{Label: "Auto save", Checked: &s.autoSave},
+			{Label: "Notifications", Checked: &s.notifications},
 		})
 	})
 }
 
 func PMenu4(c *ui.Context) {
+	type st struct {
+		open bool
+		mode string
+	}
 	host := ui.Box(c)
-	open := ui.Local(host, "open", func() bool { return false })
-	sortBy := ui.Local(host, "sort", func() string { return "date" })
+	s := ui.Local(host, "s", func() st { return st{mode: "system"} })
 	host.Children(func() {
-		mark := func(k string) *ui.SVG {
-			if *sortBy == k {
-				return icons.Check()
-			}
-			return nil
-		}
-		coss.Menu(c, open, "Sort by: "+*sortBy, []coss.MenuEntry{
-			{Label: "Date", Icon: mark("date"), OnClick: func() { *sortBy = "date" }},
-			{Label: "Name", Icon: mark("name"), OnClick: func() { *sortBy = "name" }},
-			{Label: "Size", Icon: mark("size"), OnClick: func() { *sortBy = "size" }},
+		coss.Menu(c, &s.open, "Open menu", []coss.MenuEntry{
+			{Label: "Light", Radio: &s.mode, Value: "light"},
+			{Label: "Dark", Radio: &s.mode, Value: "dark"},
+			{Label: "System", Radio: &s.mode, Value: "system"},
 		})
 	})
 }
@@ -104,10 +129,9 @@ func PMenu5(c *ui.Context) {
 	host := ui.Box(c)
 	open := ui.Local(host, "open", func() bool { return false })
 	host.Children(func() {
-		coss.Menu(c, open, "Resources", []coss.MenuEntry{
-			{Label: "Documentation", Icon: icons.Book()},
-			{Label: "Components", Icon: icons.Component()},
-			{Label: "GitHub Repository", Icon: icons.Link()},
+		coss.Menu(c, open, "Open menu", []coss.MenuEntry{
+			{Label: "Docs"},
+			{Label: "Particles"},
 		})
 	})
 }
@@ -116,14 +140,14 @@ func PMenu6(c *ui.Context) {
 	host := ui.Box(c)
 	open := ui.Local(host, "open", func() bool { return false })
 	host.Children(func() {
-		coss.Menu(c, open, "Account", []coss.MenuEntry{
-			{Label: "Account Settings", Disabled: true},
-			{Label: "Profile", Shortcut: "⇧⌘P"},
-			{Label: "Billing", Shortcut: "⌘B"},
+		coss.Menu(c, open, "Open menu", []coss.MenuEntry{
+			{Label: "Account", GroupLabel: true},
+			{Label: "Profile"},
+			{Label: "Billing"},
 			{Separator: true},
-			{Label: "Workspace", Disabled: true},
-			{Label: "Invite team"},
-			{Label: "Sign out", Destructive: true},
+			{Label: "Support", GroupLabel: true},
+			{Label: "Docs"},
+			{Label: "Contact"},
 		})
 	})
 }
@@ -132,179 +156,162 @@ func PMenu7(c *ui.Context) {
 	host := ui.Box(c)
 	open := ui.Local(host, "open", func() bool { return false })
 	host.Children(func() {
-		coss.Menu(c, open, "File", []coss.MenuEntry{
-			{Label: "New File", Shortcut: "⌘N"},
-			{Label: "Share → Email"},
-			{Label: "Share → Copy Link"},
-			{Separator: true},
-			{Label: "Export PDF"},
+		coss.Menu(c, open, "Open menu", []coss.MenuEntry{
+			{Label: "Item one"},
+			{Label: "More", Sub: []coss.MenuEntry{
+				{Label: "Sub item A"},
+				{Label: "Sub item B"},
+			}},
+			{Label: "Item two"},
 		})
 	})
 }
 
 func PMenu8(c *ui.Context) {
-	t := theme.Of(c)
-	host := ui.Row(c).AlignItems(ui.Center).Gap(10)
+	host := ui.Box(c)
 	open := ui.Local(host, "open", func() bool { return false })
-	last := ui.Local(host, "last", func() string { return "" })
 	host.Children(func() {
-		coss.Menu(c, open, "Actions", []coss.MenuEntry{
-			{Label: "Duplicate", OnClick: func() { *last = "Duplicated"; *open = false }},
-			{Label: "Archive", OnClick: func() { *last = "Archived"; *open = false }},
+		coss.Menu(c, open, "Open menu", []coss.MenuEntry{
+			{Label: "Profile"},
+			{Label: "Settings"},
+			{Label: "Log out"},
 		})
-		if *last != "" {
-			ui.Text(c, *last).FontSize(12).TextColor(t.MutedForeground)
-		}
 	})
 }
 
 func PMenu9(c *ui.Context) {
+	type st struct{ open, autoSave, notifications, dark bool }
 	host := ui.Box(c)
-	open := ui.Local(host, "open", func() bool { return false })
-	autoSave := ui.Local(host, "as", func() bool { return true })
+	s := ui.Local(host, "s", func() st { return st{autoSave: true, dark: true} })
 	host.Children(func() {
-		state := "Off"
-		if *autoSave {
-			state = "On"
-		}
-		coss.Menu(c, open, "Preferences", []coss.MenuEntry{
-			{Label: "Auto-save", Shortcut: state, OnClick: func() { *autoSave = !*autoSave }},
+		coss.Menu(c, &s.open, "Open menu", []coss.MenuEntry{
+			{Label: "Auto save", Checked: &s.autoSave, Switch: true},
+			{Label: "Notifications", Checked: &s.notifications, Switch: true},
+			{Label: "Dark mode", Checked: &s.dark, Switch: true},
 		})
 	})
 }
 
-func contextTargetBox(c *ui.Context, label string) ui.Element {
+// contextTargetBox is the upstream trigger: flex h-32 w-full max-w-sm
+// items-center justify-center rounded-lg border border-dashed
+// text-muted-foreground text-sm.
+func contextTargetBox(c *ui.Context) ui.Element {
 	t := theme.Of(c)
 	return ui.Row(c).
 		Center().
-		Width(240).
-		Height(96).
-		Radius(t.RadiusXL).
+		WidthPercent(100).
+		MaxWidth(384).
+		Height(128).
+		Radius(t.RadiusLG).
 		Border(1, t.Border).
-		Background(theme.Alpha(t.Muted, 0.5)).
+		BorderStyle(ui.BorderDashed).
 		Children(func() {
-			ui.Text(c, label).FontSize(13).TextColor(t.MutedForeground)
+			ui.Text(c, "Right click here").FontSize(14).FixedLineHeight(20).TextColor(t.MutedForeground)
 		})
 }
 
-func PContextMenu1(c *ui.Context) {
-	host := ui.Box(c)
+// contextMenuParticle renders the shared trigger with the menu items
+// returns, in the card's w-full max-w-sm preview slot; items may keep
+// state on host.
+func contextMenuParticle(c *ui.Context, items func(host ui.Element) []coss.MenuEntry) {
+	host := ui.Column(c).WidthPercent(100).MaxWidth(384).AlignItems(ui.Center)
 	open := ui.Local(host, "open", func() bool { return false })
+	entries := items(host)
 	host.Children(func() {
-		area := contextTargetBox(c, "Right-click here")
-		coss.ContextMenu(c, area, open, []coss.MenuEntry{
-			{Label: "Back", Shortcut: "⌘["},
-			{Label: "Forward", Shortcut: "⌘]", Disabled: true},
-			{Label: "Reload", Shortcut: "⌘R"},
-		})
+		coss.ContextMenu(c, contextTargetBox(c), open, entries)
+	})
+}
+
+func PContextMenu1(c *ui.Context) {
+	contextMenuParticle(c, func(ui.Element) []coss.MenuEntry {
+		return []coss.MenuEntry{
+			{Label: "Back"},
+			{Label: "Forward"},
+			{Separator: true},
+			{Label: "Reload"},
+		}
 	})
 }
 
 func PContextMenu2(c *ui.Context) {
-	host := ui.Box(c)
-	open := ui.Local(host, "open", func() bool { return false })
-	host.Children(func() {
-		area := contextTargetBox(c, "Right-click for links")
-		coss.ContextMenu(c, area, open, []coss.MenuEntry{
-			{Label: "Open Docs", Icon: icons.Book()},
-			{Label: "View Source", Icon: icons.Link()},
-		})
+	contextMenuParticle(c, func(ui.Element) []coss.MenuEntry {
+		return []coss.MenuEntry{
+			{Label: "Docs"},
+			{Label: "Particles"},
+		}
 	})
 }
 
 func PContextMenu3(c *ui.Context) {
-	host := ui.Box(c)
-	open := ui.Local(host, "open", func() bool { return false })
-	host.Children(func() {
-		area := contextTargetBox(c, "Right-click (nested)")
-		coss.ContextMenu(c, area, open, []coss.MenuEntry{
-			{Label: "Cut", Shortcut: "⌘X"},
-			{Label: "Copy", Shortcut: "⌘C"},
-			{Separator: true},
-			{Label: "More Tools → Save Page"},
-			{Label: "More Tools → Inspect"},
-		})
+	contextMenuParticle(c, func(ui.Element) []coss.MenuEntry {
+		return []coss.MenuEntry{
+			{Label: "Cut"},
+			{Label: "Copy"},
+			{Label: "Paste"},
+			{Label: "Share", Sub: []coss.MenuEntry{
+				{Label: "Email link"},
+				{Label: "Messages"},
+				{Label: "Notes"},
+			}},
+		}
 	})
 }
 
 func PContextMenu4(c *ui.Context) {
-	host := ui.Box(c)
-	open := ui.Local(host, "open", func() bool { return false })
-	checked := ui.Local(host, "chk", func() bool { return true })
-	host.Children(func() {
-		area := contextTargetBox(c, "Right-click (checkboxes)")
-		var ic *ui.SVG
-		if *checked {
-			ic = icons.Check()
+	type st struct{ hidden, compact bool }
+	contextMenuParticle(c, func(host ui.Element) []coss.MenuEntry {
+		s := ui.Local(host, "s", func() st { return st{hidden: true} })
+		return []coss.MenuEntry{
+			{Label: "Show hidden files", Checked: &s.hidden},
+			{Label: "Compact view", Checked: &s.compact},
 		}
-		coss.ContextMenu(c, area, open, []coss.MenuEntry{
-			{Label: "Show Bookmarks Bar", Icon: ic, OnClick: func() { *checked = !*checked }},
-		})
 	})
 }
 
 func PContextMenu5(c *ui.Context) {
-	host := ui.Box(c)
-	open := ui.Local(host, "open", func() bool { return false })
-	host.Children(func() {
-		area := contextTargetBox(c, "Right-click (groups)")
-		coss.ContextMenu(c, area, open, []coss.MenuEntry{
-			{Label: "Edit", Disabled: true},
-			{Label: "Undo", Shortcut: "⌘Z"},
-			{Label: "Redo", Shortcut: "⇧⌘Z"},
+	contextMenuParticle(c, func(ui.Element) []coss.MenuEntry {
+		return []coss.MenuEntry{
+			{Label: "File", GroupLabel: true},
+			{Label: "Rename"},
+			{Label: "Duplicate"},
 			{Separator: true},
-			{Label: "Danger", Disabled: true},
-			{Label: "Delete", Destructive: true},
-		})
+			{Label: "Share", GroupLabel: true},
+			{Label: "Send copy"},
+			{Label: "Export"},
+		}
 	})
 }
 
 func PContextMenu6(c *ui.Context) {
-	host := ui.Box(c)
-	open := ui.Local(host, "open", func() bool { return false })
-	host.Children(func() {
-		area := contextTargetBox(c, "Right-click (icons)")
-		coss.ContextMenu(c, area, open, []coss.MenuEntry{
-			{Label: "Edit", Icon: icons.Pencil()},
-			{Label: "Copy", Icon: icons.Copy()},
+	contextMenuParticle(c, func(ui.Element) []coss.MenuEntry {
+		return []coss.MenuEntry{
+			{Label: "Edit", Icon: icons.Pencil(), Shortcut: "⌘E"},
+			{Label: "Copy", Icon: icons.Copy(), Shortcut: "⌘C"},
 			{Label: "Share", Icon: icons.Share()},
 			{Separator: true},
-			{Label: "Delete", Icon: icons.Trash(), Destructive: true},
-		})
+			{Label: "Delete", Icon: icons.Trash(), Shortcut: "⌘⌫", Destructive: true},
+		}
 	})
 }
 
 func PContextMenu7(c *ui.Context) {
-	host := ui.Box(c)
-	open := ui.Local(host, "open", func() bool { return false })
-	person := ui.Local(host, "p", func() string { return "pedro" })
-	host.Children(func() {
-		area := contextTargetBox(c, "Right-click (radio)")
-		mark := func(k string) *ui.SVG {
-			if *person == k {
-				return icons.Check()
-			}
-			return nil
+	contextMenuParticle(c, func(host ui.Element) []coss.MenuEntry {
+		mode := ui.Local(host, "mode", func() string { return "system" })
+		return []coss.MenuEntry{
+			{Label: "Light", Radio: mode, Value: "light"},
+			{Label: "Dark", Radio: mode, Value: "dark"},
+			{Label: "System", Radio: mode, Value: "system"},
 		}
-		coss.ContextMenu(c, area, open, []coss.MenuEntry{
-			{Label: "Pedro Duarte", Icon: mark("pedro"), OnClick: func() { *person = "pedro" }},
-			{Label: "Colm Tuite", Icon: mark("colm"), OnClick: func() { *person = "colm" }},
-		})
 	})
 }
 
 func PContextMenu8(c *ui.Context) {
-	host := ui.Box(c)
-	open := ui.Local(host, "open", func() bool { return false })
-	grid := ui.Local(host, "grid", func() bool { return true })
-	host.Children(func() {
-		area := contextTargetBox(c, "Right-click (switches)")
-		st := "Off"
-		if *grid {
-			st = "On"
+	type st struct{ autoSave, preview bool }
+	contextMenuParticle(c, func(host ui.Element) []coss.MenuEntry {
+		s := ui.Local(host, "s", func() st { return st{autoSave: true} })
+		return []coss.MenuEntry{
+			{Label: "Auto save", Checked: &s.autoSave, Switch: true},
+			{Label: "Show preview", Checked: &s.preview, Switch: true},
 		}
-		coss.ContextMenu(c, area, open, []coss.MenuEntry{
-			{Label: "Snap to grid", Shortcut: st, OnClick: func() { *grid = !*grid }},
-		})
 	})
 }

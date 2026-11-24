@@ -34,37 +34,35 @@ func ToggleBox(c *ui.Context, pressed *bool, fn func(), variant ...ToggleVariant
 		Center().
 		Height(32).
 		MinWidth(32).
-		Padding(0, 10).
-		Gap(6).
+		Padding(0, 7).
+		Gap(8).
 		Radius(t.RadiusLG).
-		FontSize(13).
+		FontSize(14).
 		FontWeight(500).
 		Cursor(ui.CursorPointer).
 		FocusRingColor(t.Ring)
-
-	switch {
-	case on:
-		el.Background(t.Accent).TextColor(t.AccentForeground)
-		if v == ToggleOutline {
-			el.Border(1, t.Input)
-		} else {
-			el.Border(1, ui.Transparent)
-		}
-	case v == ToggleOutline:
-		bg := t.Popover
+	bg, fg, border := ui.Transparent, t.Foreground, ui.Transparent
+	if v == ToggleOutline {
+		bg, border = t.Background, t.Input
 		if t.Dark {
 			bg = theme.Alpha(t.Input, 0.32)
 		}
-		if el.Hovered() {
-			bg = t.Accent
+	}
+	switch {
+	case on:
+		bg, fg = theme.Alpha(t.Input, 0.64), t.AccentForeground
+		if t.Dark && v == ToggleOutline {
+			bg = t.Input
 		}
-		el.Background(bg).TextColor(t.Foreground).Border(1, t.Input)
-	default:
-		bg := ui.Transparent
-		if el.Hovered() {
-			bg = t.Accent
+	case el.Hovered():
+		bg = t.Accent
+		if t.Dark && v == ToggleOutline {
+			bg = theme.Alpha(t.Input, 0.64)
 		}
-		el.Background(bg).TextColor(t.Foreground).Border(1, ui.Transparent)
+	}
+	el.Background(bg).TextColor(fg).Border(1, border).NoShadow()
+	if v == ToggleOutline && !on {
+		el.Shadow(0, 1, 2, 0, theme.Alpha(ui.RGB(0, 0, 0), 0.05))
 	}
 	el.Children(fn)
 	return el

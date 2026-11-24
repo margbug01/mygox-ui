@@ -82,7 +82,12 @@ func PButton14(c *ui.Context) { coss.IconButton(c, icons.Plus(), "Add").Size(cos
 func PButton15(c *ui.Context) { coss.IconButton(c, icons.Plus(), "Add").Size(coss.SizeIconLG) }
 func PButton16(c *ui.Context) { coss.Button(c, "Download").LeadingIcon(icons.Download()) }
 func PButton17(c *ui.Context) { coss.Button(c, "Link") }
-func PButton18(c *ui.Context) { coss.Button(c, "Loading...").Loading(true) }
+func PButton18(c *ui.Context) {
+	coss.ButtonBox(c, func() {
+		coss.Spinner(c)
+		ui.Text(c, "Loading...").FontWeight(500)
+	}).Disabled(true)
+}
 
 func PButton19(c *ui.Context) {
 	host := ui.Box(c)
@@ -94,10 +99,10 @@ func PButton19(c *ui.Context) {
 			label = "Show less"
 			ic = icons.ChevronUp()
 		}
-		coss.Button(c, label).
-			Variant(coss.ButtonGhost).
-			TrailingIcon(ic).
-			OnClick(func() { *expanded = !*expanded })
+		coss.ButtonBox(c, func() {
+			ui.Text(c, label).FontWeight(500)
+			ui.Icon(c, ic).Size(16, 16).Opacity(0.8).Margin(0, -4, 0, -2)
+		}).Variant(coss.ButtonGhost).Gap(4).OnClick(func() { *expanded = !*expanded })
 	})
 }
 
@@ -109,12 +114,12 @@ func PButton21(c *ui.Context) {
 	t := theme.Of(c)
 	btn := coss.ButtonBox(c, func() {
 		ui.Column(c).AlignItems(ui.Start).Gap(2).Children(func() {
-			ui.Text(c, "Talent Agency").FontSize(14).FontWeight(500).TextColor(t.Foreground)
-			ui.Text(c, "Matches for your roster").FontSize(13).TextColor(t.MutedForeground)
+			ui.Text(c, "Talent Agency").FontWeight(500).FixedLineHeight(20)
+			ui.Text(c, "Matches for your roster").FontWeight(400).FixedLineHeight(20).TextColor(t.MutedForeground)
 		})
-		ui.Icon(c, icons.ChevronRight()).Size(16, 16).TextColor(t.MutedForeground)
+		ui.Icon(c, icons.ChevronRight()).Size(16, 16).Opacity(0.8).Margin(0, -2)
 	}).Variant(coss.ButtonOutline)
-	btn.Height(56).Padding(10, 16).Gap(16)
+	btn.Height(68).Padding(12, 16).Gap(16)
 }
 
 func PButton22(c *ui.Context) {
@@ -138,12 +143,13 @@ func PButton23(c *ui.Context) {
 	count := ui.Local(host, "likes", func() int { return 86 })
 	host.Children(func() {
 		btn := coss.ButtonBox(c, func() {
-			ui.Icon(c, icons.ThumbsUp()).Size(15, 15).Opacity(0.85)
-			ui.Text(c, "Like").FontSize(14).FontWeight(500)
-			ui.Box(c).Width(1).Height(18).Background(t.Input).Margin(0, 4)
-			ui.Text(c, fmt.Sprintf("%d", *count)).FontSize(12).FontWeight(500).TextColor(t.MutedForeground)
+			ui.Icon(c, icons.ThumbsUp()).Size(16, 16).Opacity(0.8).Margin(0, -2)
+			ui.Text(c, "Like").FontWeight(500)
+			ui.Row(c).AlignItems(ui.Center).MarginStart(4).Padding(0, 12).BorderStartWidth(1).BorderColor(t.Input).Children(func() {
+				ui.Text(c, fmt.Sprintf("%d", *count)).FontSize(12).FixedLineHeight(16).FontWeight(500).TextColor(t.MutedForeground)
+			})
 		}).Variant(coss.ButtonOutline).OnClick(func() { *count++ })
-		btn.Padding(0, 12)
+		btn.Padding(0, 0, 0, 11)
 	})
 }
 
@@ -189,7 +195,7 @@ func PButton27(c *ui.Context) {
 
 func PButton28(c *ui.Context) {
 	btn := coss.ButtonBox(c, func() {
-		coss.Avatar(c, "LT").Size(24)
+		coss.Avatar(c, "LT").Size(24).Image(avatarPortrait1)
 		ui.Text(c, "@georgelucas").FontSize(14).FontWeight(500)
 	}).Round()
 	btn.Padding(0, 12, 0, 4)
@@ -212,12 +218,12 @@ func PButton30(c *ui.Context) {
 
 func PButton31(c *ui.Context) {
 	coss.ButtonBox(c, func() {
-		ui.Icon(c, icons.Printer()).Size(15, 15).Opacity(0.85)
+		ui.Icon(c, icons.Printer()).Size(16, 16).Opacity(0.8).Margin(0, -2)
 		ui.Text(c, "Print").FontSize(14).FontWeight(500)
 		coss.KbdGroup(c, func() {
 			coss.Kbd(c, "⌘")
 			coss.Kbd(c, "P")
-		})
+		}).Margin(0, -4, 0, 0)
 	}).Variant(coss.ButtonOutline)
 }
 
@@ -302,10 +308,16 @@ func PButton37(c *ui.Context) {
 }
 
 func PButton38(c *ui.Context) {
-	ui.Column(c).Width(220).Gap(8).Children(func() {
-		coss.Button(c, "Login with Google").Variant(coss.ButtonOutline).LeadingIcon(brandGoogleSVG).WidthPercent(100)
-		coss.Button(c, "Login with X").Variant(coss.ButtonOutline).LeadingIcon(brandXSVG).WidthPercent(100)
-		coss.Button(c, "Login with GitHub").Variant(coss.ButtonOutline).LeadingIcon(brandGitHubSVG).WidthPercent(100)
+	ui.Column(c).WidthPercent(100).MaxWidth(256).Gap(8).Children(func() {
+		for _, b := range []struct {
+			label string
+			icon  *ui.SVG
+		}{{"Login with Google", brandGoogleSVG}, {"Login with X", brandXSVG}, {"Login with GitHub", brandGitHubSVG}} {
+			coss.ButtonBox(c, func() {
+				ui.Icon(c, b.icon).Size(16, 16).Opacity(0.8).Margin(0, -2)
+				ui.Text(c, b.label).FontWeight(500).Grow(1).TextAlign(ui.Center)
+			}).Variant(coss.ButtonOutline).WidthPercent(100)
+		}
 	})
 }
 
@@ -321,17 +333,19 @@ func PButton39(c *ui.Context) {
 		prog := host.Animate("burger", target, 240*time.Millisecond)
 		coss.ButtonBox(c, func() {
 			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) {
+				// lucide-style 24-unit lines (x 4..20, y 12±7, stroke 2) drawn at 16px.
+				const u = 16.0 / 24
 				cy := r.Y + r.H/2
-				col := t.Foreground
+				col := theme.Alpha(t.Foreground, 0.8)
 				if prog < 0.5 {
-					off := 5 * (1 - prog*2)
-					p.Line(r.X+2, cy-off, r.X+r.W-2, cy-off, 1.75, col)
-					p.Line(r.X+2, cy, r.X+r.W-2, cy, 1.75, col)
-					p.Line(r.X+2, cy+off, r.X+r.W-2, cy+off, 1.75, col)
+					off := 7 * u * (1 - prog*2)
+					p.Line(r.X+4*u, cy-off, r.X+20*u, cy-off, 2*u, col)
+					p.Line(r.X+4*u, cy, r.X+20*u, cy, 2*u, col)
+					p.Line(r.X+4*u, cy+off, r.X+20*u, cy+off, 2*u, col)
 				} else {
-					s := (prog - 0.5) * 2 * 5
-					p.Line(r.X+3, cy-s, r.X+r.W-3, cy+s, 1.75, col)
-					p.Line(r.X+3, cy+s, r.X+r.W-3, cy-s, 1.75, col)
+					s := (prog - 0.5) * 2 * 5.66 * u
+					p.Line(r.X+r.W/2-s, cy-s, r.X+r.W/2+s, cy+s, 2*u, col)
+					p.Line(r.X+r.W/2-s, cy+s, r.X+r.W/2+s, cy-s, 2*u, col)
 				}
 			})
 		}).Variant(coss.ButtonOutline).Size(coss.SizeIcon).OnClick(func() {
@@ -359,19 +373,19 @@ func PButton40(c *ui.Context) {
 	}
 	host.Children(func() {
 		if !st.active {
-			coss.Button(c, "Download report").Variant(coss.ButtonOutline).LeadingIcon(icons.Download()).OnClick(func() {
+			coss.Button(c, "Download").Variant(coss.ButtonOutline).LeadingIcon(icons.Download()).OnClick(func() {
 				st.active = true
 				st.started = c.Now()
 			})
 			return
 		}
 		coss.Group(c, func() {
-			ui.Row(c).AlignItems(ui.Center).Gap(6).Padding(0, 10).Height(32).Children(func() {
-				coss.Spinner(c).Size(14)
-				ui.Text(c, fmt.Sprintf("Generating %d%%", pct)).FontSize(13)
+			ui.Row(c).AlignItems(ui.Center).Gap(8).Padding(0, 11).Height(32).Children(func() {
+				coss.Spinner(c)
+				ui.Text(c, fmt.Sprintf("%2d%%", pct)).FontWeight(500)
 			})
 			coss.GroupSeparator(c)
-			coss.IconButton(c, icons.X(), "Cancel download").Variant(coss.ButtonGhost).Radius(0).OnClick(func() {
+			coss.IconButton(c, icons.X(), "Cancel").Variant(coss.ButtonOutline).Radius(0).OnClick(func() {
 				st.active = false
 			})
 		})

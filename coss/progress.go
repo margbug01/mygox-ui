@@ -18,13 +18,12 @@ func Progress(c *ui.Context, value float32) ui.Element {
 		WidthPercent(100).
 		Height(6).
 		Radius(999).
-		Background(t.Muted).
+		Background(t.Input).
 		Clip().
 		Children(func() {
 			ui.Box(c).
 				HeightPercent(100).
 				WidthPercent(value).
-				Radius(999).
 				Background(t.Primary)
 		})
 }

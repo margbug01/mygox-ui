@@ -102,7 +102,7 @@ func (b *BadgeElement) Icon(svg *ui.SVG) *BadgeElement {
 	b.hasIcon = true
 	sz := b.iconSize()
 	b.iconSlot.Hidden(false).Children(func() {
-		b.iconEl = ui.Icon(b.c, svg).Size(sz, sz).Opacity(0.85)
+		b.iconEl = ui.Icon(b.c, svg).Size(sz, sz).Opacity(0.8)
 	})
 	return b
 }
@@ -142,17 +142,17 @@ func (b *BadgeElement) applyStyle() {
 	var (
 		h      float32 = 18
 		minW   float32 = 18
-		px     float32 = 5
+		px     float32 = 3
 		fontSz float32 = 12
 		radius float32 = t.RadiusXS
 	)
 	switch b.size {
 	case BadgeSizeSM:
-		h, minW, px, fontSz, radius = 16, 16, 4, 10, 4
+		h, minW, px, fontSz, radius = 16, 16, 3, 10, 4
 	case BadgeSizeDefault:
-		h, minW, px, fontSz, radius = 18, 18, 5, 12, t.RadiusXS
+		h, minW, px, fontSz, radius = 18, 18, 3, 12, t.RadiusXS
 	case BadgeSizeLG:
-		h, minW, px, fontSz, radius = 22, 22, 6, 14, t.RadiusSM
+		h, minW, px, fontSz, radius = 22, 22, 5, 14, t.RadiusSM
 	}
 	e.Height(h).MinWidth(minW).Padding(0, px).Gap(4).Radius(radius).FontSize(fontSz).FontWeight(500)
 	if b.hasIcon {

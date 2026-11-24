@@ -3,6 +3,8 @@ package particles
 import (
 	_ "embed"
 	"fmt"
+	"math"
+	"math/rand/v2"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -28,7 +30,7 @@ func PKbd1(c *ui.Context) {
 	t := theme.Of(c)
 	ui.Column(c).Gap(16).Children(func() {
 		ui.Column(c).Gap(8).Children(func() {
-			ui.Text(c, "Single keys:").FontSize(13).TextColor(t.MutedForeground)
+			ui.Text(c, "Single keys:").FixedLineHeight(20).TextColor(t.MutedForeground)
 			ui.Row(c).Gap(8).Children(func() {
 				coss.Kbd(c, "K")
 				coss.Kbd(c, "⌘")
@@ -37,7 +39,7 @@ func PKbd1(c *ui.Context) {
 			})
 		})
 		ui.Column(c).Gap(8).Children(func() {
-			ui.Text(c, "Key combinations:").FontSize(13).TextColor(t.MutedForeground)
+			ui.Text(c, "Key combinations:").FixedLineHeight(20).TextColor(t.MutedForeground)
 			ui.Row(c).Gap(8).Children(func() {
 				coss.KbdGroup(c, func() { coss.Kbd(c, "⌘"); coss.Kbd(c, "K") })
 				coss.KbdGroup(c, func() { coss.Kbd(c, "⌘"); coss.Kbd(c, "Shift"); coss.Kbd(c, "P") })
@@ -52,12 +54,12 @@ func PSeparator1(c *ui.Context) {
 	t := theme.Of(c)
 	ui.Column(c).MaxWidth(288).Children(func() {
 		ui.Column(c).Gap(4).Children(func() {
-			ui.Text(c, "coss ui").FontSize(14).FontWeight(500).TextColor(t.Foreground)
+			ui.Text(c, "coss ui").FixedLineHeight(20).FontWeight(500).TextColor(t.Foreground)
 			ui.Text(c, "Unstyled, accessible primitives for fast product UI and design systems.").
-				FontSize(13).TextColor(t.MutedForeground)
+				FixedLineHeight(20).TextColor(t.MutedForeground)
 		})
-		coss.Separator(c).Margin(14, 0)
-		ui.Row(c).AlignItems(ui.Center).Gap(14).FontSize(13).TextColor(t.Foreground).Children(func() {
+		coss.Separator(c).Margin(16, 0)
+		ui.Row(c).AlignItems(ui.Center).Gap(16).FixedLineHeight(20).TextColor(t.Foreground).Children(func() {
 			ui.Text(c, "Blog")
 			coss.Separator(c, coss.Vertical)
 			ui.Text(c, "Docs")
@@ -71,52 +73,63 @@ func PSeparator1(c *ui.Context) {
 
 // PSpinner1 renders a standalone coss spinner.
 func PSpinner1(c *ui.Context) {
-	coss.Spinner(c)
+	coss.Spinner(c).Size(24) // lucide renders 24px when no size class applies
 }
 
-// PProgress1 renders an animated progress bar cycling smoothly across [20, 100].
+// PProgress1 renders a progress bar that starts at 20 and grows by a
+// random step every second until it is full.
 func PProgress1(c *ui.Context) {
-	box := ui.Box(c).WidthPercent(100)
-	t := box.Loop("progress", 4*time.Second, ui.EaseInOut)
+	box := ui.Box(c).WidthPercent(100).MaxWidth(256)
+	value := ui.Local(box, "value", func() float32 { return 20 })
+	next := ui.Local(box, "next", func() time.Time { return c.Now().Add(time.Second) })
+	if *value < 100 {
+		if !c.Now().Before(*next) {
+			*value = min(100, float32(math.Round(float64(*value)+rand.Float64()*25)))
+			*next = c.Now().Add(time.Second)
+		}
+		c.After(next.Sub(c.Now()))
+	}
 	box.Children(func() {
-		coss.Progress(c, 20+80*t)
+		coss.Progress(c, *value)
+	})
+}
+
+// labeledProgress is Progress with ProgressLabel and ProgressValue above
+// the track, as p-progress-2 and p-progress-3 compose them.
+func labeledProgress(c *ui.Context, label, value string, percent float32) {
+	ui.Column(c).WidthPercent(100).Gap(8).FixedLineHeight(20).Children(func() {
+		ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.SpaceBetween).Gap(8).Children(func() {
+			ui.Text(c, label).FontWeight(500)
+			ui.Text(c, value).FontFeatures("tnum")
+		})
+		coss.Progress(c, percent)
 	})
 }
 
 // PProgress2 renders a labeled progress bar with percentage value.
 func PProgress2(c *ui.Context) {
-	t := theme.Of(c)
-	ui.Column(c).WidthPercent(100).Gap(8).Children(func() {
-		ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
-			ui.Text(c, "Export data").FontSize(13).FontWeight(500).TextColor(t.Foreground)
-			ui.Text(c, "60%").FontSize(13).TextColor(t.MutedForeground)
-		})
-		coss.Progress(c, 60)
+	ui.Box(c).WidthPercent(100).MaxWidth(256).Children(func() {
+		labeledProgress(c, "Export data", "60%", 60)
 	})
 }
 
 // PProgress3 renders a progress bar with custom "502 / 512" formatted readout.
 func PProgress3(c *ui.Context) {
-	t := theme.Of(c)
 	const val, maxVal = 502, 512
-	ui.Column(c).WidthPercent(100).Gap(8).Children(func() {
-		ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
-			ui.Text(c, "Upload").FontSize(13).FontWeight(500).TextColor(t.Foreground)
-			ui.Text(c, fmt.Sprintf("%d / %d", val, maxVal)).FontSize(13).TextColor(t.MutedForeground)
-		})
-		coss.Progress(c, float32(val)/float32(maxVal)*100)
+	ui.Box(c).WidthPercent(100).MaxWidth(256).Children(func() {
+		labeledProgress(c, "Upload", fmt.Sprintf("%d / %d", val, maxVal), float32(val)/float32(maxVal)*100)
 	})
 }
 
 // PSkeleton2 renders a static user-row loading skeleton.
 func PSkeleton2(c *ui.Context) {
-	ui.Row(c).WidthPercent(100).MaxWidth(368).AlignItems(ui.Center).Gap(14).Children(func() {
+	ui.Row(c).WidthPercent(100).MaxWidth(368).AlignItems(ui.Center).Gap(16).Children(func() {
 		coss.Skeleton(c).Size(40, 40).Radius(999).Shrink(0)
-		ui.Column(c).Grow(1).Gap(6).Children(func() {
-			coss.Skeleton(c).Height(14).WidthPercent(80)
-			ui.Row(c).Gap(6).WidthPercent(70).Children(func() {
-				coss.Skeleton(c).Height(12).Grow(1)
-				coss.Skeleton(c).Height(12).Grow(1)
+		ui.Column(c).Grow(1).Children(func() {
+			coss.Skeleton(c).Height(16).WidthPercent(100).MaxWidth(216).Margin(2, 0)
+			ui.Row(c).Gap(4).WidthPercent(100).MaxWidth(216).Children(func() {
+				coss.Skeleton(c).Height(16).Grow(1).Basis(0).Margin(2, 0)
+				coss.Skeleton(c).Height(16).Grow(1).Basis(0).Margin(2, 0)
 			})
 		})
 		coss.Skeleton(c).Height(24).Width(68).Shrink(0)

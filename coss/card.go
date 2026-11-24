@@ -5,6 +5,22 @@ import (
 	"github.com/margbug01/mygox-ui/coss/theme"
 )
 
+// cardSlots records the header and panel of the Card being built, so later
+// parts can space themselves as ui/card.tsx does with :has() selectors.
+type cardSlots struct {
+	header, panel       ui.Element
+	hasHeader, hasPanel bool
+}
+
+var cardStack []*cardSlots
+
+func currentCard() *cardSlots {
+	if len(cardStack) == 0 {
+		return &cardSlots{}
+	}
+	return cardStack[len(cardStack)-1]
+}
+
 // Card renders a coss-styled card surface with rounded-2xl corners and subtle border/shadow.
 func Card(c *ui.Context, fn func()) ui.Element {
 	t := theme.Of(c)
@@ -23,43 +39,56 @@ func Card(c *ui.Context, fn func()) ui.Element {
 	} else {
 		e.Shadow(0, 1, 2, 0, theme.Alpha(black, 0.05))
 	}
+	cardStack = append(cardStack, &cardSlots{})
 	e.Children(fn)
+	cardStack = cardStack[:len(cardStack)-1]
 	return e
 }
 
-// CardHeader renders the top header block inside a Card.
+// CardHeader renders the top header block inside a Card (p-6, gap-1.5).
 func CardHeader(c *ui.Context, fn func()) ui.Element {
-	return ui.Column(c).WidthPercent(100).Padding(20, 20, 12, 20).Gap(4).Children(fn)
+	h := ui.Column(c).WidthPercent(100).Padding(24).Gap(6).Children(fn)
+	s := currentCard()
+	s.header, s.hasHeader = h, true
+	return h
 }
 
-// CardTitle renders the primary heading inside a CardHeader.
+// CardTitle renders the primary heading inside a CardHeader (text-lg, leading-none).
 func CardTitle(c *ui.Context, title string) ui.Element {
 	t := theme.Of(c)
-	return ui.Text(c, title).FontSize(16).FontWeight(600).TextColor(t.CardForeground)
+	return ui.Text(c, title).FontSize(18).FixedLineHeight(18).FontWeight(600).TextColor(t.CardForeground)
 }
 
 // CardDescription renders muted descriptive text inside a CardHeader.
 func CardDescription(c *ui.Context, desc string) ui.Element {
 	t := theme.Of(c)
-	return ui.Text(c, desc).FontSize(13).TextColor(t.MutedForeground)
+	return ui.Text(c, desc).FixedLineHeight(20).TextColor(t.MutedForeground)
 }
 
-// CardPanel renders the main body content area inside a Card.
+// CardPanel renders the main body content area inside a Card (p-6). After
+// a header it drops its top padding and gives the header pb-4.
 func CardPanel(c *ui.Context, fn func()) ui.Element {
-	return ui.Column(c).WidthPercent(100).Padding(8, 20, 20, 20).Gap(12).Children(fn)
+	p := ui.Column(c).WidthPercent(100).Padding(24).Gap(12).Children(fn)
+	s := currentCard()
+	if s.hasHeader {
+		s.header.Padding(24, 24, 16, 24)
+		p.Padding(0, 24, 24, 24)
+	}
+	s.panel, s.hasPanel = p, true
+	return p
 }
 
-// CardFooter renders the footer bar inside a Card.
+// CardFooter renders the footer row inside a Card (p-6). After a panel it
+// takes pt-4 and the panel drops its bottom padding.
 func CardFooter(c *ui.Context, fn func()) ui.Element {
-	t := theme.Of(c)
-	return ui.Row(c).
-		WidthPercent(100).
-		AlignItems(ui.Center).
-		Justify(ui.SpaceBetween).
-		Gap(8).
-		Padding(14, 20).
-		Background(theme.Alpha(t.Muted, 0.65)).
-		BorderWidth(1, 0, 0, 0).
-		BorderColor(t.Border).
-		Children(fn)
+	f := ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Gap(8).Padding(24).Children(fn)
+	if s := currentCard(); s.hasPanel {
+		if s.hasHeader {
+			s.panel.Padding(0, 24)
+		} else {
+			s.panel.Padding(24, 24, 0, 24)
+		}
+		f.Padding(16, 24, 24, 24)
+	}
+	return f
 }

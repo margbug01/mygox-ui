@@ -136,9 +136,9 @@ func cardProjectForm(c *ui.Context, host ui.Element) {
 
 func cardFooterNote(c *ui.Context, icon *ui.SVG, text string) {
 	t := theme.Of(c)
-	ui.Row(c).AlignItems(ui.Center).Gap(6).TextColor(t.MutedForeground).Children(func() {
-		ui.Icon(c, icon).Size(12, 12).Shrink(0)
-		ui.Text(c, text).FontSize(12).TextColor(t.MutedForeground)
+	ui.Row(c).AlignItems(ui.Start).Gap(4).FontSize(12).FixedLineHeight(16).TextColor(t.MutedForeground).Children(func() {
+		ui.Icon(c, icon).Size(12, 12).Margin(2, 0).Shrink(0)
+		ui.Text(c, text)
 	})
 }
 
@@ -153,12 +153,34 @@ func cardFrameSurface(c *ui.Context, fn func()) ui.Element {
 		Children(fn)
 }
 
-func cardFrameHeader(c *ui.Context, fn func()) ui.Element {
-	return ui.Column(c).WidthPercent(100).Padding(14, 20).Gap(2).Children(fn)
+// cardFrameHeader is CardFrameHeader (px-6 py-4) with its text-sm
+// semibold title and muted description.
+func cardFrameHeader(c *ui.Context, title, desc string) ui.Element {
+	t := theme.Of(c)
+	return ui.Column(c).WidthPercent(100).Padding(16, 24).FixedLineHeight(20).Children(func() {
+		ui.Text(c, title).FontWeight(600)
+		ui.Text(c, desc).TextColor(t.MutedForeground)
+	})
 }
 
 func cardFrameFooter(c *ui.Context, fn func()) ui.Element {
-	return ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Padding(12, 20).Gap(8).Children(fn)
+	return ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Padding(16, 24).Children(fn)
+}
+
+// inCardFrame styles a Card inside a CardFrame: it overlaps the frame's
+// border, loses its shadow, and rounds to rounded-xl on the sides that
+// meet other frame parts.
+func inCardFrame(c *ui.Context, card ui.Element, first, last bool) {
+	t := theme.Of(c)
+	top, bottom := t.RadiusXL, t.RadiusXL
+	var mt, mb float32
+	if first {
+		top, mt = t.Radius2XL-1, -1
+	}
+	if last {
+		bottom, mb = t.Radius2XL-1, -1
+	}
+	card.Margin(mt, -1, mb, -1).Radius(top, top, bottom, bottom).NoShadow()
 }
 
 func PCard1(c *ui.Context) {
@@ -186,9 +208,12 @@ func PCard2(c *ui.Context) {
 	password := ui.Local(host, "password", func() string { return "" })
 	host.Children(func() {
 		coss.Card(c, func() {
-			ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.SpaceBetween).Padding(20, 20, 12, 20).Gap(8).Children(func() {
-				coss.CardTitle(c, "Login to your account")
-				coss.Button(c, "Sign up").Variant(coss.ButtonLink).Size(coss.SizeSM).TextColor(t.MutedForeground)
+			coss.CardHeader(c, func() {
+				// The action spans both header grid rows, so the row gap stays.
+				ui.Row(c).WidthPercent(100).Height(24).AlignItems(ui.Start).Justify(ui.SpaceBetween).Gap(16).Children(func() {
+					coss.CardTitle(c, "Login to your account")
+					ui.Text(c, "Sign up").FixedLineHeight(18).TextColor(t.MutedForeground).Cursor(ui.CursorPointer)
+				})
 			})
 			coss.CardPanel(c, func() {
 				coss.Form(c, func() {
@@ -218,7 +243,7 @@ func PCard3(c *ui.Context) {
 				coss.CardTitle(c, "Login to your account")
 				coss.CardDescription(c, "Enter email and password to login")
 			}).BorderWidth(0, 0, 1, 0).BorderColor(t.Border)
-			coss.CardPanel(c, func() {
+			panel := coss.CardPanel(c, func() {
 				coss.Form(c, func() {
 					coss.Field(c, func() {
 						coss.FieldLabel(c, "Email")
@@ -230,10 +255,12 @@ func PCard3(c *ui.Context) {
 					})
 					coss.Button(c, "Login").WidthPercent(100)
 				})
-			}).Padding(16, 20, 20, 20)
+			})
 			coss.CardFooter(c, func() {
 				cardFooterNote(c, icons.ShieldAlert(), "The information you enter is encrypted and stored securely.")
-			})
+			}).BorderWidth(1, 0, 0, 0).BorderColor(t.Border)
+			// Bordered header and footer keep the panel's full p-6.
+			panel.Padding(24)
 		})
 	})
 }
@@ -242,7 +269,7 @@ func PCard4(c *ui.Context) {
 	host := ui.Box(c).WidthPercent(100).MaxWidth(320)
 	host.Children(func() {
 		cardFrameSurface(c, func() {
-			coss.Card(c, func() {
+			card := coss.Card(c, func() {
 				coss.CardHeader(c, func() {
 					coss.CardTitle(c, "Create project")
 					coss.CardDescription(c, "Deploy your new project in one-click.")
@@ -251,6 +278,7 @@ func PCard4(c *ui.Context) {
 					cardProjectForm(c, host)
 				})
 			})
+			inCardFrame(c, card, true, false)
 			cardFrameFooter(c, func() {
 				cardFooterNote(c, icons.CircleAlert(), "This will take a few seconds to complete.")
 			})
@@ -262,15 +290,13 @@ func PCard5(c *ui.Context) {
 	host := ui.Box(c).WidthPercent(100).MaxWidth(320)
 	host.Children(func() {
 		cardFrameSurface(c, func() {
-			cardFrameHeader(c, func() {
-				coss.CardTitle(c, "Create project")
-				coss.CardDescription(c, "Deploy your new project in one-click.")
-			})
-			coss.Card(c, func() {
+			cardFrameHeader(c, "Create project", "Deploy your new project in one-click.")
+			card := coss.Card(c, func() {
 				coss.CardPanel(c, func() {
 					cardProjectForm(c, host)
-				}).Padding(20)
+				})
 			})
+			inCardFrame(c, card, false, true)
 		})
 	})
 }
@@ -279,15 +305,13 @@ func PCard6(c *ui.Context) {
 	host := ui.Box(c).WidthPercent(100).MaxWidth(320)
 	host.Children(func() {
 		cardFrameSurface(c, func() {
-			cardFrameHeader(c, func() {
-				coss.CardTitle(c, "Create project")
-				coss.CardDescription(c, "Deploy your new project in one-click.")
-			})
-			coss.Card(c, func() {
+			cardFrameHeader(c, "Create project", "Deploy your new project in one-click.")
+			card := coss.Card(c, func() {
 				coss.CardPanel(c, func() {
 					cardProjectForm(c, host)
-				}).Padding(20)
+				})
 			})
+			inCardFrame(c, card, false, false)
 			cardFrameFooter(c, func() {
 				cardFooterNote(c, icons.CircleAlert(), "This will take a few seconds to complete.")
 			})
@@ -300,15 +324,14 @@ func PCard7(c *ui.Context) {
 	host := ui.Box(c).WidthPercent(100).MaxWidth(320)
 	host.Children(func() {
 		cardFrameSurface(c, func() {
-			cardFrameHeader(c, func() {
-				coss.CardTitle(c, "Create project")
-				coss.CardDescription(c, "Deploy your new project in one-click.")
-			})
-			coss.Card(c, func() {
+			cardFrameHeader(c, "Create project", "Deploy your new project in one-click.")
+			card := coss.Card(c, func() {
 				coss.CardPanel(c, func() {
 					cardProjectForm(c, host)
-				}).Padding(20)
-			}).Radius(t.Radius2XL, t.Radius2XL, 0, 0)
+				})
+			})
+			inCardFrame(c, card, false, false)
+			card.Radius(t.RadiusXL, t.RadiusXL, 0, 0)
 			cardFrameFooter(c, func() {
 				cardFooterNote(c, icons.CircleAlert(), "This will take a few seconds to complete.")
 			})
@@ -347,7 +370,7 @@ func PCard9(c *ui.Context) {
 			coss.Card(c, func() {
 				coss.CardPanel(c, func() {
 					cardProjectForm(c, host)
-				}).Padding(20)
+				})
 			})
 		})
 	})
@@ -364,7 +387,7 @@ func PCard10(c *ui.Context) {
 			coss.Card(c, func() {
 				coss.CardPanel(c, func() {
 					cardProjectForm(c, host)
-				}).Padding(20)
+				})
 			})
 			coss.FrameFooter(c, func() {
 				cardFooterNote(c, icons.CircleAlert(), "This will take a few seconds to complete.")
@@ -374,15 +397,16 @@ func PCard10(c *ui.Context) {
 }
 
 func PCard11(c *ui.Context) {
+	t := theme.Of(c)
 	cardFrameSurface(c, func() {
-		ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.SpaceBetween).Padding(14, 20).Gap(12).Children(func() {
-			ui.Column(c).Gap(2).Children(func() {
-				coss.CardTitle(c, "Project")
-				coss.CardDescription(c, "Manage your projects")
+		ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.SpaceBetween).Padding(16, 24).Gap(16).Children(func() {
+			ui.Column(c).FixedLineHeight(20).Children(func() {
+				ui.Text(c, "Project").FontWeight(600)
+				ui.Text(c, "Manage your projects").TextColor(t.MutedForeground)
 			})
 			coss.Button(c, "Add").Variant(coss.ButtonOutline).LeadingIcon(icons.Plus())
 		})
-		coss.Card(c, func() {
+		card := coss.Card(c, func() {
 			coss.CardPanel(c, func() {
 				coss.Empty(c, func() {
 					coss.EmptyHeader(c, func() {
@@ -391,7 +415,8 @@ func PCard11(c *ui.Context) {
 						coss.EmptyDescription(c, "Get started by adding your first project.")
 					})
 				})
-			}).Padding(20)
+			})
 		})
+		inCardFrame(c, card, false, true)
 	})
 }
