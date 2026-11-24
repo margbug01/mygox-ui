@@ -115,13 +115,15 @@ func (b *ButtonElement) initSlots(customFn func()) {
 			}
 			return
 		}
-		b.spinSlot = ui.Row(b.c).Center().Shrink(0).Hidden(true)
 		b.leadSlot = ui.Row(b.c).Center().Shrink(0).Hidden(true)
 		if b.label != "" {
 			b.labelEl = ui.Text(b.c, b.label).SingleLine().FontWeight(500)
 			b.hasLabel = true
 		}
 		b.trailSlot = ui.Row(b.c).Center().Shrink(0).Hidden(true)
+		// The loading spinner sits over the content, which turns transparent
+		// but keeps its width (data-loading:text-transparent).
+		b.spinSlot = ui.Row(b.c).Absolute().Fill().Center().Hidden(true)
 	})
 }
 
@@ -158,14 +160,14 @@ func (b *ButtonElement) Loading(v bool) *ButtonElement {
 			})
 		}
 		b.spinSlot.Hidden(!v)
-		b.leadSlot.Hidden(v || !b.hasLead)
-		b.trailSlot.Hidden(v || !b.hasTrail)
+		var o float32 = 1
+		if v {
+			o = 0
+		}
+		b.leadSlot.Opacity(o)
+		b.trailSlot.Opacity(o)
 		if b.hasLabel {
-			if v {
-				b.labelEl.Opacity(0.65)
-			} else {
-				b.labelEl.Opacity(1)
-			}
+			b.labelEl.Opacity(o)
 		}
 	}
 	b.applyStyle()
@@ -179,8 +181,8 @@ func (b *ButtonElement) LeadingIcon(svg *ui.SVG) *ButtonElement {
 	}
 	b.hasLead = true
 	sz := b.iconSize()
-	b.leadSlot.Hidden(b.loading).Children(func() {
-		b.leadEl = ui.Icon(b.c, svg).Size(sz, sz).Opacity(0.85)
+	b.leadSlot.Hidden(false).Children(func() {
+		b.leadEl = ui.Icon(b.c, svg).Size(sz, sz).Opacity(0.8).Margin(0, -2)
 	})
 	return b
 }
@@ -192,8 +194,8 @@ func (b *ButtonElement) TrailingIcon(svg *ui.SVG) *ButtonElement {
 	}
 	b.hasTrail = true
 	sz := b.iconSize()
-	b.trailSlot.Hidden(b.loading).Children(func() {
-		b.trailEl = ui.Icon(b.c, svg).Size(sz, sz).Opacity(0.85)
+	b.trailSlot.Hidden(false).Children(func() {
+		b.trailEl = ui.Icon(b.c, svg).Size(sz, sz).Opacity(0.8).Margin(0, -2)
 	})
 	return b
 }
@@ -227,7 +229,7 @@ func (b *ButtonElement) applyStyle() {
 	t := b.tokens
 	e := b.Element
 	isDisabled := b.disabled || b.loading
-	e.Disabled(isDisabled)
+	e.Disabled(isDisabled).DimDisabled(false)
 	if isDisabled {
 		e.Opacity(0.64).Cursor(ui.CursorDefault)
 	} else {
