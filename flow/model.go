@@ -191,6 +191,36 @@ func (n *Node) Bounds() Rect {
 	return Rect{X: n.X, Y: n.Y, W: w, H: h}
 }
 
+// syncSchemaHandles gives every row of a schema node a target handle on the
+// left and a source handle on the right, as the LabeledHandles of React Flow
+// UI's DatabaseSchemaNode do. Rows keep the ids they already have.
+func (n *Node) syncSchemaHandles() {
+	if n.Variant != VariantSchema {
+		return
+	}
+	has := map[string]bool{}
+	for _, p := range n.Ports {
+		has[p.ID] = true
+	}
+	add := func(id string, side PortSide, kind PortKind) {
+		if !has[id] {
+			n.Ports = append(n.Ports, Port{ID: id, Side: side, Kind: kind})
+			has[id] = true
+		}
+	}
+	for i := range n.SchemaRows {
+		r := &n.SchemaRows[i]
+		if r.InID == "" {
+			r.InID = r.Name + "-in"
+		}
+		if r.OutID == "" {
+			r.OutID = r.Name + "-out"
+		}
+		add(r.InID, PortLeft, PortInput)
+		add(r.OutID, PortRight, PortOutput)
+	}
+}
+
 // EdgeKind selects the curve routing algorithm for edges.
 type EdgeKind string
 
@@ -307,8 +337,8 @@ func DarkTheme() Theme {
 		TextMuted:        RGBHex(0x9ca3af),
 		BadgeBG:          ui.RGBA(255, 255, 255, 0.08),
 		BadgeText:        RGBHex(0xd4d4d8),
-		PortFill:         RGBHex(0x181b24),
-		PortBorder:       RGBHex(0x818cf8),
+		PortFill:         RGBHex(0x27272a),
+		PortBorder:       RGBHex(0x27272a),
 		PortSnap:         RGBHex(0x22c55e),
 		EdgeDefault:      RGBHex(0x525866),
 		EdgeHover:        RGBHex(0x9ca3af),
@@ -353,8 +383,8 @@ func LightTheme() Theme {
 		TextMuted:        RGBHex(0x64748b),
 		BadgeBG:          ui.RGBA(15, 23, 42, 0.06),
 		BadgeText:        RGBHex(0x334155),
-		PortFill:         RGBHex(0xffffff),
-		PortBorder:       RGBHex(0x4f46e5),
+		PortFill:         RGBHex(0xf1f5f9),
+		PortBorder:       RGBHex(0xcbd5e1),
 		PortSnap:         RGBHex(0x16a34a),
 		EdgeDefault:      RGBHex(0x94a3b8),
 		EdgeHover:        RGBHex(0x475569),

@@ -1182,15 +1182,13 @@ func (g *Graph) paintSchemaNode(p *ui.Painter, r, nr ui.Rect, n *Node, t Theme, 
 	rowH := 26 * z
 
 	p.Clip(nr, rad, func() {
-		// DatabaseSchemaNodeHeader: centered title on secondary header strip.
-		p.Fill(ui.Rect{X: nr.X, Y: nr.Y, W: nr.W, H: headerH}, t.NodeHeaderBG, 0)
-		p.Line(nr.X, nr.Y+headerH, nr.X+nr.W, nr.Y+headerH, 1, t.NodeBorder)
+		// DatabaseSchemaNodeHeader: bg-secondary text-muted-foreground p-2
+		// text-sm, its title at the start of the strip.
+		p.Fill(ui.Rect{X: nr.X, Y: nr.Y, W: nr.W, H: headerH}, t.BadgeBG, 0)
 
 		if z >= 0.42 {
-			ts := clamp32(12.5*z, 8.5, 15)
-			tw := float32(len(n.Title)) * ts * 0.58
-			tx := nr.X + max32(10*z, (nr.W-tw)*0.5)
-			p.Text(tx, nr.Y+(headerH-ts)*0.5-0.5, n.Title, ts, t.TextPrimary)
+			ts := clamp32(13.5*z, 8.5, 16)
+			p.Text(nr.X+10*z, nr.Y+(headerH-ts)*0.5-0.5, n.Title, ts, t.TextMuted)
 
 			// DatabaseSchemaTableRow entries: left column name, right column muted type.
 			fs := clamp32(10.8*z, 7.5, 13)
@@ -1199,11 +1197,7 @@ func (g *Graph) paintSchemaNode(p *ui.Painter, r, nr ui.Rect, n *Node, t Theme, 
 				if idx > 0 {
 					p.Line(nr.X, ry, nr.X+nr.W, ry, 1, colorWithAlpha(t.NodeBorder, 0.7))
 				}
-				nameCol := t.TextPrimary
-				if row.IsKey {
-					p.Fill(ui.Rect{X: nr.X, Y: ry, W: nr.W, H: rowH}, colorWithAlpha(t.BadgeBG, 0.55), 0)
-				}
-				p.Text(nr.X+13*z, ry+(rowH-fs)*0.5-0.5, row.Name, fs, nameCol)
+				p.Text(nr.X+13*z, ry+(rowH-fs)*0.5-0.5, row.Name, fs, t.TextPrimary)
 				typeW := float32(len(row.Type)) * fs * 0.58
 				p.Text(nr.X+nr.W-typeW-13*z, ry+(rowH-fs)*0.5-0.5, row.Type, clamp32(fs*0.92, 7, 12), t.TextMuted)
 			}
@@ -1315,7 +1309,8 @@ func (g *Graph) paintNodePorts(p *ui.Painter, r ui.Rect, n *Node, t Theme, z flo
 
 		hovered := g.hoverPortNode == n.ID && g.hoverPortID == port.ID
 		snapped := g.mode == modeConnect && g.connect.HasSnap && g.connect.SnapNode == n.ID && g.connect.SnapPort == port.ID
-		pr := clamp32(4.6*z, 3.0, 6.2)
+		// BaseHandle: an 11px circle, bg-slate-100 with a border-slate-300 hairline.
+		pr := clamp32(5.5*z, 3.0, 7)
 		if hovered || snapped {
 			pr += 1.6
 		}
@@ -1328,7 +1323,7 @@ func (g *Graph) paintNodePorts(p *ui.Painter, r ui.Rect, n *Node, t Theme, z flo
 		}
 		prRect := ui.Rect{X: sx - pr, Y: sy - pr, W: pr * 2, H: pr * 2}
 		p.Fill(prRect, t.PortFill, pr)
-		p.Stroke(prRect, borderCol, pr, 1.8)
+		p.Stroke(prRect, borderCol, pr, 1)
 
 		// React Flow UI ButtonHandle: stem line + circular '+' button to spawn & wire next node.
 		if port.ShowButton && !g.ReadOnly && z >= 0.45 {

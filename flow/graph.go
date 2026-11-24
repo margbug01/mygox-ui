@@ -155,6 +155,7 @@ func (g *Graph) AddNode(n *Node) *Node {
 	if n.W <= 0 {
 		n.W = 224
 	}
+	n.syncSchemaHandles()
 	if n.H <= 0 {
 		n.H = 112
 	}
@@ -712,6 +713,9 @@ func (g *Graph) LoadJSON(data []byte) error {
 	}
 	g.PushUndo()
 	g.restore(graphSnapshot{Nodes: doc.Nodes, Edges: doc.Edges})
+	for _, n := range g.Nodes {
+		n.syncSchemaHandles()
+	}
 	if doc.Viewport.Zoom > 0 {
 		g.Viewport = doc.Viewport
 	}

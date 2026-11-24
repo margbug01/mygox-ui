@@ -245,6 +245,9 @@ func PresetDatabaseSchema() *Graph {
 		{ID: "fk-sup", Source: "products", SourcePort: "supplier_id", Target: "suppliers", TargetPort: "id", Label: "1:N"},
 		{ID: "fk-mov", Source: "warehouses", SourcePort: "out-id", Target: "inventory", TargetPort: "wh", Animated: true},
 	}
+	for _, n := range g.Nodes {
+		n.syncSchemaHandles()
+	}
 	return g
 }
 

@@ -30,7 +30,7 @@ type flowState struct {
 func newFlowState(preset string) *flowState {
 	fs := &flowState{
 		palette:       flow.DefaultPalette(),
-		showInspector: true,
+		showInspector: false,
 	}
 	fs.loadPreset(preset)
 	return fs
@@ -136,8 +136,11 @@ func cossFlowTheme(t theme.Tokens) flow.Theme {
 	ft.TextMuted = t.MutedForeground
 	ft.BadgeBG = t.Secondary
 	ft.BadgeText = t.SecondaryForeground
-	ft.PortFill = t.Card
-	ft.PortBorder = t.Primary
+	// BaseHandle: bg-slate-100 border-slate-300, both bg-secondary in dark.
+	ft.PortFill, ft.PortBorder = ui.Hex("#f1f5f9"), ui.Hex("#cbd5e1")
+	if t.Dark {
+		ft.PortFill, ft.PortBorder = t.Secondary, t.Secondary
+	}
 	ft.EdgeLabelBG = t.Card
 	ft.EdgeLabelBorder = t.Border
 	ft.EdgeLabelText = t.Foreground
