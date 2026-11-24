@@ -15,10 +15,10 @@ func Kbd(c *ui.Context, key string) ui.Element {
 		MinWidth(20).
 		Padding(0, 4).
 		Radius(4).
+		Gap(4).
 		Background(t.Muted).
-		Border(1, t.Border).
 		TextColor(t.MutedForeground).
-		FontSize(11).
+		FontSize(12).
 		FontWeight(500).
 		Children(func() {
 			ui.Text(c, key).SingleLine()
