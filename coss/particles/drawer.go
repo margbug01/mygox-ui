@@ -254,7 +254,7 @@ func PDrawer9(c *ui.Context) {
 		coss.Drawer(c, coss.DrawerSpec{
 			Open:        open,
 			ShowBar:     true,
-			Height:      300, // the first snap point
+			SnapPoints:  []float32{300, 1},
 			Title:       "Snap Points",
 			Description: "Drag the drawer to snap between a compact peek and full-height view.",
 			Body:        func(closeFn func()) { drawerBoxes(c, sc) },
@@ -386,6 +386,16 @@ func PDrawer14(c *ui.Context) {
 	host.Children(func() {
 		area := ui.ButtonBase(c).Absolute().Top(0).Bottom(0).Left(0).Width(32).Background(t.Muted).
 			BorderWidth(0, 1, 0, 0).BorderColor(t.Input).BorderStyle(ui.BorderDashed).Label("Open menu")
+		// DrawerSwipeArea: swiping right out of the area opens the drawer.
+		swipe := ui.Local(area, "swipe", func() float32 { return 0 })
+		if dx, _, ok := area.Dragged(); ok {
+			*swipe += dx
+			if *swipe > 24 {
+				*open, *swipe = true, 0
+			}
+		} else {
+			*swipe = 0
+		}
 		if area.Clicked() {
 			*open = true
 		}
