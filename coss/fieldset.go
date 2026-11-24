@@ -5,9 +5,10 @@ import (
 	"github.com/margbug01/mygox-ui/coss/theme"
 )
 
-// Fieldset groups related fields with an optional legend heading.
+// Fieldset groups related fields with an optional legend heading. Like
+// coss's, it adds no spacing of its own: callers set Gap.
 func Fieldset(c *ui.Context, fn func()) ui.Element {
-	return ui.Column(c).WidthPercent(100).Gap(14).Children(fn)
+	return ui.Column(c).WidthPercent(100).Children(fn)
 }
 
 // FieldsetLegend renders the heading of a Fieldset.

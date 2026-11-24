@@ -118,7 +118,7 @@ func PRadioGroup5(c *ui.Context) {
 					{Value: "weekly", Label: "Weekly digest"},
 					{Value: "never", Label: "Never"},
 				})
-			})
+			}).Gap(14)
 			coss.Button(c, "Save preference").Size(coss.SizeSM).OnClick(func() { *saved = *sel })
 			if *saved != "" {
 				ui.Text(c, "Saved: "+*saved).FontSize(12).TextColor(t.SuccessForeground)

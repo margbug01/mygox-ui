@@ -283,7 +283,7 @@ func PCheckboxGroup5(c *ui.Context) {
 					coss.Checkbox(c, vite, "Vite")
 					coss.Checkbox(c, astro, "Astro")
 				})
-			})
+			}).Gap(14)
 			coss.Button(c, "Submit").OnClick(func() {
 				var sel []string
 				if *next {

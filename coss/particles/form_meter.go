@@ -34,19 +34,19 @@ func init() {
 
 func PCollapsible1(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100).MaxWidth(260)
+	host := ui.Box(c)
 	open := ui.Local(host, "open", func() bool { return false })
 	host.Children(func() {
 		coss.Collapsible(c, open, func(p ui.CollapsibleParts) {
 			p.Trigger.AlignItems(ui.Center).Gap(8).Cursor(ui.CursorPointer).Children(func() {
-				ui.Text(c, "Show recovery keys").FontSize(14).FontWeight(500).TextColor(t.Foreground)
-				ui.Icon(c, icons.ChevronDown()).Size(15, 15).TextColor(t.MutedForeground).Rotate(180 * p.Progress())
+				ui.Text(c, "Show recovery keys").FontSize(14).FixedLineHeight(20).FontWeight(500).TextColor(t.Foreground)
+				ui.Icon(c, icons.ChevronDown()).Size(16, 16).TextColor(t.Foreground).Rotate(180 * p.Progress())
 			})
 		}, func() {
-			ui.Column(c).Gap(6).Padding(8, 0, 0, 0).Children(func() {
+			ui.Column(c).Gap(4).Padding(8, 0).Children(func() {
 				for _, code := range []string{"4829-1735-6621", "9182-6407-5532", "3051-7924-9018"} {
-					ui.Box(c).Radius(6).Background(t.Muted).Padding(4, 8).Children(func() {
-						ui.Text(c, code).FontSize(13).TextColor(t.MutedForeground)
+					ui.Box(c).Radius(t.RadiusSM).Background(t.Muted).Padding(4, 8).Children(func() {
+						ui.Text(c, code).Font("monospace").FontSize(14).FixedLineHeight(20).TextColor(t.MutedForeground)
 					})
 				}
 			})
@@ -56,7 +56,7 @@ func PCollapsible1(c *ui.Context) {
 
 func PFieldset1(c *ui.Context) {
 	type st struct{ company, taxID string }
-	host := ui.Box(c).WidthPercent(100)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	s := ui.Local(host, "s", func() st { return st{} })
 	host.Children(func() {
 		coss.Fieldset(c, func() {
@@ -71,7 +71,7 @@ func PFieldset1(c *ui.Context) {
 				coss.Input(c, &s.taxID).Placeholder("Enter tax identification number")
 				coss.FieldDescription(c, "Your business tax identification number.")
 			})
-		})
+		}).Gap(24)
 	})
 }
 
@@ -80,10 +80,8 @@ func PForm1(c *ui.Context) {
 		email        string
 		err          string
 		loadingUntil time.Time
-		submitted    string
 	}
-	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100).MaxWidth(260)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	s := ui.Local(host, "s", func() st { return st{} })
 	loading := c.Now().Before(s.loadingUntil)
 	if loading {
@@ -104,25 +102,19 @@ func PForm1(c *ui.Context) {
 					return
 				}
 				s.err = ""
-				s.loadingUntil = c.Now().Add(700 * time.Millisecond)
-				s.submitted = "Submitted: " + s.email
+				s.loadingUntil = c.Now().Add(800 * time.Millisecond)
 			})
-			if s.submitted != "" && !loading {
-				ui.Text(c, s.submitted).FontSize(12).TextColor(t.SuccessForeground)
-			}
 		})
 	})
 }
 
 func PForm2(c *ui.Context) {
 	type st struct {
-		name, age        string
-		nameErr, ageErr  string
-		loadingUntil     time.Time
-		submitted        bool
+		name, age       string
+		nameErr, ageErr string
+		loadingUntil    time.Time
 	}
-	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100).MaxWidth(260)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	s := ui.Local(host, "s", func() st { return st{} })
 	loading := c.Now().Before(s.loadingUntil)
 	if loading {
@@ -145,138 +137,125 @@ func PForm2(c *ui.Context) {
 				}
 			})
 			coss.Button(c, "Submit").Loading(loading).WidthPercent(100).OnClick(func() {
+				// The coss particle's zod schema: a non-empty name and a
+				// positive number for age (empty coerces to 0).
 				s.nameErr, s.ageErr = "", ""
-				if strings.TrimSpace(s.name) == "" {
-					s.nameErr = "Name is required."
+				if s.name == "" {
+					s.nameErr = "Please enter a name."
 				}
-				if n, err := strconv.Atoi(strings.TrimSpace(s.age)); err != nil || n < 1 {
-					s.ageErr = "Enter a valid positive age."
+				age, err := 0.0, error(nil)
+				if a := strings.TrimSpace(s.age); a != "" {
+					age, err = strconv.ParseFloat(a, 64)
 				}
-				if s.nameErr == "" && s.ageErr == "" {
-					s.loadingUntil = c.Now().Add(700 * time.Millisecond)
-					s.submitted = true
+				switch {
+				case err != nil:
+					s.ageErr = "Please enter a number."
+				case age <= 0:
+					s.ageErr = "Number must be positive."
 				}
+				s.loadingUntil = c.Now().Add(800 * time.Millisecond)
 			})
-			if s.submitted && !loading && s.nameErr == "" && s.ageErr == "" {
-				ui.Text(c, fmt.Sprintf("Saved %s (%s)", s.name, s.age)).FontSize(12).TextColor(t.SuccessForeground)
+		})
+	})
+}
+
+// meterHost is the coss.com preview width meters fill (max-w-64).
+func meterHost(c *ui.Context, fn func()) {
+	ui.Box(c).WidthPercent(100).MaxWidth(256).Children(fn)
+}
+
+func PMeter1(c *ui.Context) {
+	meterHost(c, func() { coss.Meter(c, 75, 0, 100, "Storage usage", "75%") })
+}
+
+func PMeter2(c *ui.Context) {
+	meterHost(c, func() { coss.Meter(c, 50, 0, 100, "", "") })
+}
+
+func PMeter3(c *ui.Context) {
+	meterHost(c, func() { coss.Meter(c, 3, 0, 5, "Rating", "3 / 5") })
+}
+
+func PMeter4(c *ui.Context) {
+	meterHost(c, func() { coss.Meter(c, 700, 500, 1000, "Bandwidth (Mbps)", "700") })
+}
+
+// tagList is the coss scroll area's content: a "Tags" heading over
+// v1.0.0-alpha.0 to .49, px-4 py-2.
+func tagList(c *ui.Context) {
+	t := theme.Of(c)
+	ui.Column(c).Padding(8, 16).Children(func() {
+		ui.Text(c, "Tags").FontSize(14).FixedLineHeight(20).FontWeight(500).TextColor(t.Foreground).Margin(0, 0, 8, 0)
+		ui.Column(c).Gap(4).Children(func() {
+			for i := range 50 {
+				ui.Text(c, fmt.Sprintf("v1.0.0-alpha.%d", i)).FontSize(14).FixedLineHeight(20).TextColor(t.Foreground)
 			}
 		})
 	})
 }
 
-func PMeter1(c *ui.Context) {
+// itemStrip is the coss horizontal scroll area's content: twenty 128x80
+// muted items, gap-4 p-4.
+func itemStrip(c *ui.Context) {
 	t := theme.Of(c)
-	ui.Column(c).WidthPercent(100).Gap(8).Children(func() {
-		ui.Row(c).WidthPercent(100).Justify(ui.SpaceBetween).Children(func() {
-			ui.Text(c, "Storage usage").FontSize(13).FontWeight(500).TextColor(t.Foreground)
-			ui.Text(c, "75%").FontSize(13).TextColor(t.MutedForeground)
-		})
-		coss.Meter(c, 75, 0, 100)
-	})
-}
-
-func PMeter2(c *ui.Context) {
-	coss.Meter(c, 50, 0, 100)
-}
-
-func PMeter3(c *ui.Context) {
-	t := theme.Of(c)
-	ui.Column(c).WidthPercent(100).Gap(8).Children(func() {
-		ui.Row(c).WidthPercent(100).Justify(ui.SpaceBetween).Children(func() {
-			ui.Text(c, "Rating").FontSize(13).FontWeight(500).TextColor(t.Foreground)
-			ui.Text(c, "3 / 5").FontSize(13).TextColor(t.MutedForeground)
-		})
-		coss.Meter(c, 3, 0, 5)
-	})
-}
-
-func PMeter4(c *ui.Context) {
-	t := theme.Of(c)
-	ui.Column(c).WidthPercent(100).Gap(8).Children(func() {
-		ui.Row(c).WidthPercent(100).Justify(ui.SpaceBetween).Children(func() {
-			ui.Text(c, "Bandwidth (Mbps)").FontSize(13).FontWeight(500).TextColor(t.Foreground)
-			ui.Text(c, "700").FontSize(13).TextColor(t.MutedForeground)
-		})
-		coss.Meter(c, 700, 500, 1000)
+	ui.Row(c).Padding(16).Gap(16).Children(func() {
+		for i := 1; i <= 20; i++ {
+			ui.Row(c).Center().Size(128, 80).Radius(t.RadiusMD).Background(t.Muted).Shrink(0).Children(func() {
+				ui.Text(c, fmt.Sprintf("Item %d", i)).FontSize(14).FixedLineHeight(20).FontWeight(500).TextColor(t.Foreground)
+			})
+		}
 	})
 }
 
 func PScrollArea1(c *ui.Context) {
-	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	st := ui.Local(host, "sc", func() ui.ScrollState { return ui.ScrollState{} })
 	host.Children(func() {
-		coss.ScrollAreaBox(c, st, func() {
-			ui.Column(c).Padding(10, 14).Gap(6).Children(func() {
-				ui.Text(c, "Tags").FontSize(13).FontWeight(600).TextColor(t.Foreground)
-				for i := 1; i <= 24; i++ {
-					ui.Text(c, fmt.Sprintf("v1.2.0-beta.%d", i)).FontSize(13).TextColor(t.MutedForeground)
-				}
-			})
-		}).Height(160).WidthPercent(100)
+		coss.ScrollAreaBox(c, st, 256, false, func() { tagList(c) })
 	})
 }
 
 func PScrollArea2(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(384)
 	st := ui.Local(host, "sc", func() ui.ScrollState { return ui.ScrollState{} })
 	host.Children(func() {
-		coss.ScrollAreaHorizontal(c, st, func() {
-			ui.Row(c).Padding(12).Gap(10).Children(func() {
-				for i := 1; i <= 12; i++ {
-					ui.Row(c).Center().Size(110, 68).Radius(t.RadiusMD).Background(t.Muted).Shrink(0).Children(func() {
-						ui.Text(c, fmt.Sprintf("Item %d", i)).FontSize(13).FontWeight(500).TextColor(t.Foreground)
-					})
-				}
-			})
-		}).WidthPercent(100).Radius(t.RadiusXL).Border(1, t.Border)
+		coss.ScrollAreaHorizontal(c, st, func() { itemStrip(c) }).WidthPercent(100).Radius(t.RadiusLG).Border(1, t.Border)
 	})
 }
 
 func PScrollArea3(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(320)
 	st := ui.Local(host, "sc", func() ui.ScrollState { return ui.ScrollState{} })
 	host.Children(func() {
-		ui.ScrollBoth(c).TrackScroll(st).Height(160).WidthPercent(100).Radius(t.RadiusXL).Border(1, t.Border).Clip().Children(func() {
-			ui.Box(c).Width(420).Padding(14).Children(func() {
-				ui.Text(c, "Just as suddenly as it had begun, the sensation stopped, leaving Alice feeling slightly disoriented. She looked around and realized that the room hadn't changed at all — it was she who had grown smaller, shrinking down to a fraction of her previous size. Alice peered into the mirror, her reflection staring back with an air of mischief.").
-					FontSize(13).TextColor(t.MutedForeground)
+		ui.ScrollBoth(c).TrackScroll(st).Height(320).WidthPercent(100).Radius(t.RadiusLG).Border(1, t.Border).Clip().Children(func() {
+			ui.Box(c).Width(400).Padding(16).Children(func() {
+				ui.Text(c, "Just as suddenly as it had begun, the sensation stopped, leaving Alice feeling slightly disoriented. She looked around and realized that the room hadn't changed at all - it was she who had grown smaller, shrinking down to a fraction of her previous size. Alice felt herself growing larger and larger, filling up the entire room until she feared she might burst. The sensation was both thrilling and terrifying, as if she were expanding beyond the confines of her own body. She wondered if this was what it felt like to be a balloon, swelling with air until it could hold no more. Alice peered into the mirror, her reflection staring back at her with an air of mischief. She wondered what it would be like to step through the glass and into the world beyond, where everything seemed to be topsy-turvy and nothing was quite as it seemed. It's no use going back to yesterday, because I was a different person then, reflected Alice.").
+					FontSize(16).FixedLineHeight(24).TextColor(t.Foreground)
 			})
 		})
 	})
 }
 
 func PScrollArea4(c *ui.Context) {
-	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	st := ui.Local(host, "sc", func() ui.ScrollState { return ui.ScrollState{} })
 	host.Children(func() {
-		coss.ScrollAreaBox(c, st, func() {
-			ui.Column(c).Padding(10, 14).Gap(6).Children(func() {
-				ui.Text(c, "Tags (Fading Scroll)").FontSize(13).FontWeight(600).TextColor(t.Foreground)
-				for i := 1; i <= 24; i++ {
-					ui.Text(c, fmt.Sprintf("release-%02d", i)).FontSize(13).TextColor(t.MutedForeground)
-				}
-			})
-		}).Height(160).WidthPercent(100)
+		coss.ScrollAreaBox(c, st, 256, true, func() { tagList(c) })
 	})
 }
 
 func PScrollArea5(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(384)
 	st := ui.Local(host, "sc", func() ui.ScrollState { return ui.ScrollState{} })
 	host.Children(func() {
-		coss.ScrollAreaHorizontal(c, st, func() {
-			ui.Row(c).Padding(12).Gap(10).Children(func() {
-				for i := 1; i <= 12; i++ {
-					ui.Row(c).Center().Size(110, 68).Radius(t.RadiusMD).Background(t.Muted).Shrink(0).Children(func() {
-						ui.Text(c, fmt.Sprintf("Card %d", i)).FontSize(13).FontWeight(500).TextColor(t.Foreground)
-					})
-				}
-			})
-		}).WidthPercent(100).Radius(t.RadiusXL).Border(1, t.Border).KeepScrollbars(true)
+		s := coss.ScrollAreaHorizontal(c, st, func() { itemStrip(c) }).WidthPercent(100).Radius(t.RadiusLG).Border(1, t.Border)
+		// scrollbarGutter: room for the scrollbar under content that
+		// overflows.
+		if st.MaxX > 0 {
+			s.Padding(0, 0, 10, 0)
+		}
 	})
 }
