@@ -28,9 +28,10 @@ func init() {
 	Register(Entry{ID: "p-command-2", Family: "command", Description: "Command palette with AI assistant mode", View: PCommand2, Source: extractFunc(dialogSource, "PCommand2")})
 }
 
-// profileDialog is the Edit profile dialog p-dialog-1 and p-dialog-6 share
-// (sm:max-w-sm); bare selects DialogFooter variant="bare".
-func profileDialog(c *ui.Context, bare bool) {
+// profileDialog is the Edit profile dialog p-dialog-1, p-dialog-6 and
+// p-drawer-12 (on desktop) share (sm:max-w-sm), opened by an outline
+// button labelled trigger; bare selects DialogFooter variant="bare".
+func profileDialog(c *ui.Context, trigger string, bare bool) {
 	type st struct {
 		open bool
 		name string
@@ -39,7 +40,7 @@ func profileDialog(c *ui.Context, bare bool) {
 	host := ui.Box(c)
 	s := ui.Local(host, "s", func() st { return st{name: "Margaret Welsh", user: "@maggie.welsh"} })
 	host.Children(func() {
-		coss.Button(c, "Open Dialog").Variant(coss.ButtonOutline).OnClick(func() { s.open = true })
+		coss.Button(c, trigger).Variant(coss.ButtonOutline).OnClick(func() { s.open = true })
 		coss.Dialog(c, coss.DialogSpec{
 			Open:        &s.open,
 			Title:       "Edit profile",
@@ -65,7 +66,7 @@ func profileDialog(c *ui.Context, bare bool) {
 }
 
 func PDialog1(c *ui.Context) {
-	profileDialog(c, false)
+	profileDialog(c, "Open Dialog", false)
 }
 
 func PDialog2(c *ui.Context) {
@@ -237,7 +238,7 @@ func PDialog5(c *ui.Context) {
 }
 
 func PDialog6(c *ui.Context) {
-	profileDialog(c, true)
+	profileDialog(c, "Open Dialog", true)
 }
 
 // profileSheet is the Edit profile sheet p-sheet-1 and p-sheet-2 share.

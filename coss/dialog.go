@@ -63,6 +63,10 @@ type dialogContent struct {
 	bareFooter         bool
 	// growBody lets the panel fill the popup (sheets).
 	growBody bool
+	// center is DrawerHeader text-center with a justify-center footer.
+	center bool
+	// overlay builds elements over the popup after its slots (drawer bar).
+	overlay func()
 }
 
 // dialogPopup styles panel as the popup (bg-popover shadow-lg/5) and
@@ -77,6 +81,10 @@ func dialogPopup(c *ui.Context, t theme.Tokens, panel ui.Element, d dialogConten
 		}
 	}
 	hasHeader := d.title != "" || d.description != ""
+	align := ui.Start
+	if d.center {
+		align = ui.Center
+	}
 	panel.
 		Background(t.Popover).
 		TextColor(t.PopoverForeground).
@@ -89,12 +97,15 @@ func dialogPopup(c *ui.Context, t theme.Tokens, panel ui.Element, d dialogConten
 				if d.body != nil {
 					header.Padding(24, 24, 12, 24)
 				}
+				if d.center {
+					header.AlignItems(ui.Center)
+				}
 				header.Children(func() {
 					if d.title != "" {
-						ui.Text(c, d.title).FontSize(20).FixedLineHeight(20).FontWeight(700).TextColor(t.PopoverForeground)
+						ui.Text(c, d.title).FontSize(20).FixedLineHeight(20).FontWeight(700).TextColor(t.PopoverForeground).TextAlign(align)
 					}
 					if d.description != "" {
-						ui.Text(c, d.description).TextColor(t.MutedForeground)
+						ui.Text(c, d.description).TextColor(t.MutedForeground).TextAlign(align)
 					}
 				})
 			}
@@ -115,6 +126,9 @@ func dialogPopup(c *ui.Context, t theme.Tokens, panel ui.Element, d dialogConten
 			}
 			if d.footer != nil {
 				footer := ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.End).Gap(8)
+				if d.center {
+					footer.Justify(ui.Center)
+				}
 				if d.bareFooter {
 					top := float32(16)
 					if d.body != nil {
@@ -128,6 +142,9 @@ func dialogPopup(c *ui.Context, t theme.Tokens, panel ui.Element, d dialogConten
 						BorderColor(t.Border)
 				}
 				footer.Children(func() { d.footer(closeFn) })
+			}
+			if d.overlay != nil {
+				d.overlay()
 			}
 			if !d.hideClose {
 				IconButton(c, icons.X(), "Close").Variant(ButtonGhost).OnClick(closeFn).

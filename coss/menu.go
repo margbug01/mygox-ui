@@ -31,6 +31,24 @@ type MenuEntry struct {
 // Menu renders a coss-styled dropdown menu whose trigger is an outline
 // button (MenuTrigger render={<Button variant="outline" />}).
 func Menu(c *ui.Context, open *bool, triggerLabel string, items []MenuEntry) ui.Element {
+	return menu(c, open, items, func(tr ui.Element) {
+		tr.Padding(0, 11).Children(func() {
+			ui.Text(c, triggerLabel).SingleLine()
+		})
+	})
+}
+
+// IconMenu is Menu with an outline icon button (size="icon") as trigger;
+// label names it for assistive technology.
+func IconMenu(c *ui.Context, open *bool, icon *ui.SVG, label string, items []MenuEntry) ui.Element {
+	return menu(c, open, items, func(tr ui.Element) {
+		tr.Width(32).Label(label).Children(func() {
+			ui.Icon(c, icon).Size(16, 16).Opacity(0.8)
+		})
+	})
+}
+
+func menu(c *ui.Context, open *bool, items []MenuEntry, trigger func(tr ui.Element)) ui.Element {
 	t := theme.Of(c)
 	parts := ui.MenuBase(c, open)
 	bg := t.Popover
@@ -46,7 +64,6 @@ func Menu(c *ui.Context, open *bool, triggerLabel string, items []MenuEntry) ui.
 	}
 	tr.Center().
 		Height(32).
-		Padding(0, 11).
 		Gap(8).
 		Radius(t.RadiusLG).
 		Background(bg).
@@ -56,9 +73,7 @@ func Menu(c *ui.Context, open *bool, triggerLabel string, items []MenuEntry) ui.
 		FontSize(14).
 		FontWeight(500).
 		Cursor(ui.CursorPointer)
-	tr.Children(func() {
-		ui.Text(c, triggerLabel).SingleLine()
-	})
+	trigger(tr)
 	renderMenuPopup(c, t, parts, items)
 	return tr
 }
