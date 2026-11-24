@@ -85,22 +85,20 @@ func (a *AccordionElement) render() {
 				item := acc.Item(p)
 				tr := item.Trigger.
 					WidthPercent(100).
-					AlignItems(ui.Center).
+					AlignItems(ui.Start).
 					Justify(ui.SpaceBetween).
 					Gap(16).
-					Padding(14, 2).
+					Padding(16, 0).
 					Radius(t.RadiusMD).
 					Cursor(ui.CursorPointer).
 					FocusRingColor(t.Ring)
 
 				tr.Children(func() {
-					txt := ui.Text(c, spec.Title).Grow(1).FontSize(14).FontWeight(500).TextColor(t.Foreground)
-					if tr.Hovered() {
-						txt.Underline().UnderlineOffset(3)
-					}
+					ui.Text(c, spec.Title).Grow(1).FontSize(14).FontWeight(500).LineHeight(20.0 / 14).TextColor(t.Foreground)
 					ui.Icon(c, chevronDownSVG).
 						Size(16, 16).
-						TextColor(t.MutedForeground).
+						Margin(2, 0, 0, 0).
+						TextColor(t.Foreground).
 						Opacity(0.8).
 						Rotate(180 * item.Progress()).
 						Shrink(0)
@@ -119,7 +117,7 @@ func (a *AccordionElement) render() {
 						spec.Content()
 					}
 				}); panel != (ui.Element{}) {
-					panel.Padding(0, 2, 16, 2).Gap(8).TextColor(t.MutedForeground).FontSize(14)
+					panel.Padding(0, 0, 16, 0).Gap(8).TextColor(t.MutedForeground).FontSize(14).LineHeight(20.0 / 14)
 				}
 			})
 		}

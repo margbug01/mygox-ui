@@ -98,75 +98,75 @@ func cossMenuItem(c *ui.Context, label string, disabled bool, destructive bool, 
 }
 
 func PInputGroup1(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
-			coss.InputGroupAddon(c, func() { ui.Icon(c, icons.Search()).Size(14, 14) })
+			coss.InputGroupAddon(c, func() { ui.Icon(c, icons.Search()).Size(16, 16).MarginX(-2) })
 			coss.InputGroupInput(c, val).Placeholder("Search")
 		})
 	})
 }
 
 func PInputGroup2(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
 			coss.InputGroupInput(c, val).Placeholder("Email")
-			coss.InputGroupAddon(c, func() { ui.Icon(c, icons.Mail()).Size(14, 14) })
+			coss.InputGroupAddon(c, func() { ui.Icon(c, icons.Mail()).Size(16, 16).MarginX(-2) })
 		})
 	})
 }
 
 func PInputGroup3(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
-			coss.InputGroupAddon(c, func() { ui.Text(c, "i.cal.com/").SingleLine() })
-			coss.InputGroupInput(c, val).Placeholder("coss")
+			coss.InputGroupAddon(c, func() { ui.Text(c, "i.cal.com/").SingleLine().TextColor(theme.Of(c).MutedForeground) })
+			coss.InputGroupInput(c, val).Placeholder("coss").MarginStart(-8)
 		})
 	})
 }
 
 func PInputGroup4(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
 			coss.InputGroupInput(c, val).Placeholder("Choose a username")
-			coss.InputGroupAddon(c, func() { ui.Text(c, "@coss.com").SingleLine() })
+			coss.InputGroupAddon(c, func() { ui.Text(c, "@coss.com").SingleLine().TextColor(theme.Of(c).MutedForeground) })
 		})
 	})
 }
 
 func PInputGroup5(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
-			coss.InputGroupAddon(c, func() { ui.Text(c, "https://").SingleLine() })
-			coss.InputGroupInput(c, val).Placeholder("coss")
-			coss.InputGroupAddon(c, func() { ui.Text(c, ".com").SingleLine() })
+			coss.InputGroupAddon(c, func() { ui.Text(c, "https://").SingleLine().TextColor(theme.Of(c).MutedForeground) })
+			coss.InputGroupInput(c, val).Placeholder("coss").MarginStart(-8)
+			coss.InputGroupAddon(c, func() { ui.Text(c, ".com").SingleLine().TextColor(theme.Of(c).MutedForeground) })
 		})
 	})
 }
 
 func PInputGroup6(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "10" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
-			coss.InputGroupAddon(c, func() { ui.Text(c, "€").SingleLine() })
+			coss.InputGroupAddon(c, func() { ui.Text(c, "€").SingleLine().TextColor(theme.Of(c).MutedForeground) })
 			coss.InputGroupInput(c, val).FontFeatures("tnum")
-			coss.InputGroupAddon(c, func() { ui.Text(c, "EUR").SingleLine() })
+			coss.InputGroupAddon(c, func() { ui.Text(c, "EUR").SingleLine().TextColor(theme.Of(c).MutedForeground) })
 		})
 	})
 }
 
 func PInputGroup7(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
@@ -175,13 +175,13 @@ func PInputGroup7(c *ui.Context) {
 				btn := coss.IconButton(c, icons.Info(), "Password requirements").
 					Variant(coss.ButtonGhost).Size(coss.SizeIconXS)
 				cossTooltip(c, btn.Element, "Min. 8 characters")
-			})
+			}).MarginEnd(-8)
 		})
 	})
 }
 
 func PInputGroup8(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "https://coss.com" })
 	copied := ui.Local(host, "copied", func() bool { return false })
 	host.Children(func() {
@@ -196,92 +196,91 @@ func PInputGroup8(c *ui.Context) {
 					Variant(coss.ButtonGhost).Size(coss.SizeIconXS).
 					OnClick(func() { *copied = !*copied })
 				cossTooltip(c, btn.Element, "Copy to clipboard")
-			})
+			}).MarginEnd(-8)
 		})
 	})
 }
 
 func PInputGroup9(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(300)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
 			coss.InputGroupInput(c, val).Placeholder("Type to search…")
 			coss.InputGroupAddon(c, func() {
 				coss.Button(c, "Search").Size(coss.SizeXS).Variant(coss.ButtonSecondary)
-			})
+			}).MarginEnd(-8)
 		})
 	})
 }
 
 func PInputGroup10(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(300)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
 			coss.InputGroupInput(c, val).Placeholder("Type to search…")
 			coss.InputGroupAddon(c, func() {
 				coss.Badge(c, "Badge").Variant(coss.BadgeInfo)
-			})
+			}).MarginEnd(-6)
 		})
 	})
 }
 
 func PInputGroup11(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
 			coss.InputGroupInput(c, val).Placeholder("Search…")
 			coss.InputGroupAddon(c, func() {
 				coss.Kbd(c, "⌘K")
-			})
+			}).MarginEnd(-5.6)
 		})
 	})
 }
 
 func PInputGroup12(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		blockInputGroup(c, func() {
-			ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.SpaceBetween).Padding(8, 10, 0, 10).Children(func() {
-				coss.Label(c, "Email").FontSize(12)
+			ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.SpaceBetween).Padding(11, 11, 0, 11).Children(func() {
+				coss.Label(c, "Email")
 				btn := coss.IconButton(c, icons.Info(), "Email information").
 					Variant(coss.ButtonGhost).Size(coss.SizeIconXS)
+				btn.MarginY(-4).MarginEnd(-4)
 				cossTooltip(c, btn.Element, "We'll use this to send you notifications")
 			})
-			ui.Row(c).WidthPercent(100).Padding(0, 8, 4, 8).Children(func() {
-				coss.InputGroupInput(c, val).Placeholder("team@coss.com")
-			})
+			coss.InputGroupInput(c, val).Placeholder("team@coss.com").WidthPercent(100).Height(36).Padding(0, 11, 6, 11)
 		})
 	})
 }
 
 func PInputGroup13(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
-			coss.InputGroupAddon(c, func() { ui.Icon(c, icons.Search()).Size(13, 13) })
-			coss.InputGroupInput(c, val).Placeholder("Search").Height(26).FontSize(13)
-		}).Height(28)
+			coss.InputGroupAddon(c, func() { ui.Icon(c, icons.Search()).Size(16, 16).MarginX(-2) })
+			coss.InputGroupInput(c, val).Placeholder("Search").Height(26)
+		}).Height(28).Padding(0, 9).Gap(6)
 	})
 }
 
 func PInputGroup14(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
-			coss.InputGroupAddon(c, func() { ui.Icon(c, icons.Search()).Size(15, 15) })
-			coss.InputGroupInput(c, val).Placeholder("Search").Height(34).FontSize(14)
+			coss.InputGroupAddon(c, func() { ui.Icon(c, icons.Search()).Size(16, 16).MarginX(-2) })
+			coss.InputGroupInput(c, val).Placeholder("Search").Height(34)
 		}).Height(36)
 	})
 }
 
 func PInputGroup15(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
@@ -289,31 +288,31 @@ func PInputGroup15(c *ui.Context) {
 			coss.InputGroupAddon(c, func() {
 				coss.IconButton(c, icons.ArrowRight(), "Subscribe").
 					Variant(coss.ButtonGhost).Size(coss.SizeIconXS).Disabled(true)
-			})
+			}).MarginEnd(-8)
 		}).Opacity(0.64)
 	})
 }
 
 func PInputGroup16(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
 			coss.InputGroupInput(c, val).Placeholder("Searching…").Disabled(true)
-			coss.InputGroupAddon(c, func() { coss.Spinner(c).Size(14) })
+			coss.InputGroupAddon(c, func() { coss.Spinner(c).Size(16).MarginX(-2) })
 		}).Opacity(0.64)
 	})
 }
 
 func PInputGroup17(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100).MaxWidth(360)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(320)
 	val := ui.Local(host, "val", func() string { return "" })
 	menuOpen := ui.Local(host, "menuOpen", func() bool { return false })
 	host.Children(func() {
 		blockInputGroup(c, func() {
 			coss.InputGroupTextarea(c, val).Placeholder("Ask, Search or Chat…")
-			ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Gap(8).Padding(6, 10, 8, 8).Children(func() {
+			ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Gap(8).Padding(0, 11, 11, 11).Children(func() {
 				addBtn := coss.IconButton(c, icons.Plus(), "Add files").
 					Variant(coss.ButtonGhost).Size(coss.SizeIconSM).
 					OnClick(func() { *menuOpen = !*menuOpen })
@@ -340,7 +339,7 @@ func PInputGroup17(c *ui.Context) {
 
 func PInputGroup18(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100).MaxWidth(320)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "hello@coss.com" })
 	open := ui.Local(host, "open", func() bool { return false })
 	host.Children(func() {
@@ -359,20 +358,20 @@ func PInputGroup18(c *ui.Context) {
 							cossMenuItem(c, "Delete", false, true, func() { *open = false })
 						})
 				})
-			})
+			}).MarginEnd(-8)
 		})
 	})
 }
 
 func PInputGroup19(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100).MaxWidth(360)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(320)
 	val := ui.Local(host, "val", func() string { return "" })
 	bold := ui.Local(host, "bold", func() bool { return false })
 	italic := ui.Local(host, "italic", func() bool { return false })
 	host.Children(func() {
 		blockInputGroup(c, func() {
-			ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Gap(4).Padding(6, 8).
+			ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Gap(4).Padding(8).
 				Background(theme.Alpha(t.Muted, 0.72)).
 				BorderWidth(0, 0, 1, 0).BorderColor(t.Border).
 				Children(func() {
@@ -398,18 +397,18 @@ func PInputGroup19(c *ui.Context) {
 }
 
 func PInputGroup20(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
-			coss.InputGroupAddon(c, func() { ui.Icon(c, icons.Search()).Size(14, 14) })
+			coss.InputGroupAddon(c, func() { ui.Icon(c, icons.Search()).Size(16, 16).MarginX(-2) })
 			coss.InputGroupInput(c, val).Placeholder("Search")
 		})
 	})
 }
 
 func PInputGroup21(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
@@ -417,14 +416,14 @@ func PInputGroup21(c *ui.Context) {
 				btn := coss.IconButton(c, icons.Info(), "More information").
 					Variant(coss.ButtonGhost).Size(coss.SizeIconXS)
 				cossTooltip(c, btn.Element, "Enter your username")
-			})
+			}).MarginStart(-8)
 			coss.InputGroupInput(c, val).Placeholder("Username")
 		})
 	})
 }
 
 func PInputGroup22(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "Clear me" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
@@ -434,22 +433,22 @@ func PInputGroup22(c *ui.Context) {
 					coss.IconButton(c, icons.X(), "Clear input").
 						Variant(coss.ButtonGhost).Size(coss.SizeIconXS).
 						OnClick(func() { *val = "" })
-				})
+				}).MarginEnd(-8)
 			}
 		})
 	})
 }
 
 func PInputGroup23(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
 			coss.InputGroupAddon(c, func() {
 				if *val != "" {
-					coss.Spinner(c).Size(14)
+					coss.Spinner(c).Size(16).MarginX(-2)
 				} else {
-					ui.Icon(c, icons.Search()).Size(14, 14)
+					ui.Icon(c, icons.Search()).Size(16, 16).MarginX(-2)
 				}
 			})
 			coss.InputGroupInput(c, val).Placeholder("Search...")
@@ -457,21 +456,21 @@ func PInputGroup23(c *ui.Context) {
 				btn := coss.IconButton(c, icons.Mic(), "Voice search").
 					Variant(coss.ButtonGhost).Size(coss.SizeIconXS)
 				cossTooltip(c, btn.Element, "Voice search")
-			})
+			}).MarginEnd(-8)
 		})
 	})
 }
 
 func PInputGroup24(c *ui.Context) {
 	const maxLen = 14
-	host := ui.Box(c).WidthPercent(100).MaxWidth(280)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	val := ui.Local(host, "val", func() string { return "" })
 	host.Children(func() {
 		coss.InputGroup(c, func() {
 			coss.InputGroupInput(c, val).Placeholder("Enter username").MaxLength(maxLen)
 			coss.InputGroupAddon(c, func() {
 				ui.Text(c, fmt.Sprintf("%d/%d", len([]rune(*val)), maxLen)).
-					SingleLine().FontSize(12).FontFeatures("tnum")
+					SingleLine().FontSize(12).FontFeatures("tnum").TextColor(theme.Of(c).MutedForeground)
 			})
 		})
 	})
@@ -479,7 +478,7 @@ func PInputGroup24(c *ui.Context) {
 
 func PInputGroup26(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Column(c).WidthPercent(100).MaxWidth(320).Gap(12)
+	host := ui.Column(c).WidthPercent(100).MaxWidth(256).Gap(12)
 	pw := ui.Local(host, "pw", func() string { return "" })
 	visible := ui.Local(host, "visible", func() bool { return false })
 
@@ -543,7 +542,7 @@ func PInputGroup26(c *ui.Context) {
 					coss.IconButton(c, ic, "Toggle password visibility").
 						Variant(coss.ButtonGhost).Size(coss.SizeIconXS).
 						OnClick(func() { *visible = !*visible })
-				})
+				}).MarginEnd(-8)
 			})
 		})
 
@@ -553,16 +552,16 @@ func PInputGroup26(c *ui.Context) {
 			}
 		})
 
-		ui.Text(c, strengthText+". Must contain:").FontSize(13).FontWeight(500).TextColor(t.Foreground)
+		ui.Text(c, strengthText+". Must contain:").FontSize(14).FontWeight(500).TextColor(t.Foreground)
 
 		ui.Column(c).Gap(6).Children(func() {
 			for _, r := range reqs {
 				ui.Row(c).AlignItems(ui.Center).Gap(8).Children(func() {
 					if r.met {
-						ui.Icon(c, icons.Check()).Size(14, 14).TextColor(ui.Hex("#10b981"))
+						ui.Icon(c, icons.Check()).Size(16, 16).TextColor(ui.Hex("#10b981"))
 						ui.Text(c, r.text).FontSize(12).TextColor(t.SuccessForeground)
 					} else {
-						ui.Icon(c, icons.X()).Size(14, 14).TextColor(theme.Alpha(t.MutedForeground, 0.8))
+						ui.Icon(c, icons.X()).Size(16, 16).TextColor(theme.Alpha(t.MutedForeground, 0.8))
 						ui.Text(c, r.text).FontSize(12).TextColor(t.MutedForeground)
 					}
 				})
@@ -580,17 +579,17 @@ func PInputGroup27(c *ui.Context) {
 		{Label: "Go", Value: "go"},
 		{Label: "Rust", Value: "rust"},
 	}
-	host := ui.Box(c).WidthPercent(100).MaxWidth(360)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(320)
 	lang := ui.Local(host, "lang", func() string { return "javascript" })
 	code := ui.Local(host, "code", func() string { return "" })
 	copied := ui.Local(host, "copied", func() bool { return false })
 	host.Children(func() {
 		blockInputGroup(c, func() {
 			ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.SpaceBetween).
-				Padding(6, 8).Background(theme.Alpha(t.Muted, 0.72)).
+				Padding(8).Background(theme.Alpha(t.Muted, 0.72)).
 				BorderWidth(0, 0, 1, 0).BorderColor(t.Border).
 				Children(func() {
-					cossSelect(c, lang, langs, 120).Height(28)
+					cossSelect(c, lang, langs, 144).Height(28).Padding(0, 9).FontSize(14)
 					ic := icons.Copy()
 					tip := "Copy to clipboard"
 					if *copied {
@@ -603,18 +602,18 @@ func PInputGroup27(c *ui.Context) {
 						OnClick(func() { *copied = !*copied })
 					cossTooltip(c, btn.Element, tip)
 				})
-			coss.InputGroupTextarea(c, code).Placeholder("Paste your code here…").MinHeight(110).Font("monospace")
+			coss.InputGroupTextarea(c, code).Placeholder("Paste your code here…").Font("monospace")
 		})
 	})
 }
 
 func PInputGroup28(c *ui.Context) {
-	host := ui.Box(c).WidthPercent(100).MaxWidth(360)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(320)
 	msg := ui.Local(host, "msg", func() string { return "" })
 	host.Children(func() {
 		blockInputGroup(c, func() {
-			coss.InputGroupTextarea(c, msg).Placeholder("Compose your message…").MinHeight(84)
-			ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.SpaceBetween).Padding(6, 8, 8, 8).Children(func() {
+			coss.InputGroupTextarea(c, msg).Placeholder("Compose your message…")
+			ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Justify(ui.SpaceBetween).Padding(0, 11, 11, 11).Children(func() {
 				ui.Row(c).AlignItems(ui.Center).Gap(4).Children(func() {
 					b1 := coss.IconButton(c, icons.Paperclip(), "Attach file").Variant(coss.ButtonGhost).Size(coss.SizeIconSM)
 					cossTooltip(c, b1.Element, "Attach file")
@@ -629,12 +628,12 @@ func PInputGroup28(c *ui.Context) {
 
 func PInputGroup29(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).WidthPercent(100).MaxWidth(360)
+	host := ui.Box(c).WidthPercent(100).MaxWidth(320)
 	msg := ui.Local(host, "msg", func() string { return "" })
 	host.Children(func() {
 		blockInputGroup(c, func() {
 			coss.InputGroupTextarea(c, msg).Placeholder("Type a message…")
-			ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Gap(8).Padding(6, 8, 8, 8).Children(func() {
+			ui.Row(c).WidthPercent(100).AlignItems(ui.Center).Gap(8).Padding(0, 11, 11, 11).Children(func() {
 				mic := coss.IconButton(c, icons.Mic(), "Voice message").Variant(coss.ButtonGhost).Size(coss.SizeIconSM)
 				mic.Radius(999)
 				cossTooltip(c, mic.Element, "Record voice message")

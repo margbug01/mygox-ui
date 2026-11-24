@@ -3,6 +3,7 @@ package particles
 import (
 	_ "embed"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -26,123 +27,77 @@ func init() {
 	Register(Entry{ID: "p-switch-9", Family: "switch", Description: "Weekly availability editor with From/To labeled time groups", View: PSwitch9, Source: extractFunc(switchSource, "PSwitch9")})
 }
 
-func compactSwitch(c *ui.Context, on *bool, a11yLabel string) ui.Element {
-	t := theme.Of(c)
-	sw := ui.SwitchBase(c, on).
-		AlignItems(ui.Center).
-		Cursor(ui.CursorPointer).
-		FocusRingColor(t.Ring).
-		Label(a11yLabel)
-	isOn := on != nil && *on
-	var target float32
-	if isOn {
-		target = 1
-	}
-	prog := sw.Animate("compact-sw", target, 140*time.Millisecond)
-	sw.Children(func() {
-		trackColor := theme.Mix(t.Input, t.Primary, prog)
-		if !t.Dark && !isOn {
-			trackColor = theme.Alpha(ui.RGB(0, 0, 0), 0.16)
-		}
-		ui.Row(c).
-			AlignItems(ui.Center).
-			Size(26, 16).
-			Padding(2).
-			Radius(999).
-			Background(trackColor).
-			Shrink(0).
-			Children(func() {
-				thumbColor := ui.RGB(255, 255, 255)
-				if t.Dark && isOn {
-					thumbColor = t.PrimaryForeground
-				}
-				ui.Box(c).
-					Size(12, 12).
-					Radius(999).
-					Background(thumbColor).
-					Shadow(0, 1, 2, 0, theme.Alpha(ui.RGB(0, 0, 0), 0.18)).
-					Translate(10*prog, 0)
-			})
-	})
-	return sw
-}
-
 func PSwitch1(c *ui.Context) {
 	host := ui.Box(c)
 	on := ui.Local(host, "on", func() bool { return false })
-	host.Children(func() {
-		coss.Switch(c, on, "Marketing emails")
-	})
+	host.Children(func() { coss.Switch(c, on, "Marketing emails") })
 }
 
 func PSwitch2(c *ui.Context) {
 	host := ui.Box(c)
 	on := ui.Local(host, "on", func() bool { return false })
-	host.Children(func() {
-		coss.Switch(c, on, "Marketing emails").Disabled(true).Opacity(0.64)
-	})
+	host.Children(func() { coss.Switch(c, on, "Marketing emails").Disabled(true) })
 }
 
 func PSwitch3(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Row(c).AlignItems(ui.Start).Gap(10).MaxWidth(360)
+	host := ui.Row(c).AlignItems(ui.Start).Gap(8)
 	on := ui.Local(host, "on", func() bool { return true })
 	host.Children(func() {
-		coss.Switch(c, on).Margin(2, 0, 0, 0)
+		coss.Switch(c, on)
 		ui.Column(c).Gap(4).Children(func() {
-			coss.Label(c, "Marketing emails")
+			coss.Label(c, "Marketing emails").LineHeight(16.0 / 14)
 			ui.Text(c, "By enabling marketing emails, you agree to receive emails.").
-				FontSize(12).TextColor(t.MutedForeground)
+				FontSize(12).LineHeight(16.0 / 12).TextColor(t.MutedForeground)
 		})
 	})
 }
 
 func PSwitch4(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Box(c).MaxWidth(380)
+	host := ui.Box(c)
 	on := ui.Local(host, "on", func() bool { return true })
 	host.Children(func() {
-		card := ui.Row(c).
+		card := ui.ButtonBase(c).
 			AlignItems(ui.Center).
-			Justify(ui.SpaceBetween).
-			Gap(20).
+			Gap(24).
 			Padding(12).
 			Radius(t.RadiusLG).
-			Border(1, t.Border)
+			Border(1, t.Border).
+			Cursor(ui.CursorPointer)
 		if *on {
 			card.Border(1, theme.Alpha(t.Primary, 0.48)).Background(theme.Alpha(t.Accent, 0.5))
+		} else if card.Hovered() {
+			card.Background(theme.Alpha(t.Accent, 0.5))
 		}
 		card.Children(func() {
 			ui.Column(c).Gap(4).Children(func() {
-				ui.Text(c, "Enable notifications").FontSize(14).FontWeight(500).TextColor(t.Foreground)
+				ui.Text(c, "Enable notifications").FontSize(14).FontWeight(500).LineHeight(16.0 / 14).TextColor(t.Foreground)
 				ui.Text(c, "You can enable or disable notifications at any time.").
-					FontSize(12).TextColor(t.MutedForeground)
+					FontSize(12).LineHeight(16.0 / 12).TextColor(t.MutedForeground)
 			})
-			compactSwitch(c, on, "Enable notifications")
+			coss.SwitchThumb(c, on, 12)
 		})
+		if card.Clicked() {
+			*on = !*on
+		}
 	})
 }
 
 func PSwitch5(c *ui.Context) {
-	t := theme.Of(c)
 	host := ui.Box(c)
 	on := ui.Local(host, "on", func() bool { return true })
-	status := ui.Local(host, "status", func() string { return "" })
+	until := ui.Local(host, "loadingUntil", func() time.Time { return time.Time{} })
+	loading := c.Now().Before(*until)
+	if loading {
+		c.After(150 * time.Millisecond)
+	}
 	host.Children(func() {
 		coss.Form(c, func() {
-			coss.Field(c, func() {
-				coss.Switch(c, on, "Enable marketing emails")
+			coss.Field(c, func() { coss.Switch(c, on, "Enable marketing emails") })
+			coss.Button(c, "Submit").Loading(loading).OnClick(func() {
+				*until = c.Now().Add(800 * time.Millisecond)
 			})
-			coss.Button(c, "Submit").OnClick(func() {
-				if *on {
-					*status = "Marketing emails: on"
-				} else {
-					*status = "Marketing emails: off"
-				}
-			})
-			if *status != "" {
-				ui.Text(c, *status).FontSize(12).TextColor(t.MutedForeground)
-			}
 		})
 	})
 }
@@ -150,15 +105,12 @@ func PSwitch5(c *ui.Context) {
 func PSwitch6(c *ui.Context) {
 	host := ui.Box(c)
 	on := ui.Local(host, "on", func() bool { return false })
-	host.Children(func() {
-		compactSwitch(c, on, "Notifications")
-	})
+	host.Children(func() { coss.SwitchThumb(c, on, 12).Label("Notifications") })
 }
 
 type availabilityRange struct {
-	ID    int
-	Start string
-	End   string
+	ID         int
+	Start, End string
 }
 
 type availabilityState struct {
@@ -168,11 +120,11 @@ type availabilityState struct {
 
 var availabilityDays = []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
 
-var availabilityTimeOpts = func() []selectOption {
-	opts := make([]selectOption, 0, 48)
-	for i := 0; i < 48; i++ {
-		h := i / 2
-		m := (i % 2) * 30
+// availabilityTimes are the times of day in 15 minute steps, "9:00 AM".
+var availabilityTimes = func() []string {
+	out := make([]string, 0, 96)
+	for i := range 96 {
+		h, m := i/4, (i%4)*15
 		period := "AM"
 		if h >= 12 {
 			period = "PM"
@@ -181,11 +133,12 @@ var availabilityTimeOpts = func() []selectOption {
 		if dh == 0 {
 			dh = 12
 		}
-		s := fmt.Sprintf("%d:%02d %s", dh, m, period)
-		opts = append(opts, selectOption{Label: s, Value: s})
+		out = append(out, fmt.Sprintf("%d:%02d %s", dh, m, period))
 	}
-	return opts
+	return out
 }()
+
+func availabilityIndex(time string) int { return slices.Index(availabilityTimes, time) }
 
 func newAvailabilityState() *availabilityState {
 	return &availabilityState{
@@ -196,8 +149,6 @@ func newAvailabilityState() *availabilityState {
 			"Wednesday": {{ID: 4, Start: "9:00 AM", End: "5:00 PM"}},
 			"Thursday":  {{ID: 5, Start: "9:00 AM", End: "5:00 PM"}},
 			"Friday":    {{ID: 6, Start: "9:00 AM", End: "5:00 PM"}},
-			"Saturday":  nil,
-			"Sunday":    nil,
 		},
 	}
 }
@@ -210,129 +161,164 @@ const (
 	availStyleGroupedFromTo
 )
 
+// availabilityTime is the time combobox of a range end: a button showing
+// *v that opens a searchable list of items.
+func availabilityTime(c *ui.Context, v *string, items []string, mode availabilityStyle) {
+	t := theme.Of(c)
+	btn := ui.ButtonBase(c)
+	open := ui.Local(btn, "open", func() bool { return false })
+	if mode == availStylePickers {
+		coss.SelectTrigger(c, btn, coss.SelectSM, func() {
+			coss.SelectValue(c, *v, "")
+		}).Width(108).FontFeatures("tnum")
+	} else {
+		btn.Size(96, 28).Center().Cursor(ui.CursorPointer).FontFeatures("tnum").Children(func() {
+			ui.Text(c, *v).FontSize(14).TextColor(t.Foreground).SingleLine()
+		})
+		if btn.Hovered() {
+			btn.Background(t.Accent)
+		}
+	}
+	if btn.Clicked() {
+		*open = !*open
+	}
+	coss.ComboboxSearchPopup(c, btn, open, v, items, "Search time", "No times found.")
+}
+
 func renderAvailabilityEditor(c *ui.Context, mode availabilityStyle) {
 	t := theme.Of(c)
-	host := ui.Column(c).WidthPercent(100).MaxWidth(520)
-	stPtr := ui.Local(host, "avail", newAvailabilityState)
-	st := *stPtr
+	host := ui.Column(c).WidthPercent(100).MaxWidth(896)
+	st := *ui.Local(host, "avail", newAvailabilityState)
+
+	iconButton := func(ic *ui.SVG, tip string, disabled bool, click func()) ui.Element {
+		btn := coss.IconButton(c, ic, tip).Variant(coss.ButtonGhost).Size(coss.SizeIconSM).
+			Disabled(disabled).OnClick(click)
+		cossTooltip(c, btn.Element, tip)
+		return btn.Element
+	}
 
 	host.Children(func() {
 		for idx, day := range availabilityDays {
-			dayName := day
-			ranges := st.Days[dayName]
-			row := ui.Row(c).WidthPercent(100).AlignItems(ui.Start).Gap(12).Padding(10, 0)
-			if idx > 0 {
+			ranges := st.Days[day]
+			row := ui.Row(c).WidthPercent(100).AlignItems(ui.Start).Gap(16).Wrap()
+			var pt, pb float32 = 12, 12
+			if idx == 0 {
+				pt = 0
+			} else {
 				row.BorderWidth(1, 0, 0, 0).BorderColor(t.Border)
 			}
+			if idx == len(availabilityDays)-1 {
+				pb = 0
+			}
+			row.Padding(pt, 0, pb, 0)
 			row.Children(func() {
 				enabled := len(ranges) > 0
-				prevEnabled := enabled
-				ui.Row(c).Width(116).Height(28).AlignItems(ui.Center).Shrink(0).Children(func() {
-					coss.Switch(c, &enabled, dayName)
+				ui.Row(c).Width(120).Height(28).AlignItems(ui.Center).Gap(10).Shrink(0).Children(func() {
+					coss.Switch(c, &enabled)
+					coss.Label(c, day).LineHeight(16.0 / 14)
 				})
-				if enabled != prevEnabled {
+				if enabled != (len(ranges) > 0) {
+					st.Days[day] = nil
 					if enabled {
 						st.NextID++
-						st.Days[dayName] = []availabilityRange{{ID: st.NextID, Start: "9:00 AM", End: "5:00 PM"}}
-					} else {
-						st.Days[dayName] = nil
+						st.Days[day] = []availabilityRange{{ID: st.NextID, Start: "9:00 AM", End: "5:00 PM"}}
 					}
-					ranges = st.Days[dayName]
+					ranges = st.Days[day]
 				}
 
-				ui.Column(c).Grow(1).MinWidth(0).Gap(6).Children(func() {
-					if len(ranges) == 0 {
-						ui.Row(c).Height(28).AlignItems(ui.Center).Children(func() {
-							ui.Text(c, "Unavailable").FontSize(13).TextColor(t.MutedForeground)
-						})
-					} else {
-						for rIdx := range ranges {
-							r := &st.Days[dayName][rIdx]
-							ui.Row(c).AlignItems(ui.Center).Gap(6).Children(func() {
+				ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Start).Gap(16).Children(func() {
+					ui.Column(c).MinWidth(0).Gap(8).Children(func() {
+						if len(ranges) == 0 {
+							ui.Row(c).Height(28).AlignItems(ui.Center).Children(func() {
+								ui.Text(c, "Unavailable").FontSize(14).TextColor(t.MutedForeground)
+							})
+						}
+						for i := range ranges {
+							r := &st.Days[day][i]
+							ends := availabilityTimes[availabilityIndex(r.Start)+1:]
+							start := r.Start
+							ui.Row(c).AlignItems(ui.Center).Gap(8).Children(func() {
 								switch mode {
 								case availStylePickers:
-									cossSelect(c, &r.Start, availabilityTimeOpts, 94).Height(28)
-									ui.Text(c, "–").FontSize(13).TextColor(t.MutedForeground)
-									cossSelect(c, &r.End, availabilityTimeOpts, 94).Height(28)
+									availabilityTime(c, &r.Start, availabilityTimes[:95], mode)
+									ui.Text(c, "–").FontSize(14).TextColor(t.MutedForeground)
+									availabilityTime(c, &r.End, ends, mode)
 								case availStyleGroupedArrow:
 									coss.Group(c, func() {
-										cossSelect(c, &r.Start, availabilityTimeOpts, 88).Height(28).BorderWidth(0).Radius(0)
-										coss.GroupSeparator(c)
-										ui.Row(c).Center().Height(28).Padding(0, 7).Background(t.Muted).TextColor(t.MutedForeground).Children(func() {
-											ui.Icon(c, icons.ArrowRight()).Size(13, 13)
+										availabilityTime(c, &r.Start, availabilityTimes[:95], mode)
+										coss.GroupSeparator(c).Height(28).Background(t.Input)
+										ui.Row(c).Center().Height(28).Padding(0, 8).Background(t.Muted).TextColor(t.MutedForeground).Children(func() {
+											ui.Icon(c, icons.ArrowRight()).Size(14, 14)
 										})
-										coss.GroupSeparator(c)
-										cossSelect(c, &r.End, availabilityTimeOpts, 88).Height(28).BorderWidth(0).Radius(0)
+										coss.GroupSeparator(c).Height(28).Background(t.Input)
+										availabilityTime(c, &r.End, ends, mode)
 									})
 								case availStyleGroupedFromTo:
 									coss.Group(c, func() {
-										coss.GroupText(c, "From").Height(28).Padding(0, 8)
-										coss.GroupSeparator(c)
-										cossSelect(c, &r.Start, availabilityTimeOpts, 84).Height(28).BorderWidth(0).Radius(0)
-										coss.GroupSeparator(c)
-										coss.GroupText(c, "To").Height(28).Padding(0, 8)
-										coss.GroupSeparator(c)
-										cossSelect(c, &r.End, availabilityTimeOpts, 84).Height(28).BorderWidth(0).Radius(0)
+										coss.GroupText(c, "From").Height(28).Padding(0, 11).FontSize(14)
+										coss.GroupSeparator(c).Height(28).Background(t.Input)
+										availabilityTime(c, &r.Start, availabilityTimes[:95], mode)
+										coss.GroupSeparator(c).Height(28).Background(t.Input)
+										coss.GroupText(c, "To").Height(28).Padding(0, 11).FontSize(14)
+										coss.GroupSeparator(c).Height(28).Background(t.Input)
+										availabilityTime(c, &r.End, ends, mode)
 									})
 								}
-								rmBtn := coss.IconButton(c, icons.X(), "Delete range").
-									Variant(coss.ButtonGhost).Size(coss.SizeIconSM).
-									OnClick(func() {
-										cur := st.Days[dayName]
-										next := make([]availabilityRange, 0, len(cur))
-										for _, item := range cur {
-											if item.ID != r.ID {
-												next = append(next, item)
-											}
-										}
-										st.Days[dayName] = next
-									})
-								cossTooltip(c, rmBtn.Element, "Delete range")
-							})
-						}
-					}
-				})
-
-				ui.Row(c).AlignItems(ui.Center).Gap(2).Shrink(0).Children(func() {
-					addBtn := coss.IconButton(c, icons.Plus(), "Add range").
-						Variant(coss.ButtonGhost).Size(coss.SizeIconSM).
-						OnClick(func() {
-							st.NextID++
-							st.Days[dayName] = append(st.Days[dayName], availabilityRange{
-								ID:    st.NextID,
-								Start: "1:00 PM",
-								End:   "5:00 PM",
-							})
-						})
-					cossTooltip(c, addBtn.Element, "Add range")
-
-					copyOpen := ui.Local(row, "copyOpen-"+dayName, func() bool { return false })
-					copyTargets := ui.Local(row, "copyTargets-"+dayName, func() map[string]bool { return map[string]bool{} })
-					cpBtn := coss.IconButton(c, icons.Copy(), "Copy to other days").
-						Variant(coss.ButtonGhost).Size(coss.SizeIconSM).
-						Disabled(len(ranges) == 0).
-						OnClick(func() { *copyOpen = !*copyOpen })
-					cossTooltip(c, cpBtn.Element, "Copy to other days")
-					ui.PopoverBase(c, cpBtn.Element, copyOpen, func(panel ui.Element) {
-						panel.Width(176).Padding(12).Gap(10).
-							Radius(t.RadiusLG).Background(t.Popover).Border(1, t.Border).
-							Shadow(0, 8, 20, 0, theme.Alpha(ui.RGB(0, 0, 0), 0.14)).
-							Children(func() {
-								ui.Text(c, "Copy times to").FontSize(13).FontWeight(500).TextColor(t.Foreground)
-								coss.CheckboxGroup(c, func() {
-									for _, target := range availabilityDays {
-										if target == dayName {
-											continue
-										}
-										tgt := target
-										v := (*copyTargets)[tgt]
-										coss.Checkbox(c, &v, tgt)
-										(*copyTargets)[tgt] = v
-									}
+								id := r.ID
+								iconButton(icons.X(), "Delete range", false, func() {
+									st.Days[day] = slices.DeleteFunc(st.Days[day], func(x availabilityRange) bool { return x.ID == id })
 								})
-								coss.Button(c, "Apply").Size(coss.SizeSM).OnClick(func() {
-									for _, target := range availabilityDays {
-										if (*copyTargets)[target] {
+							})
+							// Moving the start past the end moves the end an hour after it.
+							if r.Start != start && availabilityIndex(r.Start) >= availabilityIndex(r.End) {
+								r.End = availabilityTimes[min(availabilityIndex(r.Start)+4, len(availabilityTimes)-1)]
+							}
+						}
+					})
+
+					ui.Row(c).Grow(1).Justify(ui.End).Gap(4).Shrink(0).Children(func() {
+						last := len(availabilityTimes) - 1
+						addDisabled := len(ranges) > 0 && availabilityIndex(ranges[len(ranges)-1].End) >= last-1
+						iconButton(icons.Plus(), "Add range", addDisabled, func() {
+							st.NextID++
+							next := availabilityRange{ID: st.NextID, Start: "9:00 AM", End: "5:00 PM"}
+							if n := len(st.Days[day]); n > 0 {
+								s := min(availabilityIndex(st.Days[day][n-1].End)+4, last-1)
+								next.Start, next.End = availabilityTimes[s], availabilityTimes[min(s+4, last)]
+							}
+							st.Days[day] = append(st.Days[day], next)
+						})
+						copyOpen := ui.Local(row, "copyOpen", func() bool { return false })
+						copyTargets := ui.Local(row, "copyTargets", func() map[string]bool { return map[string]bool{} })
+						cp := iconButton(icons.Copy(), "Copy to other days", len(ranges) == 0, func() {
+							*copyOpen = !*copyOpen
+							*copyTargets = map[string]bool{}
+						})
+						ui.PopoverBase(c, cp, copyOpen, func(panel ui.Element) {
+							panel.Width(176).Padding(16).Gap(12).
+								Radius(t.RadiusLG).Background(t.Popover).Border(1, t.Border).
+								Shadow(0, 8, 20, 0, theme.Alpha(ui.RGB(0, 0, 0), 0.14)).
+								Children(func() {
+									ui.Text(c, "Copy times to").FontSize(14).FontWeight(500).TextColor(t.Foreground)
+									coss.CheckboxGroup(c, func() {
+										for _, target := range availabilityDays {
+											if target == day {
+												continue
+											}
+											v := (*copyTargets)[target]
+											coss.Checkbox(c, &v, target)
+											(*copyTargets)[target] = v
+										}
+									})
+									chosen := false
+									for _, v := range *copyTargets {
+										chosen = chosen || v
+									}
+									coss.Button(c, "Apply").Size(coss.SizeSM).Disabled(!chosen).OnClick(func() {
+										for target, v := range *copyTargets {
+											if !v {
+												continue
+											}
 											cp := make([]availabilityRange, len(ranges))
 											for k, rr := range ranges {
 												st.NextID++
@@ -340,11 +326,10 @@ func renderAvailabilityEditor(c *ui.Context, mode availabilityStyle) {
 											}
 											st.Days[target] = cp
 										}
-									}
-									*copyTargets = map[string]bool{}
-									*copyOpen = false
+										*copyOpen = false
+									})
 								})
-							})
+						})
 					})
 				})
 			})
@@ -352,14 +337,8 @@ func renderAvailabilityEditor(c *ui.Context, mode availabilityStyle) {
 	})
 }
 
-func PSwitch7(c *ui.Context) {
-	renderAvailabilityEditor(c, availStylePickers)
-}
+func PSwitch7(c *ui.Context) { renderAvailabilityEditor(c, availStylePickers) }
 
-func PSwitch8(c *ui.Context) {
-	renderAvailabilityEditor(c, availStyleGroupedArrow)
-}
+func PSwitch8(c *ui.Context) { renderAvailabilityEditor(c, availStyleGroupedArrow) }
 
-func PSwitch9(c *ui.Context) {
-	renderAvailabilityEditor(c, availStyleGroupedFromTo)
-}
+func PSwitch9(c *ui.Context) { renderAvailabilityEditor(c, availStyleGroupedFromTo) }
