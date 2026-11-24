@@ -110,13 +110,13 @@ func PProgress3(c *ui.Context) {
 
 // PSkeleton2 renders a static user-row loading skeleton.
 func PSkeleton2(c *ui.Context) {
-	ui.Row(c).WidthPercent(100).MaxWidth(368).AlignItems(ui.Center).Gap(14).Children(func() {
+	ui.Row(c).WidthPercent(100).MaxWidth(368).AlignItems(ui.Center).Gap(16).Children(func() {
 		coss.Skeleton(c).Size(40, 40).Radius(999).Shrink(0)
-		ui.Column(c).Grow(1).Gap(6).Children(func() {
-			coss.Skeleton(c).Height(14).WidthPercent(80)
-			ui.Row(c).Gap(6).WidthPercent(70).Children(func() {
-				coss.Skeleton(c).Height(12).Grow(1)
-				coss.Skeleton(c).Height(12).Grow(1)
+		ui.Column(c).Grow(1).Children(func() {
+			coss.Skeleton(c).Height(16).WidthPercent(100).MaxWidth(216).Margin(2, 0)
+			ui.Row(c).Gap(4).WidthPercent(100).MaxWidth(216).Children(func() {
+				coss.Skeleton(c).Height(16).Grow(1).Basis(0).Margin(2, 0)
+				coss.Skeleton(c).Height(16).Grow(1).Basis(0).Margin(2, 0)
 			})
 		})
 		coss.Skeleton(c).Height(24).Width(68).Shrink(0)
