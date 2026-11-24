@@ -206,6 +206,9 @@ func (t Tokens) MyGoTheme() *ui.Theme {
 	base.Inverse = t.Primary
 	base.InverseText = t.PrimaryForeground
 	base.Radius = t.RadiusLG
+	// coss sets body text in text-sm (14px) on every platform; MyGo's own
+	// default follows the OS (13 on macOS).
+	base.FontSize = 14
 	thumbAlpha := float32(0.14)
 	hoverAlpha := float32(0.28)
 	activeAlpha := float32(0.42)
