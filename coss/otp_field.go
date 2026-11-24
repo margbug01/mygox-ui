@@ -7,65 +7,101 @@ import (
 	"github.com/margbug01/mygox-ui/coss/theme"
 )
 
-// OTPField renders a segmented verification code input of length digits bound to code.
-func OTPField(c *ui.Context, code *string, length int, groupSize ...int) ui.Element {
+// OTPFieldSpec configures an OTPField. The zero value takes 6 digits.
+type OTPFieldSpec struct {
+	// Length is the number of slots; 6 when 0.
+	Length int
+	// Group, when set, puts an OTPFieldSeparator after every Group slots.
+	Group int
+	// Large is size="lg".
+	Large bool
+	// Placeholder shows in each empty slot that is not focused.
+	Placeholder string
+	// Mask obscures the characters, as mask.
+	Mask bool
+	// Accept reports whether a slot takes r; digits only when nil.
+	Accept  func(r rune) bool
+	Invalid bool
+}
+
+// OTPField renders a one-time code input of separate character slots bound
+// to code, as ui/otp-field.tsx's OTPField; typing moves to the next slot.
+func OTPField(c *ui.Context, code *string, spec OTPFieldSpec) ui.Element {
+	t := theme.Of(c)
+	length := spec.Length
 	if length <= 0 {
 		length = 6
 	}
-	sepEvery := 0
-	if len(groupSize) > 0 && groupSize[0] > 0 {
-		sepEvery = groupSize[0]
+	accept := spec.Accept
+	if accept == nil {
+		accept = unicode.IsDigit
 	}
-	t := theme.Of(c)
+	size, fontSize := float32(32), float32(14)
+	if spec.Large {
+		size, fontSize = 36, 16
+	}
 	bg := t.Background
 	if t.Dark {
 		bg = theme.Alpha(t.Input, 0.32)
 	}
 
-	raw := ""
-	if code != nil {
-		raw = *code
-	}
 	runes := make([]rune, length)
-	idx := 0
-	for _, r := range raw {
-		if idx >= length {
-			break
-		}
-		if unicode.IsDigit(r) || unicode.IsLetter(r) {
-			runes[idx] = r
-			idx++
+	i := 0
+	for _, r := range *code {
+		if i < length && accept(r) {
+			runes[i] = r
+			i++
 		}
 	}
 
-	return ui.Row(c).AlignItems(ui.Center).Gap(6).Children(func() {
-		for i := 0; i < length; i++ {
-			if sepEvery > 0 && i > 0 && i%sepEvery == 0 {
-				ui.Box(c).Width(8).Height(2).Radius(1).Background(t.Border).Margin(0, 2)
+	row := ui.Row(c).AlignItems(ui.Center).Gap(8)
+	focusNext := ui.Local(row, "focusNext", func() int { return -1 })
+	return row.Children(func() {
+		for i := range length {
+			if spec.Group > 0 && i > 0 && i%spec.Group == 0 {
+				OTPFieldSeparator(c)
 			}
-			slotVal := ""
+			slot := ""
 			if runes[i] != 0 {
-				slotVal = string(runes[i])
+				slot = string(runes[i])
 			}
-			in := ui.TextInputBase(c, &slotVal).
-				Size(36, 40).
+			in := ui.TextInputBase(c, &slot).
+				Size(size, size).
+				Shrink(0).
 				Radius(t.RadiusLG).
 				Background(bg).
 				Border(1, t.Input).
 				TextColor(t.Foreground).
+				CaretColor(t.Foreground).
 				TextAlign(ui.Center).
-				FontSize(16).
-				FontWeight(600).
-				FocusRingColor(t.Ring)
-			if in.Focused() {
-				in.Border(1, t.Ring)
+				FontSize(fontSize)
+			if spec.Mask {
+				in.Password()
 			}
-			if in.Changed() && code != nil {
-				rs := []rune(slotVal)
-				if len(rs) > 0 {
-					runes[i] = rs[len(rs)-1]
-				} else {
-					runes[i] = 0
+			switch {
+			case in.Focused():
+				in.Border(1, t.Ring)
+			case spec.Invalid:
+				in.Border(1, theme.Alpha(t.Destructive, 0.36))
+			case !t.Dark:
+				in.Shadow(0, 1, 2, 0, theme.Alpha(ui.RGB(0, 0, 0), 0.04))
+			}
+			if spec.Placeholder != "" && !in.Focused() {
+				in.Placeholder(spec.Placeholder).PlaceholderColor(t.MutedForeground)
+			}
+			if *focusNext == i {
+				in.Focus()
+				*focusNext = -1
+			}
+			if in.Changed() {
+				runes[i] = 0
+				for _, r := range slot {
+					if accept(r) {
+						runes[i] = r
+					}
+				}
+				if runes[i] != 0 && i+1 < length {
+					*focusNext = i + 1
 				}
 				out := make([]rune, 0, length)
 				for _, r := range runes {
@@ -77,4 +113,9 @@ func OTPField(c *ui.Context, code *string, length int, groupSize ...int) ui.Elem
 			}
 		}
 	})
+}
+
+// OTPFieldSeparator is the short bar between groups of OTPField slots.
+func OTPFieldSeparator(c *ui.Context) ui.Element {
+	return ui.Box(c).Size(12, 2).Radius(1).Background(theme.Of(c).Input).Shrink(0)
 }

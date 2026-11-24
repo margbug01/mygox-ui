@@ -112,8 +112,8 @@ func ComboboxInput(c *ui.Context, text *string, p ComboboxInputProps) ComboboxIn
 			Disabled(p.Disabled).
 			DimDisabled(false)
 		if p.Disabled {
-			// The row's opacity does not reach the native input's text.
-			parts.Input.Opacity(0.64)
+			// The row's opacity does not reach the native input's placeholder.
+			parts.Input.PlaceholderColor(theme.Alpha(t.MutedForeground, 0.72*0.64))
 		}
 		if !clear && p.HideTrigger {
 			return
