@@ -24,8 +24,7 @@ func Avatar(c *ui.Context, fallback string) *AvatarElement {
 		Center().
 		Shrink(0).
 		Radius(999).
-		Background(t.Muted).
-		Border(1, t.Border).
+		Background(t.Border).
 		TextColor(t.Foreground).
 		Clip()
 	a := &AvatarElement{
@@ -39,6 +38,18 @@ func Avatar(c *ui.Context, fallback string) *AvatarElement {
 		a.fallbackEl = ui.Text(c, fallback).SingleLine().FontWeight(500).TextColor(t.Foreground)
 	})
 	a.applySize()
+	return a
+}
+
+// AvatarGroupCount is the avatar at the end of a group that counts the
+// members not shown, as "+2".
+func AvatarGroupCount(c *ui.Context, label string) *AvatarElement {
+	a := Avatar(c, label)
+	a.fallbackEl.TextColor(a.tokens.MutedForeground)
+	// coss cuts the avatar under the count away; we paint over it, so the
+	// translucent border color is flattened onto the background.
+	b := a.tokens.Border
+	a.Element.Background(theme.Mix(a.tokens.Background, ui.RGB(b.R, b.G, b.B), float32(b.A)/255))
 	return a
 }
 
@@ -63,12 +74,9 @@ func (a *AvatarElement) Image(src ui.ImageSource) *AvatarElement {
 }
 
 func (a *AvatarElement) applySize() {
-	fontSz := a.size * 0.38
-	if fontSz < 10 {
-		fontSz = 10
-	}
+	fontSz := a.size * 0.375
 	a.Element.Size(a.size, a.size)
-	a.fallbackEl.FontSize(fontSz)
+	a.fallbackEl.FontSize(fontSz).FixedLineHeight(fontSz)
 	if a.hasImg {
 		a.imgEl.Size(a.size, a.size)
 	}

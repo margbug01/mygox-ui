@@ -14,6 +14,22 @@ import (
 //go:embed group.go
 var groupSource string
 
+// The Unsplash photos of p-group-23's members.
+var (
+	//go:embed group-member-1.jpg
+	groupMember1JPG []byte
+	//go:embed group-member-2.jpg
+	groupMember2JPG []byte
+	//go:embed group-member-3.jpg
+	groupMember3JPG []byte
+	//go:embed group-member-4.jpg
+	groupMember4JPG []byte
+	//go:embed group-member-5.jpg
+	groupMember5JPG []byte
+
+	groupMemberPhotos = []*ui.Bitmap{mustBitmap(groupMember1JPG), mustBitmap(groupMember2JPG), mustBitmap(groupMember3JPG), mustBitmap(groupMember4JPG), mustBitmap(groupMember5JPG)}
+)
+
 func init() {
 	Register(Entry{ID: "p-group-1", Family: "group", Description: "Basic group", View: PGroup1, Source: extractFunc(groupSource, "PGroup1")})
 	Register(Entry{ID: "p-group-2", Family: "group", Description: "Group with input", View: PGroup2, Source: extractFunc(groupSource, "PGroup2")})
@@ -442,14 +458,14 @@ func PGroup23(c *ui.Context) {
 		id       string
 		name     string
 		initials string
-		img      *ui.SVG
+		img      *ui.Bitmap
 	}
 	members := []member{
-		{"alex-chen", "Alex Chen", "AC", avatarPortrait1},
-		{"sarah-johnson", "Sarah Johnson", "SJ", avatarPortrait2},
-		{"marcus-williams", "Marcus Williams", "MW", avatarPortrait3},
-		{"emma-davis", "Emma Davis", "ED", avatarPortrait1},
-		{"james-miller", "James Miller", "JM", avatarPortrait2},
+		{"alex-chen", "Alex Chen", "AC", groupMemberPhotos[0]},
+		{"sarah-johnson", "Sarah Johnson", "SJ", groupMemberPhotos[1]},
+		{"marcus-williams", "Marcus Williams", "MW", groupMemberPhotos[2]},
+		{"emma-davis", "Emma Davis", "ED", groupMemberPhotos[3]},
+		{"james-miller", "James Miller", "JM", groupMemberPhotos[4]},
 	}
 	host := ui.Box(c)
 	selected := ui.Local(host, "selected", func() map[string]bool {
@@ -479,9 +495,9 @@ func PGroup23(c *ui.Context) {
 				} else {
 					first := chosen[0]
 					coss.Avatar(c, first.initials).Size(20).Image(first.img)
-					ui.Text(c, first.name).SingleLine().FontSize(13)
+					ui.Text(c, first.name).SingleLine().FontSize(14)
 					if len(chosen) > 1 {
-						coss.Badge(c, fmt.Sprintf("+%d", len(chosen)-1)).Variant(coss.BadgeSecondary).Size(coss.BadgeSizeSM)
+						coss.Badge(c, fmt.Sprintf("+%d", len(chosen)-1)).Variant(coss.BadgeSecondary)
 					}
 				}
 			}).Variant(coss.ButtonOutline).Size(coss.SizeSM).OnClick(func() { *open = !*open })

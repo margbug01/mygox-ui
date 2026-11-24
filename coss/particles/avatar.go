@@ -13,11 +13,32 @@ import (
 var avatarSource string
 
 var (
-	avatarPortrait1 = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#fde68a"/><circle cx="32" cy="25" r="11" fill="#92400e"/><path d="M12 60c2-12 10-18 20-18s18 6 20 18" fill="#b45309"/></svg>`))
-	avatarPortrait2 = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#c7d2fe"/><circle cx="32" cy="25" r="11" fill="#3730a3"/><path d="M12 60c2-12 10-18 20-18s18 6 20 18" fill="#4f46e5"/></svg>`))
-	avatarPortrait3 = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#a7f3d0"/><circle cx="32" cy="25" r="11" fill="#065f46"/><path d="M12 60c2-12 10-18 20-18s18 6 20 18" fill="#059669"/></svg>`))
-	verifiedSealSVG = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M4.674 8.954a3.602 3.602 0 0 1 4.301-4.293 3.6 3.6 0 0 1 6.064 0 3.598 3.598 0 0 1 4.3 4.302 3.6 3.6 0 0 1 0 6.067 3.6 3.6 0 0 1-4.29 4.302 3.6 3.6 0 0 1-6.074 0 3.598 3.598 0 0 1-4.3-4.293 3.6 3.6 0 0 1 0-6.085Z"/><path fill="#ffffff" d="M15.707 9.293a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 1 1 1.414-1.414L11 12.586l3.293-3.293a1 1 0 0 1 1.414 0Z"/></svg>`))
+	//go:embed avatar-fk.jpg
+	avatarFKJPG []byte
+	//go:embed avatar-ne.jpg
+	avatarNEJPG []byte
+	//go:embed avatar-ew.jpg
+	avatarEWJPG []byte
+
+	// The Unsplash photos coss.com's avatar particles show.
+	avatarFK = mustBitmap(avatarFKJPG)
+	avatarNE = mustBitmap(avatarNEJPG)
+	avatarEW = mustBitmap(avatarEWJPG)
+
+	// The three layers of p-avatar-12's verified seal: an outer seal in the
+	// background color, the seal, and its check.
+	verifiedSealOutline = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M3.046 8.277A4.402 4.402 0 0 1 8.303 3.03a4.4 4.4 0 0 1 7.411 0 4.397 4.397 0 0 1 5.19 3.068c.207.713.23 1.466.067 2.19a4.4 4.4 0 0 1 0 7.415 4.403 4.403 0 0 1-3.06 5.187 4.398 4.398 0 0 1-2.186.072 4.398 4.398 0 0 1-7.422 0 4.398 4.398 0 0 1-5.257-5.248 4.4 4.4 0 0 1 0-7.437Z"/></svg>`))
+	verifiedSeal        = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M4.674 8.954a3.602 3.602 0 0 1 4.301-4.293 3.6 3.6 0 0 1 6.064 0 3.598 3.598 0 0 1 4.3 4.302 3.6 3.6 0 0 1 0 6.067 3.6 3.6 0 0 1-4.29 4.302 3.6 3.6 0 0 1-6.074 0 3.598 3.598 0 0 1-4.3-4.293 3.6 3.6 0 0 1 0-6.085Z"/></svg>`))
+	verifiedSealCheck   = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M15.707 9.293a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 1 1 1.414-1.414L11 12.586l3.293-3.293a1 1 0 0 1 1.414 0Z"/></svg>`))
 )
+
+func mustBitmap(data []byte) *ui.Bitmap {
+	b, err := ui.DecodeBitmap(data)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
 
 func init() {
 	Register(Entry{ID: "p-avatar-1", Family: "avatar", Description: "Avatar with image and fallback", View: PAvatar1, Source: extractFunc(avatarSource, "PAvatar1")})
@@ -58,28 +79,23 @@ func cossTooltip(c *ui.Context, anchor ui.Element, text string) {
 	})
 }
 
-func avatarGroupCount(c *ui.Context, label string, sz float32, overlap float32, z int) ui.Element {
-	t := theme.Of(c)
-	fontSz := sz * 0.36
-	if fontSz < 10 {
-		fontSz = 10
+// avatarGroupMember places the i-th avatar of a coss AvatarGroup of
+// avatars size wide: it overlaps the one before by 30% of size, and the
+// avatar on top (the earlier one, or the later with lastOnTop) is ringed in
+// the background color size/16 wide where it covers its neighbour.
+func avatarGroupMember(c *ui.Context, el ui.Element, i int, size float32, lastOnTop bool) {
+	if i > 0 {
+		el.Margin(0, 0, 0, -size*0.3)
 	}
-	return ui.Row(c).
-		Center().
-		Size(sz, sz).
-		Radius(999).
-		Background(t.Muted).
-		Border(2, t.Background).
-		Margin(0, 0, 0, -overlap).
-		ZIndex(z).
-		Shrink(0).
-		Children(func() {
-			ui.Text(c, label).SingleLine().FontSize(fontSz).FontWeight(500).TextColor(t.MutedForeground)
-		})
+	z := 100 - i
+	if lastOnTop {
+		z = i + 1
+	}
+	el.ZIndex(z).Shadow(0, 0, 0, size/16, theme.Of(c).Background)
 }
 
 func PAvatar1(c *ui.Context) {
-	coss.Avatar(c, "LT").Image(avatarPortrait1)
+	coss.Avatar(c, "LT").Image(avatarFK)
 }
 
 func PAvatar2(c *ui.Context) {
@@ -91,7 +107,7 @@ func PAvatar3(c *ui.Context) {
 	ui.Column(c).Gap(16).Children(func() {
 		ui.Row(c).AlignItems(ui.Center).Gap(16).Children(func() {
 			for _, sz := range sizes {
-				coss.Avatar(c, "AV").Size(sz).Image(avatarPortrait1)
+				coss.Avatar(c, "AV").Size(sz).Image(avatarFK)
 			}
 		})
 		ui.Row(c).AlignItems(ui.Center).Gap(16).Children(func() {
@@ -105,19 +121,21 @@ func PAvatar3(c *ui.Context) {
 func PAvatar4(c *ui.Context) {
 	t := theme.Of(c)
 	ui.Row(c).AlignItems(ui.Center).Gap(16).Children(func() {
-		coss.Avatar(c, "AV").Image(avatarPortrait1).Radius(t.RadiusMD)
-		coss.Avatar(c, "AV").Image(avatarPortrait1).Radius(t.RadiusXL)
-		coss.Avatar(c, "AV").Image(avatarPortrait1).Radius(999)
+		coss.Avatar(c, "AV").Image(avatarFK).Radius(t.RadiusMD)
+		coss.Avatar(c, "AV").Image(avatarFK).Radius(t.RadiusXL)
+		coss.Avatar(c, "AV").Image(avatarFK).Radius(999)
 	})
 }
 
 func PAvatar5(c *ui.Context) {
-	t := theme.Of(c)
 	ui.Row(c).AlignItems(ui.Center).Children(func() {
-		coss.Avatar(c, "FK").Image(avatarPortrait1).Border(2, t.Background).ZIndex(4)
-		coss.Avatar(c, "NE").Image(avatarPortrait2).Border(2, t.Background).Margin(0, 0, 0, -8).ZIndex(3)
-		coss.Avatar(c, "EW").Image(avatarPortrait3).Border(2, t.Background).Margin(0, 0, 0, -8).ZIndex(2)
-		avatarGroupCount(c, "+2", 32, 8, 1)
+		for i, img := range []*ui.Bitmap{avatarFK, avatarNE, avatarEW} {
+			avatarGroupMember(c, coss.Avatar(c, "").Image(img).Element, i, 32, false)
+		}
+		// coss nudges a covered fallback's text off the avatar over it.
+		count := coss.AvatarGroupCount(c, "+2").Element
+		count.Padding(0, 0, 0, (32*0.3+2)*0.3*2)
+		avatarGroupMember(c, count, 3, 32, false)
 	})
 }
 
@@ -127,177 +145,130 @@ func PAvatar6(c *ui.Context) {
 		Center().
 		Size(32, 32).
 		Radius(999).
-		Background(t.Muted).
-		Border(1, t.Border).
+		Background(t.Border).
 		TextColor(t.Foreground).
 		Children(func() {
 			ui.Icon(c, icons.User()).Size(16, 16)
 		})
 }
 
+// avatarStatusDot is the 8px status dot of p-avatar-7/8/9, outlined 2px in
+// the background color.
+func avatarStatusDot(c *ui.Context, color ui.Color) ui.Element {
+	return ui.Box(c).Absolute().Size(8, 8).Radius(999).Background(color).
+		Shadow(0, 0, 0, 2, theme.Of(c).Background)
+}
+
 func PAvatar7(c *ui.Context) {
-	t := theme.Of(c)
 	ui.Box(c).Size(32, 32).Children(func() {
-		coss.Avatar(c, "LT").Image(avatarPortrait1)
-		ui.Box(c).
-			Absolute().
-			Right(0).
-			Bottom(0).
-			Size(10, 10).
-			Radius(999).
-			Background(ui.Hex("#10b981")).
-			Border(2, t.Background)
+		coss.Avatar(c, "LT").Image(avatarFK)
+		avatarStatusDot(c, ui.Hex("#10b981")).Right(0).Bottom(0)
 	})
 }
 
 func PAvatar8(c *ui.Context) {
 	t := theme.Of(c)
 	ui.Box(c).Size(32, 32).Children(func() {
-		coss.Avatar(c, "LT").Image(avatarPortrait1)
-		ui.Box(c).
-			Absolute().
-			Right(0).
-			Bottom(0).
-			Size(10, 10).
-			Radius(999).
-			Background(t.MutedForeground).
-			Border(2, t.Background)
+		coss.Avatar(c, "LT").Image(avatarFK)
+		avatarStatusDot(c, t.MutedForeground).Right(0).Bottom(0)
 	})
 }
 
 func PAvatar9(c *ui.Context) {
 	t := theme.Of(c)
 	ui.Box(c).Size(32, 32).Children(func() {
-		coss.Avatar(c, "LT").Image(avatarPortrait1).Radius(t.RadiusLG)
-		ui.Box(c).
-			Absolute().
-			Right(-2).
-			Top(-2).
-			Size(10, 10).
-			Radius(999).
-			Background(ui.Hex("#10b981")).
-			Border(2, t.Background)
+		coss.Avatar(c, "LT").Image(avatarFK).Radius(t.RadiusLG)
+		avatarStatusDot(c, ui.Hex("#10b981")).Right(-2).Top(-2)
 	})
 }
 
 func PAvatar10(c *ui.Context) {
 	t := theme.Of(c)
 	ui.Box(c).Size(32, 32).Children(func() {
-		coss.Avatar(c, "LT").Image(avatarPortrait1)
+		coss.Avatar(c, "LT").Image(avatarFK)
 		coss.Badge(c, "6").Size(coss.BadgeSizeSM).Round().
-			Absolute().Right(-4).Top(-4).Border(2, t.Background)
+			Absolute().Right(-4).Top(-4).Shadow(0, 0, 0, 2, t.Background)
 	})
 }
 
 func PAvatar11(c *ui.Context) {
 	t := theme.Of(c)
 	ui.Box(c).Size(32, 32).Children(func() {
-		coss.Avatar(c, "LT").Image(avatarPortrait1).Radius(t.RadiusLG)
+		coss.Avatar(c, "LT").Image(avatarFK).Radius(t.RadiusLG)
 		coss.Badge(c, "6").Size(coss.BadgeSizeSM).Round().
-			Absolute().Right(-6).Top(-6).Border(2, t.Background)
+			Absolute().Right(-6).Top(-6).Shadow(0, 0, 0, 2, t.Background)
 	})
 }
 
 func PAvatar12(c *ui.Context) {
 	t := theme.Of(c)
 	ui.Box(c).Size(32, 32).Children(func() {
-		coss.Avatar(c, "LT").Image(avatarPortrait1)
-		ui.Row(c).
-			Center().
-			Absolute().
-			Right(-5).
-			Top(-5).
-			Size(18, 18).
-			Radius(999).
-			Background(t.Background).
-			TextColor(t.Primary).
-			Children(func() {
-				ui.Icon(c, verifiedSealSVG).Size(16, 16)
-			})
+		coss.Avatar(c, "LT").Image(avatarFK)
+		ui.Box(c).Absolute().Right(-6).Top(-6).Size(20, 20).Children(func() {
+			ui.Icon(c, verifiedSealOutline).Absolute().Size(20, 20).TextColor(t.Background)
+			ui.Icon(c, verifiedSeal).Absolute().Size(20, 20).TextColor(t.Primary)
+			ui.Icon(c, verifiedSealCheck).Absolute().Size(20, 20).TextColor(t.Background)
+		})
 	})
 }
 
 func PAvatar13(c *ui.Context) {
-	t := theme.Of(c)
 	ui.Row(c).AlignItems(ui.Center).Children(func() {
-		coss.Avatar(c, "FK").Size(24).Image(avatarPortrait1).Border(2, t.Background).ZIndex(3)
-		coss.Avatar(c, "NE").Size(24).Image(avatarPortrait2).Border(2, t.Background).Margin(0, 0, 0, -6).ZIndex(2)
-		coss.Avatar(c, "EW").Size(24).Image(avatarPortrait3).Border(2, t.Background).Margin(0, 0, 0, -6).ZIndex(1)
+		for i, img := range []*ui.Bitmap{avatarFK, avatarNE, avatarEW} {
+			avatarGroupMember(c, coss.Avatar(c, "").Size(24).Image(img).Element, i, 24, false)
+		}
 	})
 }
 
 func PAvatar14(c *ui.Context) {
-	t := theme.Of(c)
 	ui.Row(c).AlignItems(ui.Center).Children(func() {
-		coss.Avatar(c, "FK").Size(48).Image(avatarPortrait1).Border(2, t.Background).ZIndex(3)
-		coss.Avatar(c, "NE").Size(48).Image(avatarPortrait2).Border(2, t.Background).Margin(0, 0, 0, -12).ZIndex(2)
-		coss.Avatar(c, "EW").Size(48).Image(avatarPortrait3).Border(2, t.Background).Margin(0, 0, 0, -12).ZIndex(1)
+		for i, img := range []*ui.Bitmap{avatarFK, avatarNE, avatarEW} {
+			avatarGroupMember(c, coss.Avatar(c, "").Size(48).Image(img).Element, i, 48, false)
+		}
 	})
 }
 
 func PAvatar15(c *ui.Context) {
-	t := theme.Of(c)
 	ui.Row(c).AlignItems(ui.Center).Children(func() {
-		coss.Avatar(c, "FK").Image(avatarPortrait1).Border(2, t.Background).ZIndex(1)
-		coss.Avatar(c, "NE").Image(avatarPortrait2).Border(2, t.Background).Margin(0, 0, 0, -8).ZIndex(2)
-		coss.Avatar(c, "EW").Image(avatarPortrait3).Border(2, t.Background).Margin(0, 0, 0, -8).ZIndex(3)
+		for i, img := range []*ui.Bitmap{avatarFK, avatarNE, avatarEW} {
+			avatarGroupMember(c, coss.Avatar(c, "").Image(img).Element, i, 32, true)
+		}
 	})
 }
 
 func PAvatar16(c *ui.Context) {
-	t := theme.Of(c)
 	ui.Row(c).AlignItems(ui.Center).Children(func() {
-		coss.Avatar(c, "FK").Image(avatarPortrait1).Border(2, t.Background).ZIndex(1)
-		coss.Avatar(c, "NE").Image(avatarPortrait2).Border(2, t.Background).Margin(0, 0, 0, -8).ZIndex(2)
-		coss.Avatar(c, "EW").Image(avatarPortrait3).Border(2, t.Background).Margin(0, 0, 0, -8).ZIndex(3)
-		avatarGroupCount(c, "+2", 32, 8, 4)
+		for i, img := range []*ui.Bitmap{avatarFK, avatarNE, avatarEW} {
+			avatarGroupMember(c, coss.Avatar(c, "").Image(img).Element, i, 32, true)
+		}
+		avatarGroupMember(c, coss.AvatarGroupCount(c, "+2").Element, 3, 32, true)
 	})
 }
 
 func PAvatar17(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Row(c).AlignItems(ui.Center).Gap(8)
-	opened := ui.Local(host, "opened", func() bool { return false })
-	host.Children(func() {
-		btn := ui.ButtonBase(c).
-			Radius(999).
-			Cursor(ui.CursorPointer).
-			FocusRingColor(t.Ring).
-			FocusRingOffset(2).
-			Label("Open Frida Kahlo's profile")
-		btn.Children(func() {
-			coss.Avatar(c, "FK").Image(avatarPortrait1)
+	ui.ButtonBase(c).
+		Radius(999).
+		Cursor(ui.CursorPointer).
+		FocusRingColor(t.Ring).
+		FocusRingOffset(2).
+		Label("Open Frida Kahlo's profile").
+		Children(func() {
+			coss.Avatar(c, "FK").Image(avatarFK)
 		})
-		if btn.Clicked() {
-			*opened = !*opened
-		}
-		if *opened {
-			ui.Text(c, "Frida Kahlo").FontSize(13).TextColor(t.MutedForeground)
-		}
-	})
 }
 
 func PAvatar18(c *ui.Context) {
 	t := theme.Of(c)
-	host := ui.Row(c).AlignItems(ui.Center).Gap(8)
-	visited := ui.Local(host, "visited", func() bool { return false })
-	host.Children(func() {
-		link := ui.ButtonBase(c).
-			Radius(999).
-			Cursor(ui.CursorPointer).
-			FocusRingColor(t.Ring).
-			FocusRingOffset(2).
-			Label("View Nadia Ekman's profile")
-		link.Children(func() {
-			coss.Avatar(c, "NE").Image(avatarPortrait2)
+	ui.ButtonBase(c).
+		Radius(999).
+		Cursor(ui.CursorPointer).
+		FocusRingColor(t.Ring).
+		FocusRingOffset(2).
+		Label("View Nadia Ekman's profile").
+		Children(func() {
+			coss.Avatar(c, "NE").Image(avatarNE)
 		})
-		if link.Clicked() {
-			*visited = !*visited
-		}
-		if *visited {
-			ui.Text(c, "#people").FontSize(12).TextColor(t.MutedForeground)
-		}
-	})
 }
 
 func PAvatar19(c *ui.Context) {
@@ -306,23 +277,23 @@ func PAvatar19(c *ui.Context) {
 		initials string
 		name     string
 		role     string
-		img      *ui.SVG
+		img      ui.ImageSource
 	}
 	people := []person{
-		{initials: "FK", name: "Frida Kahlo", role: "Design", img: avatarPortrait1},
-		{initials: "NE", name: "Nadia Ekman", role: "Engineering", img: avatarPortrait2},
-		{initials: "EW", name: "Eli Wren", role: "Research", img: nil},
+		{initials: "FK", name: "Frida Kahlo", role: "Design", img: avatarFK},
+		{initials: "NE", name: "Nadia Ekman", role: "Engineering", img: avatarNE},
+		{initials: "EW", name: "Eli Wren", role: "Research"},
 	}
-	ui.Column(c).WidthPercent(100).MaxWidth(260).Gap(14).Children(func() {
+	ui.Column(c).Gap(16).Children(func() {
 		for _, p := range people {
 			ui.Row(c).AlignItems(ui.Center).Gap(12).Children(func() {
 				av := coss.Avatar(c, p.initials).Size(40)
 				if p.img != nil {
 					av.Image(p.img)
 				}
-				ui.Column(c).MinWidth(0).Grow(1).Gap(2).Children(func() {
-					ui.Text(c, p.name).SingleLine().Ellipsis("…").FontSize(14).FontWeight(500).TextColor(t.Foreground)
-					ui.Text(c, p.role).SingleLine().Ellipsis("…").FontSize(12).TextColor(t.MutedForeground)
+				ui.Column(c).MinWidth(0).Children(func() {
+					ui.Text(c, p.name).SingleLine().Ellipsis("…").FontSize(14).FixedLineHeight(20).FontWeight(500).TextColor(t.Foreground)
+					ui.Text(c, p.role).SingleLine().Ellipsis("…").FontSize(12).FixedLineHeight(16).TextColor(t.MutedForeground)
 				})
 			})
 		}
@@ -330,30 +301,28 @@ func PAvatar19(c *ui.Context) {
 }
 
 func PAvatar20(c *ui.Context) {
-	av := coss.Avatar(c, "FK").Image(avatarPortrait1)
+	av := coss.Avatar(c, "FK").Image(avatarFK)
 	cossTooltip(c, av.Element, "Frida Kahlo")
 }
 
 func PAvatar21(c *ui.Context) {
-	t := theme.Of(c)
-	type person struct {
+	people := []struct {
 		initials string
 		name     string
-		img      *ui.SVG
-	}
-	people := []person{
-		{initials: "FK", name: "Frida Kahlo", img: avatarPortrait1},
-		{initials: "NE", name: "Nadia Ekman", img: avatarPortrait2},
-		{initials: "EW", name: "Eli Wren", img: avatarPortrait3},
+		img      *ui.Bitmap
+	}{
+		{"FK", "Frida Kahlo", avatarFK},
+		{"NE", "Nadia Ekman", avatarNE},
+		{"EW", "Eli Wren", avatarEW},
 	}
 	ui.Row(c).AlignItems(ui.Center).Children(func() {
 		for i, p := range people {
-			av := coss.Avatar(c, p.initials).Image(p.img).Border(2, t.Background).ZIndex(len(people) + 1 - i)
-			if i > 0 {
-				av.Margin(0, 0, 0, -8)
-			}
-			cossTooltip(c, av, p.name)
+			av := coss.Avatar(c, p.initials).Image(p.img)
+			avatarGroupMember(c, av.Element, i, 32, false)
+			cossTooltip(c, av.Element, p.name)
 		}
-		avatarGroupCount(c, "+2", 32, 8, 1)
+		count := coss.AvatarGroupCount(c, "+2").Element
+		count.Padding(0, 0, 0, (32*0.3+2)*0.3*2)
+		avatarGroupMember(c, count, 3, 32, false)
 	})
 }
