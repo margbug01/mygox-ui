@@ -84,55 +84,43 @@ func Calendar(c *ui.Context, p CalendarProps) ui.Element {
 	}
 
 	root.Children(func() {
-		ui.Box(c).Children(func() {
-			ui.Row(c).Gap(gap).AlignItems(ui.Stretch).Children(func() {
-				for i := range months {
-					m := first.AddDate(0, i, 0)
-					ui.Column(c).Width(monthW).Children(func() {
-						if i > 0 {
-							ui.Box(c).Absolute().Top(8).Bottom(8).Left(-16).Width(1).Background(t.Border)
+		ui.Row(c).Gap(gap).AlignItems(ui.Stretch).Children(func() {
+			for i := range months {
+				m := first.AddDate(0, i, 0)
+				ui.Column(c).Width(monthW).Children(func() {
+					if i > 0 {
+						ui.Box(c).Absolute().Top(8).Bottom(8).Left(-16).Width(1).Background(t.Border)
+					}
+					calendarCaption(c, p, cell, m, month, i == 0, i == months-1, months)
+					ui.Row(c).Children(func() {
+						if p.WeekNumbers {
+							ui.Box(c).Size(day, cell)
 						}
-						calendarCaption(c, p, cell, m, month, i)
-						ui.Row(c).Children(func() {
-							if p.WeekNumbers {
-								ui.Box(c).Size(day, cell)
-							}
-							for _, wd := range []string{"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"} {
-								ui.Row(c).Center().Size(day, cell).Children(func() {
-									ui.Text(c, wd).FontSize(12).FixedLineHeight(16).FontWeight(500).TextColor(muted)
-								})
-							}
-						})
-						start := m.AddDate(0, 0, -int(m.Weekday()))
-						weeks := 6
-						if !p.FixedWeeks {
-							last := m.AddDate(0, 1, -1)
-							weeks = (int(m.Weekday()) + last.Day() + 6) / 7
-						}
-						for w := range weeks {
-							ws := start.AddDate(0, 0, w*7)
-							ui.Row(c).Children(func() {
-								if p.WeekNumbers {
-									ui.Row(c).Center().Size(day, day+2).Children(func() {
-										ui.Text(c, fmt.Sprint(weekNumber(ws))).FontSize(12).FixedLineHeight(16).FontWeight(500).TextColor(muted)
-									})
-								}
-								for d := range 7 {
-									calendarDay(c, p, ws.AddDate(0, 0, d), m, today, day)
-								}
+						for _, wd := range []string{"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"} {
+							ui.Row(c).Center().Size(day, cell).Children(func() {
+								ui.Text(c, wd).FontSize(12).FixedLineHeight(16).FontWeight(500).TextColor(muted)
 							})
 						}
 					})
-				}
-			})
-			if !p.HideNav {
-				nav := ui.Row(c).Absolute().Top(0).Left(0).WidthPercent(100).Justify(ui.SpaceBetween)
-				if p.NavEnd {
-					nav.Justify(ui.End)
-				}
-				nav.Children(func() {
-					calendarNav(c, cell, icons.ChevronLeft(), "Previous month", func() { *month = first.AddDate(0, -months, 0) })
-					calendarNav(c, cell, icons.ChevronRight(), "Next month", func() { *month = first.AddDate(0, months, 0) })
+					start := m.AddDate(0, 0, -int(m.Weekday()))
+					weeks := 6
+					if !p.FixedWeeks {
+						last := m.AddDate(0, 1, -1)
+						weeks = (int(m.Weekday()) + last.Day() + 6) / 7
+					}
+					for w := range weeks {
+						ws := start.AddDate(0, 0, w*7)
+						ui.Row(c).Children(func() {
+							if p.WeekNumbers {
+								ui.Row(c).Center().Size(day, day+2).Children(func() {
+									ui.Text(c, fmt.Sprint(weekNumber(ws))).FontSize(12).FixedLineHeight(16).FontWeight(500).TextColor(muted)
+								})
+							}
+							for d := range 7 {
+								calendarDay(c, p, ws.AddDate(0, 0, d), m, today, day)
+							}
+						})
+					}
 				})
 			}
 		})
@@ -140,21 +128,45 @@ func Calendar(c *ui.Context, p CalendarProps) ui.Element {
 	return root
 }
 
-func calendarCaption(c *ui.Context, p CalendarProps, cell float32, m time.Time, month *time.Time, i int) {
+// calendarCaption is a month's caption row: the label, or p.Caption, with
+// the nav buttons of the months around it, the previous one on the first
+// month and the next one on the last.
+func calendarCaption(c *ui.Context, p CalendarProps, cell float32, m time.Time, month *time.Time, first, last bool, months int) {
 	t := theme.Of(c)
-	row := ui.Row(c).Height(cell).Margin(0, cell, 4, cell).PaddingX(4).AlignItems(ui.Center).Justify(ui.Center)
-	switch {
-	case p.HideNav:
-		row.Margin(0, 0, 4, 0)
-	case p.NavEnd:
-		row.Margin(0, 2*cell, 4, 0).Justify(ui.Start)
+	prev := func() {
+		calendarNav(c, cell, icons.ChevronLeft(), "Previous month", func() { *month = m.AddDate(0, -months, 0) })
 	}
-	row.Children(func() {
-		if p.Caption != nil && i == 0 {
-			p.Caption(month)
+	next := func() {
+		calendarNav(c, cell, icons.ChevronRight(), "Next month", func() { *month = m.AddDate(0, 1, 0) })
+	}
+	slot := func(show bool, nav func()) {
+		if p.HideNav || p.NavEnd {
 			return
 		}
-		ui.Text(c, m.Format("January 2006")).FontWeight(500).TextColor(t.Foreground)
+		if show {
+			nav()
+		} else {
+			ui.Box(c).Size(cell, cell)
+		}
+	}
+	ui.Row(c).Height(cell).Margin(0, 0, 4, 0).AlignItems(ui.Center).Children(func() {
+		slot(first, prev)
+		label := ui.Row(c).Grow(1).HeightPercent(100).PaddingX(4).AlignItems(ui.Center).Justify(ui.Center)
+		if p.NavEnd {
+			label.Justify(ui.Start)
+		}
+		label.Children(func() {
+			if p.Caption != nil && first {
+				p.Caption(month)
+				return
+			}
+			ui.Text(c, m.Format("January 2006")).FontWeight(500).TextColor(t.Foreground)
+		})
+		slot(last, next)
+		if p.NavEnd && !p.HideNav {
+			prev()
+			next()
+		}
 	})
 }
 

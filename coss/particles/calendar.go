@@ -78,7 +78,7 @@ func calYearOptions(from, to int) []coss.SelectOption[int] {
 
 // calSelectCaption shows the month as month and year selects; with fill
 // they share the caption's width.
-func calSelectCaption(c *ui.Context, month *time.Time, firstYear int, fill bool) {
+func calSelectCaption(c *ui.Context, month *time.Time, years []coss.SelectOption[int], fill bool) {
 	m, y := int(month.Month()), month.Year()
 	row := ui.Row(c).Gap(6).AlignItems(ui.Center)
 	if fill {
@@ -91,7 +91,7 @@ func calSelectCaption(c *ui.Context, month *time.Time, firstYear int, fill bool)
 			yb.Width(118)
 		}
 		mb.Children(func() { coss.Select(c, &m, calMonthOptions) })
-		yb.Children(func() { coss.Select(c, &y, calYearOptions(firstYear, 2030)) })
+		yb.Children(func() { coss.Select(c, &y, years) })
 	})
 	if m != int(month.Month()) || y != month.Year() {
 		*month = time.Date(y, time.Month(m), 1, 0, 0, 0, 0, time.Local)
@@ -146,7 +146,7 @@ func PCalendar4(c *ui.Context) {
 	d := ui.Local(host, "d", time.Now)
 	m := ui.Local(host, "m", time.Now)
 	host.Children(func() {
-		coss.Calendar(c, coss.CalendarProps{Selected: d, Month: m, Caption: func(m *time.Time) { calSelectCaption(c, m, 1930, false) }})
+		coss.Calendar(c, coss.CalendarProps{Selected: d, Month: m, Caption: func(m *time.Time) { calSelectCaption(c, m, calYearOptions(1930, 2030), false) }})
 	})
 }
 
@@ -221,7 +221,7 @@ func PCalendar14(c *ui.Context) {
 	d := ui.Local(host, "d", time.Now)
 	m := ui.Local(host, "m", time.Now)
 	host.Children(func() {
-		coss.Calendar(c, coss.CalendarProps{Selected: d, Month: m, HideNav: true, Caption: func(m *time.Time) { calSelectCaption(c, m, 1980, true) }})
+		coss.Calendar(c, coss.CalendarProps{Selected: d, Month: m, HideNav: true, Caption: func(m *time.Time) { calSelectCaption(c, m, calYearOptions(1980, time.Now().Year()), true) }})
 	})
 }
 
