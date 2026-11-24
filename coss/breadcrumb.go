@@ -12,39 +12,40 @@ type BreadcrumbItem struct {
 	Icon    *ui.SVG
 	Current bool
 	OnClick func()
+	// Content replaces the link with custom content, such as a menu trigger.
+	Content func()
 }
 
-// Breadcrumb renders a coss-styled hierarchical navigation path.
-func Breadcrumb(c *ui.Context, items []BreadcrumbItem, sep ...*ui.SVG) ui.Element {
+// Breadcrumb renders a coss-styled hierarchical navigation path. Segments
+// are separated by a chevron, or by sep when given (as " / " or " · ").
+func Breadcrumb(c *ui.Context, items []BreadcrumbItem, sep ...string) ui.Element {
 	t := theme.Of(c)
-	sepIcon := icons.ChevronRight()
-	if len(sep) > 0 && sep[0] != nil {
-		sepIcon = sep[0]
-	}
-	return ui.Row(c).AlignItems(ui.Center).Gap(6).Wrap().Children(func() {
+	return ui.Row(c).AlignItems(ui.Center).Gap(10).Wrap().FixedLineHeight(20).TextColor(t.MutedForeground).Children(func() {
 		for i, item := range items {
 			if i > 0 {
-				ui.Icon(c, sepIcon).Size(14, 14).TextColor(t.MutedForeground).Opacity(0.7).Shrink(0)
-			}
-			isCurrent := item.Current || i == len(items)-1
-			if isCurrent {
-				ui.Row(c).AlignItems(ui.Center).Gap(5).Children(func() {
-					if item.Icon != nil {
-						ui.Icon(c, item.Icon).Size(14, 14).TextColor(t.Foreground)
-					}
-					ui.Text(c, item.Label).FontSize(13).FontWeight(500).TextColor(t.Foreground).SingleLine()
-				})
-			} else {
-				btn := ui.ButtonBase(c).AlignItems(ui.Center).Gap(5).Cursor(ui.CursorPointer).Radius(4).Padding(2, 4)
-				col := t.MutedForeground
-				if btn.Hovered() {
-					col = t.Foreground
+				if len(sep) > 0 {
+					ui.Text(c, sep[0]).PreserveSpaces().Opacity(0.8)
+				} else {
+					ui.Icon(c, icons.ChevronRight()).Size(16, 16).Opacity(0.8).Shrink(0)
 				}
-				btn.TextColor(col).Children(func() {
+			}
+			switch {
+			case item.Content != nil:
+				item.Content()
+			case item.Current || i == len(items)-1:
+				ui.Text(c, item.Label).TextColor(t.Foreground).SingleLine()
+			default:
+				btn := ui.ButtonBase(c).AlignItems(ui.Center).Gap(6).Cursor(ui.CursorPointer)
+				if btn.Hovered() {
+					btn.TextColor(t.Foreground)
+				}
+				btn.Children(func() {
 					if item.Icon != nil {
-						ui.Icon(c, item.Icon).Size(14, 14)
+						ui.Icon(c, item.Icon).Size(16, 16)
 					}
-					ui.Text(c, item.Label).FontSize(13).SingleLine()
+					if item.Label != "" {
+						ui.Text(c, item.Label).SingleLine()
+					}
 				})
 				if btn.Clicked() && item.OnClick != nil {
 					item.OnClick()
