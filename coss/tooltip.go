@@ -5,20 +5,23 @@ import (
 	"github.com/margbug01/mygox-ui/coss/theme"
 )
 
-// Tooltip attaches a coss-styled hover/focus tooltip popup to anchor using ui.TooltipBase.
+// Tooltip attaches a hover/focus tooltip to anchor, as ui/tooltip.tsx
+// TooltipPopup: rounded-md border bg-popover 12/16 text, px-2 py-1,
+// shadow-md/5.
 func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 	t := theme.Of(c)
 	return ui.TooltipBase(c, anchor, func(tip ui.Element) {
 		tip.
-			Padding(5, 9).
+			Padding(4, 8).
 			Radius(t.RadiusMD).
-			Background(t.Primary).
-			TextColor(t.PrimaryForeground).
+			Background(t.Popover).
+			TextColor(t.PopoverForeground).
+			Border(1, t.Border).
 			FontSize(12).
-			FontWeight(500).
-			Shadow(0, 4, 12, 0, theme.Alpha(ui.RGB(0, 0, 0), 0.16)).
+			FixedLineHeight(16).
+			Shadow(0, 4, 6, -1, theme.Alpha(ui.RGB(0, 0, 0), 0.05)).
 			Children(func() {
-				ui.Text(c, text).SingleLine()
+				ui.Text(c, text).Wrap().Balance()
 			})
 	})
 }

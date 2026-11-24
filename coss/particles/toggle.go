@@ -109,18 +109,11 @@ type toggleGroup struct {
 	disabled     bool
 	disabledItem int // index of a disabled item, -1 for none
 	multiple     bool
-	tips         bool
+	tips         []string // tooltip per item, none when nil
 }
 
 func renderToggleGroup(c *ui.Context, st *[3]bool, g toggleGroup) {
-	items := []struct {
-		tip  string
-		icon *ui.SVG
-	}{
-		{"Bold", icons.Bold()},
-		{"Italic", icons.Italic()},
-		{"Underline", icons.Underline()},
-	}
+	items := []*ui.SVG{icons.Bold(), icons.Italic(), icons.Underline()}
 	t := theme.Of(c)
 	h := g.height
 	px := (h - 18) / 2 // (h - 2*border - 16px icon) / 2 keeps items square
@@ -144,7 +137,7 @@ func renderToggleGroup(c *ui.Context, st *[3]bool, g toggleGroup) {
 				}
 			}
 			on := st[i]
-			el := coss.ToggleBox(c, &on, func() { toggleIcon(c, it.icon) }, v).Height(h).MinWidth(h).Padding(0, px)
+			el := coss.ToggleBox(c, &on, func() { toggleIcon(c, it) }, v).Height(h).MinWidth(h).Padding(0, px)
 			if g.outline {
 				r := t.RadiusLG
 				first, end := float32(0), float32(0)
@@ -177,8 +170,8 @@ func renderToggleGroup(c *ui.Context, st *[3]bool, g toggleGroup) {
 				}
 				st[i] = on
 			}
-			if g.tips {
-				coss.Tooltip(c, el, it.tip)
+			if g.tips != nil {
+				coss.Tooltip(c, el, g.tips[i])
 			}
 		}
 	})
@@ -207,5 +200,5 @@ func PToggleGroup8(c *ui.Context) {
 	toggleGroupParticle(c, toggleGroup{height: 32, multiple: true, disabledItem: -1})
 }
 func PToggleGroup9(c *ui.Context) {
-	toggleGroupParticle(c, toggleGroup{height: 32, multiple: true, tips: true, disabledItem: -1})
+	toggleGroupParticle(c, toggleGroup{height: 32, multiple: true, tips: []string{"Bold", "Italic", "Underline"}, disabledItem: -1})
 }

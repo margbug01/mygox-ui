@@ -5,23 +5,30 @@ import (
 	"github.com/margbug01/mygox-ui/coss/theme"
 )
 
-// Toolbar renders a horizontal coss-styled action toolbar container.
+// Toolbar renders ui/toolbar.tsx's container: a row with gap-2, p-1,
+// rounded-xl, border, bg-card.
 func Toolbar(c *ui.Context, fn func()) ui.Element {
 	t := theme.Of(c)
 	return ui.Row(c).
-		AlignItems(ui.Center).
-		Gap(4).
+		AlignItems(ui.Stretch).
+		Gap(8).
 		Padding(4).
 		Radius(t.RadiusXL).
 		Background(t.Card).
+		TextColor(t.CardForeground).
 		Border(1, t.Border).
-		Shadow(0, 1, 2, 0, theme.Alpha(ui.RGB(0, 0, 0), 0.04)).
 		Shrink(0).
 		Children(fn)
 }
 
-// ToolbarSeparator renders a vertical hairline divider inside a Toolbar.
+// ToolbarGroup is ToolbarGroup: its items in a row with gap-1.
+func ToolbarGroup(c *ui.Context, fn func()) ui.Element {
+	return ui.Row(c).AlignItems(ui.Center).Gap(4).Children(fn)
+}
+
+// ToolbarSeparator is the vertical ToolbarSeparator: w-px bg-border,
+// my-1.5, the toolbar's height.
 func ToolbarSeparator(c *ui.Context) ui.Element {
 	t := theme.Of(c)
-	return ui.Box(c).Width(1).Height(18).Background(t.Border).Margin(0, 4).Shrink(0)
+	return ui.Box(c).Width(1).Margin(6, 0).Background(t.Border).Shrink(0)
 }
