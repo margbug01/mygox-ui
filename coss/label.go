@@ -11,6 +11,7 @@ func Label(c *ui.Context, text string) ui.Element {
 	return ui.Text(c, text).
 		SingleLine().
 		FontSize(14).
+		FixedLineHeight(16).
 		FontWeight(500).
 		TextColor(t.Foreground)
 }

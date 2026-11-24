@@ -12,7 +12,7 @@ func Field(c *ui.Context, fn func()) ui.Element {
 
 // FieldLabel renders a form field label, text-sm/4 as field.tsx's.
 func FieldLabel(c *ui.Context, text string) ui.Element {
-	return Label(c, text).LineHeight(16.0 / 14)
+	return Label(c, text)
 }
 
 // FieldControl wraps the primary form control inside a Field.
