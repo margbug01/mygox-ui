@@ -318,7 +318,7 @@ func PGroup13(c *ui.Context) {
 }
 
 func PGroup14(c *ui.Context) {
-	currencies := []selectOption{
+	currencies := []coss.SelectOption[string]{
 		{Label: "$", Value: "$"},
 		{Label: "€", Value: "€"},
 		{Label: "£", Value: "£"},
@@ -328,7 +328,7 @@ func PGroup14(c *ui.Context) {
 	amt := ui.Local(host, "amt", func() string { return "10" })
 	host.Children(func() {
 		coss.Group(c, func() {
-			cossSelect(c, curr, currencies, 51).BorderWidth(0).Radius(0)
+			coss.Select(c, curr, currencies).Width(51).BorderWidth(0).Radius(0)
 			coss.GroupSeparator(c)
 			groupInput(c, amt, "").FontFeatures("tnum")
 		})
@@ -337,12 +337,12 @@ func PGroup14(c *ui.Context) {
 }
 
 func PGroup15(c *ui.Context) {
-	protocols := []selectOption{
+	protocols := []coss.SelectOption[string]{
 		{Label: "http", Value: "http"},
 		{Label: "https", Value: "https"},
 		{Label: "http + https", Value: "both"},
 	}
-	subdomains := []selectOption{
+	subdomains := []coss.SelectOption[string]{
 		{Label: "Subdomains", Value: ""},
 		{Label: "www", Value: "www"},
 		{Label: "api", Value: "api"},
@@ -354,11 +354,11 @@ func PGroup15(c *ui.Context) {
 	sub := ui.Local(host, "sub", func() string { return "" })
 	host.Children(func() {
 		coss.Group(c, func() {
-			cossSelect(c, proto, protocols, 121).BorderWidth(0).Radius(0)
+			coss.Select(c, proto, protocols).Width(121).BorderWidth(0).Radius(0)
 			coss.GroupSeparator(c)
 			groupInput(c, url, "")
 			coss.GroupSeparator(c)
-			cossSelect(c, sub, subdomains, 127).BorderWidth(0).Radius(0)
+			coss.Select(c, sub, subdomains).Width(127).BorderWidth(0).Radius(0)
 			coss.GroupSeparator(c)
 			coss.IconButton(c, icons.Search(), "Search").Variant(coss.ButtonOutline).BorderWidth(0).Radius(0)
 		})
@@ -390,7 +390,7 @@ func PGroup17(c *ui.Context) {
 }
 
 func PGroup18(c *ui.Context) {
-	protocols := []selectOption{
+	protocols := []coss.SelectOption[string]{
 		{Label: "https://", Value: "https"},
 		{Label: "http://", Value: "http"},
 		{Label: "ftp://", Value: "ftp"},
@@ -401,7 +401,7 @@ func PGroup18(c *ui.Context) {
 	ip := ui.Local(host, "ip", func() string { return "" })
 	host.Children(func() {
 		coss.Group(c, func() {
-			cossSelect(c, proto, protocols, 93).BorderWidth(0).Radius(0)
+			coss.Select(c, proto, protocols).Width(93).BorderWidth(0).Radius(0)
 			coss.GroupSeparator(c)
 			groupInput(c, ip, "192.168.1.1")
 		})
@@ -409,7 +409,7 @@ func PGroup18(c *ui.Context) {
 }
 
 func PGroup19(c *ui.Context) {
-	domains := []selectOption{
+	domains := []coss.SelectOption[string]{
 		{Label: ".com", Value: "com"},
 		{Label: ".org", Value: "org"},
 		{Label: ".net", Value: "net"},
@@ -421,7 +421,7 @@ func PGroup19(c *ui.Context) {
 		coss.Group(c, func() {
 			groupInput(c, name, "example")
 			coss.GroupSeparator(c)
-			cossSelect(c, dom, domains, 76).BorderWidth(0).Radius(0)
+			coss.Select(c, dom, domains).Width(76).BorderWidth(0).Radius(0)
 		})
 	})
 }

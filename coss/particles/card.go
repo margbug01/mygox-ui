@@ -26,84 +26,7 @@ func init() {
 	Register(Entry{ID: "p-card-11", Family: "card", Description: "CardFrame with header action", View: PCard11, Source: extractFunc(cardSource, "PCard11")})
 }
 
-type selectOption struct {
-	Label string
-	Value string
-}
-
-func cossSelect(c *ui.Context, selected *string, options []selectOption, width ...float32) ui.Element {
-	t := theme.Of(c)
-	bg := t.Background
-	if t.Dark {
-		bg = theme.Alpha(t.Input, 0.32)
-	}
-	sel := ui.SelectBase(c, selected)
-	curLabel := ""
-	for _, o := range options {
-		if o.Value == *selected {
-			curLabel = o.Label
-			break
-		}
-	}
-	if curLabel == "" && len(options) > 0 {
-		curLabel = options[0].Label
-	}
-	trig := sel.Trigger.
-		AlignItems(ui.Center).
-		Justify(ui.SpaceBetween).
-		Height(32).
-		Padding(0, 10).
-		Gap(8).
-		Radius(t.RadiusLG).
-		Background(bg).
-		Border(1, t.Input).
-		TextColor(t.Foreground).
-		FontSize(13).
-		Cursor(ui.CursorPointer).
-		FocusRingColor(t.Ring)
-	if len(width) > 0 && width[0] > 0 {
-		trig.Width(width[0])
-	} else {
-		trig.WidthPercent(100)
-	}
-	if !t.Dark {
-		trig.Shadow(0, 1, 2, 0, theme.Alpha(ui.RGB(0, 0, 0), 0.04))
-	}
-	trig.Children(func() {
-		ui.Text(c, curLabel).SingleLine().Ellipsis("…").FontSize(13).TextColor(t.Foreground)
-		ui.Icon(c, icons.ChevronsUpDown()).Size(14, 14).TextColor(t.MutedForeground).Shrink(0)
-	})
-	sel.Popup(func(panel ui.Element) {
-		panel.Padding(4).
-			Radius(t.RadiusLG).
-			Background(t.Popover).
-			Border(1, t.Border).
-			Shadow(0, 8, 20, 0, theme.Alpha(ui.RGB(0, 0, 0), 0.14)).
-			MinWidth(140)
-		for _, opt := range options {
-			item := sel.Item(opt.Value).
-				AlignItems(ui.Center).
-				Justify(ui.SpaceBetween).
-				Height(28).
-				Padding(0, 8).
-				Gap(8).
-				Radius(t.RadiusSM).
-				Cursor(ui.CursorPointer)
-			if item.Highlighted() {
-				item.Background(t.Accent)
-			}
-			item.Children(func() {
-				ui.Text(c, opt.Label).SingleLine().FontSize(13).TextColor(t.PopoverForeground)
-				if *selected == opt.Value {
-					ui.Icon(c, icons.Check()).Size(13, 13).TextColor(t.Foreground)
-				}
-			})
-		}
-	})
-	return trig
-}
-
-var cardFrameworkOptions = []selectOption{
+var cardFrameworkOptions = []coss.SelectOption[string]{
 	{Label: "Next.js", Value: "next"},
 	{Label: "Vite", Value: "vite"},
 	{Label: "Remix", Value: "remix"},
@@ -122,7 +45,7 @@ func cardProjectForm(c *ui.Context, host ui.Element) {
 		})
 		coss.Field(c, func() {
 			coss.FieldLabel(c, "Framework")
-			cossSelect(c, framework, cardFrameworkOptions)
+			coss.Select(c, framework, cardFrameworkOptions)
 		})
 		label := "Deploy"
 		if *deployed {

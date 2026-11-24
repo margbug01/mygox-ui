@@ -340,11 +340,11 @@ func flightsTable(c *ui.Context, frame func(fn func()), footer func(fn func()) u
 			footer(func() {
 				ui.Row(c).AlignItems(ui.Center).Gap(8).Children(func() {
 					ui.Text(c, "Viewing").SingleLine().TextColor(t.MutedForeground)
-					var ranges []selectOption
+					var ranges []coss.SelectOption[string]
 					for i := 0; i*pageSize < len(rows); i++ {
-						ranges = append(ranges, selectOption{Value: strconv.Itoa(i + 1), Label: fmt.Sprintf("%d-%d", i*pageSize+1, min((i+1)*pageSize, len(rows)))})
+						ranges = append(ranges, coss.SelectOption[string]{Value: strconv.Itoa(i + 1), Label: fmt.Sprintf("%d-%d", i*pageSize+1, min((i+1)*pageSize, len(rows)))})
 					}
-					cossSelect(c, page, ranges, 74)
+					coss.Select(c, page, ranges).Width(74)
 					ui.Row(c).Gap(4).Children(func() {
 						ui.Text(c, "of").SingleLine().TextColor(t.MutedForeground)
 						ui.Text(c, strconv.Itoa(len(rows))).SingleLine().FontWeight(500).TextColor(t.Foreground)

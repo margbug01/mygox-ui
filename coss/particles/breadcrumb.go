@@ -117,7 +117,7 @@ func PBreadcrumb7(c *ui.Context) {
 						{Value: "orion", Label: "Orion"},
 						{Value: "sigma", Label: "Sigma"},
 						{Value: "dorado", Label: "Dorado"},
-					})
+					}).Size(coss.SelectSM)
 				})
 			}},
 		})
@@ -199,7 +199,7 @@ func PPagination3(c *ui.Context) {
 		ui.Row(c).AlignItems(ui.Center).Gap(8).Children(func() {
 			ui.Text(c, "Viewing").TextColor(t.MutedForeground)
 			ui.Box(c).Width(76).Children(func() {
-				coss.Select(c, page, opts)
+				coss.Select(c, page, opts).Size(coss.SelectSM)
 			})
 			ui.Row(c).Gap(4).Children(func() {
 				ui.Text(c, "of").TextColor(t.MutedForeground)

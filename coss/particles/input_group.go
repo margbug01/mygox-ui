@@ -572,7 +572,7 @@ func PInputGroup26(c *ui.Context) {
 
 func PInputGroup27(c *ui.Context) {
 	t := theme.Of(c)
-	langs := []selectOption{
+	langs := []coss.SelectOption[string]{
 		{Label: "JavaScript", Value: "javascript"},
 		{Label: "TypeScript", Value: "typescript"},
 		{Label: "Python", Value: "python"},
@@ -589,7 +589,7 @@ func PInputGroup27(c *ui.Context) {
 				Padding(8).Background(theme.Alpha(t.Muted, 0.72)).
 				BorderWidth(0, 0, 1, 0).BorderColor(t.Border).
 				Children(func() {
-					cossSelect(c, lang, langs, 144).Height(28).Padding(0, 9).FontSize(14)
+					coss.Select(c, lang, langs).Size(coss.SelectSM).Width(144)
 					ic := icons.Copy()
 					tip := "Copy to clipboard"
 					if *copied {
