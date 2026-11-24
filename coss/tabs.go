@@ -13,15 +13,6 @@ const (
 	TabsUnderline
 )
 
-// TabsSize is the coss segmented-control size of the tabs.
-type TabsSize uint8
-
-const (
-	TabsSizeDefault TabsSize = iota
-	TabsSizeSM
-	TabsSizeLG
-)
-
 // TabItem defines a single tab trigger and panel.
 type TabItem struct {
 	Label string
@@ -37,7 +28,7 @@ type TabItem struct {
 // Tabs, TabsList and TabsTab.
 type TabsOptions struct {
 	Variant  TabVariant
-	Size     TabsSize
+	Size     SegmentedSize
 	Vertical bool    // orientation="vertical": list beside the panel
 	Centered bool    // items-center on the root
 	Round    bool    // [--radius:9999px]
@@ -59,15 +50,7 @@ func Tabs(c *ui.Context, selected *int, items []TabItem, o TabsOptions) ui.Eleme
 	if o.Centered {
 		root.AlignItems(ui.Center)
 	}
-	// h is the tab height and px its inline padding, the transparent
-	// 1px border included.
-	h, px := float32(30), float32(10)
-	switch o.Size {
-	case TabsSizeSM:
-		h, px = 26, 8
-	case TabsSizeLG:
-		h, px = 34, 12
-	}
+	h, px := o.Size.metrics()
 	listRadius, tabRadius := t.RadiusLG, t.RadiusMD
 	if o.Round {
 		listRadius, tabRadius = 999, 999

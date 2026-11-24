@@ -157,9 +157,9 @@ func PTabs13(c *ui.Context) {
 }
 
 func PTabs14(c *ui.Context) {
-	numberedTabs(c, coss.TabsOptions{Size: coss.TabsSizeSM}, 0)
+	numberedTabs(c, coss.TabsOptions{Size: coss.SegmentedSM}, 0)
 }
 
 func PTabs15(c *ui.Context) {
-	numberedTabs(c, coss.TabsOptions{Size: coss.TabsSizeLG}, 0)
+	numberedTabs(c, coss.TabsOptions{Size: coss.SegmentedLG}, 0)
 }

@@ -132,7 +132,7 @@ func PNavigation1(c *ui.Context) {
 			{Label: "Overview"},
 			{Label: "Activity"},
 			{Label: "Settings"},
-		})
+		}, coss.SegmentedDefault)
 	})
 }
 
@@ -144,7 +144,7 @@ func PNavigation2(c *ui.Context) {
 			{Label: "Overview"},
 			{Label: "Activity"},
 			{Label: "Settings"},
-		}).Height(28)
+		}, coss.SegmentedSM)
 	})
 }
 
@@ -156,7 +156,7 @@ func PNavigation3(c *ui.Context) {
 			{Label: "Overview"},
 			{Label: "Activity"},
 			{Label: "Settings"},
-		}).Height(38)
+		}, coss.SegmentedLG)
 	})
 }
 

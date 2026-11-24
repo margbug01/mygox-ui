@@ -144,20 +144,20 @@ func PRadioGroup6(c *ui.Context) {
 
 // billingPeriods is the coss segmented control the radio group particles
 // build: Monthly or Yearly.
-func billingPeriods(c *ui.Context) ui.Element {
+func billingPeriods(c *ui.Context, size coss.SegmentedSize) ui.Element {
 	host := ui.Box(c)
 	sel := ui.Local(host, "sel", func() int { return 0 })
 	host.Children(func() {
-		coss.SegmentedControl(c, sel, []coss.SegmentedOption{{Label: "Monthly"}, {Label: "Yearly"}})
+		coss.SegmentedControl(c, sel, []coss.SegmentedOption{{Label: "Monthly"}, {Label: "Yearly"}}, size)
 	})
 	return host
 }
 
-func PRadioGroup7(c *ui.Context) { billingPeriods(c) }
+func PRadioGroup7(c *ui.Context) { billingPeriods(c, coss.SegmentedSM) }
 
-func PRadioGroup8(c *ui.Context) { billingPeriods(c) }
+func PRadioGroup8(c *ui.Context) { billingPeriods(c, coss.SegmentedDefault) }
 
-func PRadioGroup9(c *ui.Context) { billingPeriods(c) }
+func PRadioGroup9(c *ui.Context) { billingPeriods(c, coss.SegmentedLG) }
 
 var palettes = []struct {
 	label, value string

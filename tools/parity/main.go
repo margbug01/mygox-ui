@@ -6,7 +6,9 @@
 //	go run ./tools/parity -ref ~/coss-ref -out /tmp/parity -family select,combobox
 //
 // writes out/ours/<id>.png, out/pairs/<family>__<id>.png (coss.com left,
-// mygox-ui right) and out/sheets/<family>-<n>.png, several pairs stacked.
+// mygox-ui right), out/sheets/<family>-<n>.png, several pairs stacked, and
+// out/sizes.tsv: the size of each particle's ink on both sides, the largest
+// differences first.
 // fetch-refs.mjs, run with ego-browser, fills the -ref directory.
 package main
 
@@ -49,19 +51,78 @@ func main() {
 		os.MkdirAll(filepath.Join(*out, d), 0o755)
 	}
 	var pairs []pairImage
+	var sizes []sizeRow
 	for _, e := range particles.All() {
 		if len(fams) > 0 && !slices.Contains(fams, e.Family) || len(ids) > 0 && !slices.Contains(ids, e.ID) {
 			continue
 		}
 		ours := render(e, *dark)
 		save(filepath.Join(*out, "ours", e.ID+".png"), ours)
-		p := pair(e.ID, load(filepath.Join(*ref, e.ID+".png")), ours)
+		r := load(filepath.Join(*ref, e.ID+".png"))
+		if r != nil {
+			// The coss.com card ends in a 44px footer under its panel.
+			rw, rh := ink(r, r.Bounds().Dy()-52)
+			ow, oh := ink(ours, ours.Bounds().Dy())
+			sizes = append(sizes, sizeRow{e.ID, rw, rh, ow, oh})
+		}
+		p := pair(e.ID, r, ours)
 		save(filepath.Join(*out, "pairs", e.Family+"__"+e.ID+".png"), p)
 		pairs = append(pairs, pairImage{e.Family, p})
 	}
 	slices.SortStableFunc(pairs, func(a, b pairImage) int { return strings.Compare(a.family, b.family) })
 	n := writeSheets(*out, pairs, 1500)
-	fmt.Printf("parity: %d particles, %d sheets in %s\n", len(pairs), n, filepath.Join(*out, "sheets"))
+	off := writeSizes(filepath.Join(*out, "sizes.tsv"), sizes)
+	fmt.Printf("parity: %d particles, %d sheets in %s; %d differ in size by more than 4px wide or 2px high (sizes.tsv)\n",
+		len(pairs), n, filepath.Join(*out, "sheets"), off)
+}
+
+type sizeRow struct {
+	id           string
+	refW, refH   int
+	oursW, oursH int
+}
+
+func (s sizeRow) off() int { return abs(s.oursW-s.refW) + abs(s.oursH-s.refH) }
+
+func abs(n int) int { return max(n, -n) }
+
+// writeSizes writes rows, the largest differences first, and returns how
+// many are off by more than 4px in width or 2px in height.
+func writeSizes(path string, rows []sizeRow) int {
+	slices.SortStableFunc(rows, func(a, b sizeRow) int { return b.off() - a.off() })
+	var sb strings.Builder
+	sb.WriteString("id\tref w\tref h\tours w\tours h\tdw\tdh\n")
+	n := 0
+	for _, r := range rows {
+		if abs(r.oursW-r.refW) > 4 || abs(r.oursH-r.refH) > 2 {
+			n++
+		}
+		fmt.Fprintf(&sb, "%s\t%d\t%d\t%d\t%d\t%+d\t%+d\n", r.id, r.refW, r.refH, r.oursW, r.oursH, r.oursW-r.refW, r.oursH-r.refH)
+	}
+	if err := os.WriteFile(path, []byte(sb.String()), 0o644); err != nil {
+		fmt.Fprintln(os.Stderr, "parity:", err)
+		os.Exit(1)
+	}
+	return n
+}
+
+// ink measures the box of pixels that are not near white above maxY, 8px
+// in from the edges, past the coss.com card's border.
+func ink(img image.Image, maxY int) (w, h int) {
+	b := img.Bounds()
+	x0, y0, x1, y1 := b.Max.X, b.Max.Y, -1, -1
+	for y := b.Min.Y + 8; y < b.Min.Y+maxY; y++ {
+		for x := b.Min.X + 8; x < b.Max.X-8; x++ {
+			r, g, bl, _ := img.At(x, y).RGBA()
+			if r>>8 < 0xf4 || g>>8 < 0xf4 || bl>>8 < 0xf4 {
+				x0, y0, x1, y1 = min(x0, x), min(y0, y), max(x1, x), max(y1, y)
+			}
+		}
+	}
+	if x1 < 0 {
+		return 0, 0
+	}
+	return x1 - x0 + 1, y1 - y0 + 1
 }
 
 func split(s string) []string {
