@@ -1,81 +1,87 @@
 package coss
 
 import (
-	"strings"
-
 	"github.com/egoist/mygo/ui"
 	"github.com/margbug01/mygox-ui/coss/theme"
 )
 
-// Autocomplete renders a coss-styled filterable suggestion input built on ui.ComboboxBase.
-func Autocomplete(c *ui.Context, text *string, items []string, placeholder ...string) ui.Element {
+// AutocompleteProps are ui/autocomplete.tsx's AutocompleteInput options.
+// The zero value is a default-size input with no buttons.
+type AutocompleteProps struct {
+	Size        InputSize
+	Placeholder string
+	// StartIcon shows before the text, as startAddon.
+	StartIcon *ui.SVG
+	// ShowClear adds a button clearing the text while there is text.
+	ShowClear bool
+	// ShowTrigger adds the chevrons toggling the popup.
+	ShowTrigger bool
+	Disabled    bool
+}
+
+// AutocompleteInput builds an autocomplete editing *text, framed as an
+// Input; it is a ComboboxInput whose trigger is hidden by default.
+func AutocompleteInput(c *ui.Context, text *string, p AutocompleteProps) ComboboxInputElement {
+	return ComboboxInput(c, text, ComboboxInputProps{
+		Size:        p.Size,
+		Placeholder: p.Placeholder,
+		StartIcon:   p.StartIcon,
+		ShowClear:   p.ShowClear,
+		HideTrigger: !p.ShowTrigger,
+		Disabled:    p.Disabled,
+	})
+}
+
+// AutocompleteStatus shows fn's status line (result count, loading) in an
+// autocomplete's popup, as ui/autocomplete.tsx's AutocompleteStatus.
+func AutocompleteStatus(c *ui.Context, fn func()) ui.Element {
 	t := theme.Of(c)
-	ph := "Search…"
-	if len(placeholder) > 0 && placeholder[0] != "" {
+	return ui.Row(c).WidthPercent(100).Padding(8, 12).AlignItems(ui.Center).
+		FontSize(12).FontWeight(500).TextColor(t.MutedForeground).Children(fn)
+}
+
+// AutocompleteItem builds the suggestion filling in value, showing fn's
+// content; unlike ComboboxItem it has no check column.
+func AutocompleteItem(c *ui.Context, parts ui.ComboboxParts, value string, fn func()) ui.Element {
+	t := theme.Of(c)
+	item := parts.Item(value).
+		WidthPercent(100).
+		MinHeight(28).
+		Padding(4, 8).
+		Radius(t.RadiusSM).
+		AlignItems(ui.Center).
+		FontSize(14)
+	if item.Highlighted() || item.Hovered() {
+		item.Background(t.Accent).TextColor(t.AccentForeground)
+	}
+	return item.Children(fn)
+}
+
+// Autocomplete renders an autocomplete over items: an input whose popup
+// suggests the items matching its text.
+func Autocomplete(c *ui.Context, text *string, items []string, placeholder ...string) ui.Element {
+	ph := ""
+	if len(placeholder) > 0 {
 		ph = placeholder[0]
 	}
+	return AutocompleteWith(c, text, items, AutocompleteProps{Placeholder: ph}, "No items found.")
+}
 
-	parts := ui.ComboboxBase(c, text)
-	bg := t.Background
-	if t.Dark {
-		bg = theme.Alpha(t.Input, 0.32)
-	}
-	in := parts.Input.
-		WidthPercent(100).
-		Height(32).
-		Padding(0, 10).
-		Radius(t.RadiusLG).
-		Background(bg).
-		Border(1, t.Input).
-		TextColor(t.Foreground).
-		Placeholder(ph).
-		PlaceholderColor(theme.Alpha(t.MutedForeground, 0.72)).
-		FontSize(14).
-		FocusRingColor(t.Ring)
-
-	query := ""
-	if text != nil {
-		query = strings.ToLower(strings.TrimSpace(*text))
-	}
-	var filtered []string
-	for _, item := range items {
-		if query == "" || strings.Contains(strings.ToLower(item), query) {
-			filtered = append(filtered, item)
+// AutocompleteWith is Autocomplete with the input options p and the text
+// shown when nothing matches.
+func AutocompleteWith(c *ui.Context, text *string, items []string, p AutocompleteProps, empty string) ui.Element {
+	ac := AutocompleteInput(c, text, p)
+	matches := ComboboxFilter(ac.Parts, *text, items)
+	ComboboxPopup(c, ac.Parts, func() {
+		if len(matches) == 0 {
+			ComboboxEmpty(c, empty)
 		}
-	}
-
-	parts.Popup(func(panel ui.Element) {
-		panel.
-			MinWidth(200).
-			MaxHeight(220).
-			Padding(4).
-			Gap(2).
-			Radius(t.RadiusXL).
-			Background(t.Popover).
-			Border(1, t.Border).
-			Shadow(0, 8, 24, 0, theme.Alpha(ui.RGB(0, 0, 0), 0.16)).
-			Children(func() {
-				if len(filtered) == 0 {
-					ui.Text(c, "No results found.").FontSize(13).TextColor(t.MutedForeground).Padding(8, 10)
-					return
-				}
-				for _, val := range filtered {
-					row := parts.Item(val).
-						WidthPercent(100).
-						Height(30).
-						Padding(0, 8).
-						Radius(t.RadiusMD).
-						AlignItems(ui.Center).
-						Cursor(ui.CursorPointer)
-					if row.Hovered() {
-						row.Background(t.Accent)
-					}
-					row.Children(func() {
-						ui.Text(c, val).FontSize(13).TextColor(t.PopoverForeground).SingleLine()
-					})
-				}
-			})
+		for _, it := range matches {
+			AutocompleteItem(c, ac.Parts, it, func() { ui.Text(c, it).SingleLine() })
+		}
 	})
-
-	return in
+	if v, ok := ac.Parts.Chosen(); ok {
+		*text = v
+	}
+	return ac.Element
 }

@@ -111,6 +111,10 @@ func ComboboxInput(c *ui.Context, text *string, p ComboboxInputProps) ComboboxIn
 			FontSize(14).
 			Disabled(p.Disabled).
 			DimDisabled(false)
+		if p.Disabled {
+			// The row's opacity does not reach the native input's text.
+			parts.Input.Opacity(0.64)
+		}
 		if !clear && p.HideTrigger {
 			return
 		}
