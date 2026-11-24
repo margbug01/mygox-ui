@@ -529,15 +529,15 @@ func PCombobox18(c *ui.Context) {
 }
 
 type cbMember struct {
-	avatar                    *ui.SVG
+	avatar                    ui.ImageSource
 	initials, label, priority string
 	weight                    int
 }
 
 var cbTeam = []cbMember{
-	{avatarPortrait1, "JH", "Jenny Hamilton", "Highest", 200},
-	{avatarPortrait2, "PS", "Paul Smith", "Medium", 100},
-	{avatarPortrait3, "LW", "Luna Wyen", "High", 150},
+	{avatarFK, "JH", "Jenny Hamilton", "Highest", 200},
+	{avatarNE, "PS", "Paul Smith", "Medium", 100},
+	{avatarEW, "LW", "Luna Wyen", "High", 150},
 	{nil, "AC", "Alex Chen", "Low", 100},
 	{nil, "SJ", "Sarah Johnson", "Medium", 50},
 	{nil, "ED", "Emma Davis", "Lowest", 100},

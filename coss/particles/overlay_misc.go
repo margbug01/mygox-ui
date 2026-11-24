@@ -94,7 +94,7 @@ func PPopover3(c *ui.Context) {
 		coss.Popover(c, b2.Element, profOpen, func() {
 			ui.Column(c).Width(192).Children(func() {
 				ui.Row(c).AlignItems(ui.Center).Gap(12).Children(func() {
-					coss.Avatar(c, "MA").Image(avatarPortrait2)
+					coss.Avatar(c, "MA").Image(avatarNE)
 					ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 						ui.Text(c, "Mark Andersson").FontWeight(500).SingleLine()
 						ui.Text(c, "Product Designer").FontSize(12).FixedLineHeight(16).TextColor(t.MutedForeground)

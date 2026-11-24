@@ -195,7 +195,7 @@ func PButton27(c *ui.Context) {
 
 func PButton28(c *ui.Context) {
 	btn := coss.ButtonBox(c, func() {
-		coss.Avatar(c, "LT").Size(24).Image(avatarPortrait1)
+		coss.Avatar(c, "LT").Size(24).Image(avatarFK)
 		ui.Text(c, "@georgelucas").FontSize(14).FontWeight(500)
 	}).Round()
 	btn.Padding(0, 12, 0, 4)

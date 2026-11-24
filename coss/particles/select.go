@@ -461,12 +461,12 @@ func PSelect18(c *ui.Context) {
 }
 
 var selectUsers = []struct {
-	avatar                           *ui.SVG
+	avatar                           ui.ImageSource
 	initials, label, username, value string
 }{
-	{avatarPortrait1, "JH", "Jenny Hamilton", "@jennycodes", "jenny"},
-	{avatarPortrait2, "PS", "Paul Smith", "@paulsmith", "paul"},
-	{avatarPortrait3, "LW", "Luna Wyen", "@wyen.luna", "luna"},
+	{avatarFK, "JH", "Jenny Hamilton", "@jennycodes", "jenny"},
+	{avatarNE, "PS", "Paul Smith", "@paulsmith", "paul"},
+	{avatarEW, "LW", "Luna Wyen", "@wyen.luna", "luna"},
 }
 
 func PSelect19(c *ui.Context) {
