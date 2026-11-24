@@ -117,25 +117,33 @@ func SelectValue(c *ui.Context, label, placeholder string) ui.Element {
 // SelectPopup builds the select's popup panel and the options fn adds with
 // SelectItem, SelectGroupLabel and SelectSeparator.
 func SelectPopup[T comparable](c *ui.Context, parts ui.SelectParts[T], fn func()) {
+	parts.Popup(func(panel ui.Element) { stylePopupPanel(c, panel).Padding(4).Children(fn) })
+}
+
+// stylePopupPanel gives a select or combobox popup its frame: rounded-lg,
+// border, bg-popover, shadow-lg/5.
+func stylePopupPanel(c *ui.Context, panel ui.Element) ui.Element {
 	t := theme.Of(c)
-	parts.Popup(func(panel ui.Element) {
-		panel.
-			Padding(4).
-			Radius(t.RadiusLG).
-			Background(t.Popover).
-			TextColor(t.PopoverForeground).
-			Border(1, t.Border).
-			Shadow(0, 10, 15, -3, theme.Alpha(ui.RGB(0, 0, 0), 0.05)).
-			Shadow(0, 4, 6, -4, theme.Alpha(ui.RGB(0, 0, 0), 0.05)).
-			Children(fn)
-	})
+	return panel.
+		Radius(t.RadiusLG).
+		Background(t.Popover).
+		TextColor(t.PopoverForeground).
+		Border(1, t.Border).
+		Shadow(0, 10, 15, -3, theme.Alpha(ui.RGB(0, 0, 0), 0.05)).
+		Shadow(0, 4, 6, -4, theme.Alpha(ui.RGB(0, 0, 0), 0.05))
 }
 
 // SelectItem builds the option for value: a check column marking the
 // chosen one, then fn's content. A disabled option shows at 0.64 opacity.
 func SelectItem[T comparable](c *ui.Context, parts ui.SelectParts[T], value T, checked, disabled bool, fn func()) ui.Element {
+	return styleOptionItem(c, parts.Item(value), checked, disabled, fn)
+}
+
+// styleOptionItem lays out a select or combobox option: a check column,
+// then fn's content, highlighted with the accent.
+func styleOptionItem(c *ui.Context, item ui.Element, checked, disabled bool, fn func()) ui.Element {
 	t := theme.Of(c)
-	item := parts.Item(value).
+	item.
 		WidthPercent(100).
 		MinHeight(28).
 		Padding(4, 16, 4, 8).
@@ -147,7 +155,7 @@ func SelectItem[T comparable](c *ui.Context, parts ui.SelectParts[T], value T, c
 		DimDisabled(false)
 	if disabled {
 		item.Opacity(0.64)
-	} else if item.Highlighted() {
+	} else if item.Highlighted() || item.Hovered() {
 		item.Background(t.Accent).TextColor(t.AccentForeground)
 	}
 	item.Children(func() {
