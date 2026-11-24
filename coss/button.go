@@ -286,6 +286,9 @@ func (b *ButtonElement) applyStyle() {
 	white := ui.RGB(255, 255, 255)
 	black := ui.RGB(0, 0, 0)
 
+	// Shadows stack in MyGo and applyStyle runs on every setter: start
+	// afresh so a variant set after Button() drops the default's shadow.
+	e.NoShadow()
 	switch b.variant {
 	case ButtonDefault:
 		bg := t.Primary
