@@ -51,8 +51,8 @@ func InputGroupTextarea(c *ui.Context, value *string) ui.Element {
 	t := theme.Of(c)
 	return ui.TextAreaBase(c, value).
 		WidthPercent(100).
-		MinHeight(64).
-		Padding(8, 10).
+		MinHeight(82).
+		Padding(11).
 		Background(ui.Transparent).
 		TextColor(t.Foreground).
 		PlaceholderColor(theme.Alpha(t.MutedForeground, 0.72)).
