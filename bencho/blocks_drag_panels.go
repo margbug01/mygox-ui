@@ -332,7 +332,7 @@ func PathPanel(c *ui.Context, opts ...PathPanelOptions) ui.Element {
 			dotY := gRect.Y + (1-dotV)*gRect.H
 			dpnFillCircle(p, dotX, dotY, 7.5, accent.Alpha(0.22))
 			dpnFillCircle(p, dotX, dotY, 3.8, accent)
-			dpnFillCircle(p, dotX, dotY, 1.6, ui.Hex("#ffffff"))
+			dpnFillCircle(p, dotX, dotY, 1.6, t.AccentText)
 
 			// Draggable handle P1.
 			r1 := 5.5 + p1Scale*2.2
@@ -369,7 +369,7 @@ func PathPanel(c *ui.Context, opts ...PathPanelOptions) ui.Element {
 			pxDot = clamp32(pxDot, r.X+6, r.X+r.W-6)
 			p.Line(r.X+margin, r.Y+r.H*0.5, pxDot, r.Y+r.H*0.5, 2.5, accent.Alpha(0.55))
 			dpnFillCircle(p, pxDot, r.Y+r.H*0.5, 5, accent)
-			dpnFillCircle(p, pxDot, r.Y+r.H*0.5, 2, ui.Hex("#ffffff"))
+			dpnFillCircle(p, pxDot, r.Y+r.H*0.5, 2, t.AccentText)
 		})
 	})
 
@@ -1433,14 +1433,14 @@ func ResizeFrame(c *ui.Context, opts ...ResizeFrameOptions) ui.Element {
 			dpnFillCircle(p, cx, cy, rad+5, accent.Alpha(0.20*activeAmt))
 		}
 		dpnFillCircle(p, cx, cy, rad, accent)
-		p.Line(cx-2.5, cy+1.5, cx+1.5, cy-2.5, 1.4, ui.Hex("#ffffff"))
-		p.Line(cx+0.2, cy+2.5, cx+2.5, cy+0.2, 1.4, ui.Hex("#ffffff"))
+		p.Line(cx-2.5, cy+1.5, cx+1.5, cy-2.5, 1.4, t.AccentText)
+		p.Line(cx+0.2, cy+2.5, cx+2.5, cy+0.2, 1.4, t.AccentText)
 
 		// Live W × H dimension badge below frame.
 		badgeTxt := fmt.Sprintf("%.0f × %.0f", st.frameW, st.frameH)
 		badgeX := clamp32(fRect.X+fRect.W*0.5, r.X+40, r.X+r.W-40)
 		badgeY := clamp32(fRect.Y+fRect.H+13, r.Y+20, r.Y+r.H-10)
-		dpnDrawPillBadge(p, badgeX, badgeY, badgeTxt, 9.5, 700, accent, ui.Color{}, ui.Hex("#ffffff"))
+		dpnDrawPillBadge(p, badgeX, badgeY, badgeTxt, 9.5, 700, accent, ui.Color{}, t.AccentText)
 	})
 
 	return stage

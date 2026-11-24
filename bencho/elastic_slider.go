@@ -166,8 +166,8 @@ func ElasticSlider(c *ui.Context, value *float32, opts ...ElasticSliderOptions) 
 				W: 3.5,
 				H: knobH,
 			}
-			knobCol := ui.Hex("#ffffff").Alpha(0.85)
-			if frac < 0.12 && !t.Dark {
+			knobCol := t.AccentText.Alpha(0.88)
+			if frac < 0.12 {
 				knobCol = t.TextMuted.Alpha(0.65)
 			}
 			p.Fill(knobRect, knobCol, 2)

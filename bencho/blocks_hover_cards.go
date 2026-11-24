@@ -1756,7 +1756,7 @@ func RadialPopOut(c *ui.Context, opts ...RadialPopOutOptions) ui.Element {
 			ui.Text(c, "+").
 				FontSize(20).
 				FontWeight(600).
-				TextColor(lerpColor(t.Text, ui.Hex("#ffffff"), open)).
+				TextColor(lerpColor(t.Text, t.AccentText, open)).
 				Transform(ui.Rotation(45 * open)).
 				SingleLine()
 		})

@@ -2041,7 +2041,7 @@ func HubDiagram(c *ui.Context, opts ...HubDiagramOptions) ui.Element {
 			hubRect := ui.Rect{X: cx - hubR, Y: cy - hubR, W: hubR * 2, H: hubR * 2}
 			p.Fill(hubRect, t.Accent, hubR)
 			p.Stroke(hubRect, ui.Hex("#ffffff").Alpha(0.35), hubR, 1.2)
-			p.Text(cx-float32(len(o.HubLabel))*2.9, cy-5.2, o.HubLabel, 9.5, ui.Hex("#ffffff"))
+			p.Text(cx-float32(len(o.HubLabel))*2.9, cy-5.2, o.HubLabel, 9.5, t.AccentText)
 
 			// Surrounding spoke badges.
 			for i, sp := range spokes {

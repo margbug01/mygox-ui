@@ -163,12 +163,12 @@ func StandingCalendar(c *ui.Context, opts ...StandingCalendarOptions) ui.Element
 					ui.Text(c, o.Month).
 						FontSize(12).
 						FontWeight(700).
-						TextColor(ui.Hex("#ffffff")).
+						TextColor(t.AccentText).
 						Unselectable()
 					ui.Text(c, weekday).
 						FontSize(10).
 						FontWeight(600).
-						TextColor(ui.Hex("#ffffff").Alpha(0.85)).
+						TextColor(t.AccentText.Alpha(0.85)).
 						Unselectable()
 				})
 
@@ -754,7 +754,7 @@ func VoiceChat(c *ui.Context, opts ...VoiceChatOptions) ui.Element {
 				joinLabel = "Join Room"
 				joinBg = t.Accent
 				joinBorder = t.Accent
-				joinText = ui.Hex("#ffffff")
+				joinText = t.AccentText
 			}
 			joinBtn := ui.Row(c).
 				Key("vc_join").
@@ -1154,7 +1154,7 @@ func GenerateButton(c *ui.Context, opts ...GenerateOptions) ui.Element {
 			borderCol = t.Accent.Alpha(0.70)
 		} else if justFinished {
 			bg = t.Accent
-			textCol = ui.Hex("#ffffff")
+			textCol = t.AccentText
 			borderCol = t.Accent
 		}
 
@@ -1445,7 +1445,7 @@ func StepPlayer(c *ui.Context, opts ...StepPlayerOptions) ui.Element {
 
 				playLbl := "Play"
 				playBg := accent
-				playCol := ui.Hex("#ffffff")
+				playCol := t.AccentText
 				if st.playing {
 					playLbl = "Pause"
 					playBg = t.SurfaceSubtle

@@ -758,8 +758,8 @@ func DateReel(c *ui.Context, selected *int, opts ...DateReelOptions) ui.Element 
 				activeAmt := clamp32(1-absDiff*1.15, 0, 1)
 				fade := clamp32(1-absDiff*0.24, 0.25, 1)
 
-				wkCol := lerpColor(t.TextSubtle.Alpha(fade), ui.Hex("#ffffff").Alpha(0.85), activeAmt)
-				numCol := lerpColor(t.Text.Alpha(fade), ui.Hex("#ffffff"), activeAmt)
+				wkCol := lerpColor(t.TextSubtle.Alpha(fade), t.AccentText.Alpha(0.85), activeAmt)
+				numCol := lerpColor(t.Text.Alpha(fade), t.AccentText, activeAmt)
 
 				wkW, _ := p.MeasureText(40, ui.Span{Text: d.Weekday, Size: 10})
 				p.Text(x-wkW*0.5, r.Y+24, d.Weekday, 10, wkCol)
@@ -770,7 +770,7 @@ func DateReel(c *ui.Context, selected *int, opts ...DateReelOptions) ui.Element 
 				p.Text(x-numW*0.5, r.Y+45, dayStr, numSize, numCol)
 
 				if d.HasEvent {
-					dotCol := lerpColor(t.Accent.Alpha(fade), ui.Hex("#ffffff"), activeAmt)
+					dotCol := lerpColor(t.Accent.Alpha(fade), t.AccentText, activeAmt)
 					p.Fill(ui.Rect{X: x - 2, Y: r.Y + 54, W: 4, H: 4}, dotCol, 2)
 				}
 			}
@@ -1128,7 +1128,7 @@ func TimeScrubber(c *ui.Context, sec *float32, opts ...TimeScrubberOptions) ui.E
 			pillFg := t.Background
 			if active {
 				pillBg = t.Accent
-				pillFg = ui.Hex("#ffffff")
+				pillFg = t.AccentText
 			}
 			p.Fill(ui.Rect{X: pillX, Y: pillY, W: pillW, H: pillH}, pillBg, 999)
 			tw, _ := p.MeasureText(pillW, ui.Span{Text: timeText, Size: 10})
@@ -2210,7 +2210,7 @@ func DynamicIsland(c *ui.Context, mode *DynamicIslandMode, opts ...DynamicIsland
 				btnBorder := t.Border
 				if activeMode {
 					btnBg = t.Accent
-					btnFg = ui.Hex("#ffffff")
+					btnFg = t.AccentText
 					btnBorder = t.Accent
 				}
 				btn := ui.Box(c).
@@ -2320,7 +2320,7 @@ func NowPlaying(c *ui.Context, opts ...NowPlayingOptions) ui.Element {
 				playBtn.Scale(sc, sc)
 				playing := st.playing
 				playBtn.Draw(func(p *ui.Painter, r ui.Rect) {
-					drawPlayGlyph(p, r.X+r.W*0.5, r.Y+r.H*0.5, 13, playing, ui.Hex("#ffffff"))
+					drawPlayGlyph(p, r.X+r.W*0.5, r.Y+r.H*0.5, 13, playing, t.AccentText)
 				})
 				if playBtn.Clicked() {
 					st.playing = !st.playing
@@ -2380,7 +2380,7 @@ func NowPlaying(c *ui.Context, opts ...NowPlayingOptions) ui.Element {
 				thumbR = 7
 			}
 			tx := clamp32(r.X+fillW, r.X+thumbR, r.X+r.W-thumbR)
-			p.Fill(ui.Rect{X: tx - thumbR, Y: cy - thumbR, W: thumbR * 2, H: thumbR * 2}, ui.Hex("#ffffff"), thumbR)
+			p.Fill(ui.Rect{X: tx - thumbR, Y: cy - thumbR, W: thumbR * 2, H: thumbR * 2}, t.Surface, thumbR)
 			p.Stroke(ui.Rect{X: tx - thumbR, Y: cy - thumbR, W: thumbR * 2, H: thumbR * 2}, accent, thumbR, 2)
 		})
 	})

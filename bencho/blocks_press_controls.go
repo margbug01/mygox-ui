@@ -629,7 +629,7 @@ func SeatMap(c *ui.Context, opts ...SeatMapOptions) ui.Element {
 						default:
 							bg := lerpColor(t.SurfaceSubtle, t.Accent, selProg)
 							bdr := lerpColor(t.BorderStrong, t.Accent, selProg)
-							txtCol := lerpColor(t.TextMuted, ui.Hex("#ffffff"), selProg)
+							txtCol := lerpColor(t.TextMuted, t.AccentText, selProg)
 							seat.Background(bg).
 								Border(1, bdr).
 								Scale(sc, sc).
@@ -1695,11 +1695,11 @@ func ProgressTracker(c *ui.Context, step *int, opts ...ProgressTrackerOptions) u
 						p.Stroke(ui.Rect{X: cx - rad, Y: cy - rad, W: rad * 2, H: rad * 2}, bdr, rad, 1.2)
 
 						if doneP > 0.15 {
-							pcStrokeCheck(p, cx, cy, 10, 1.8, doneP, ui.Hex("#ffffff"))
+							pcStrokeCheck(p, cx, cy, 10, 1.8, doneP, t.AccentText)
 						} else {
 							num := fmt.Sprintf("%d", idx+1)
 							tw, th := p.MeasureText(0, ui.Span{Text: num, Size: 10, Weight: 700})
-							fg := lerpColor(t.TextMuted, ui.Hex("#ffffff"), actP)
+							fg := lerpColor(t.TextMuted, t.AccentText, actP)
 							p.Text(cx-tw*0.5, cy-th*0.5, num, 10, fg)
 						}
 					})

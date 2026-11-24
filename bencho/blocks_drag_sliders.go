@@ -415,7 +415,7 @@ func WaveTrim(c *ui.Context, startSec, endSec *float32, opts ...WaveTrimOptions)
 				p.Fill(hRect, accent, 5)
 				gripH := float32(16)
 				gripX := rx + hw*0.5 - 1
-				p.Fill(ui.Rect{X: gripX, Y: hy + (hh-gripH)*0.5, W: 2, H: gripH}, ui.Hex("#ffffff").Alpha(0.92), 1)
+				p.Fill(ui.Rect{X: gripX, Y: hy + (hh-gripH)*0.5, W: 2, H: gripH}, t.AccentText.Alpha(0.92), 1)
 			}
 			drawHandle(selL, leftScale, true)
 			drawHandle(selR, rightScale, false)
@@ -635,7 +635,7 @@ func ScoreGauge(c *ui.Context, score *float32, opts ...ScoreGaugeOptions) ui.Ele
 		kr := 8.5 + knobBoost*2.5
 		kRect := ui.Rect{X: kx - kr, Y: ky - kr, W: kr * 2, H: kr * 2}
 		p.Shadow(kRect, kr, 0, 2, 6, 0, t.Shadow)
-		p.Fill(kRect, ui.Hex("#ffffff"), kr)
+		p.Fill(kRect, t.Surface, kr)
 		p.Stroke(kRect, arcCol, kr, 2.5)
 
 		// Center numeric readout & status tier
@@ -1249,7 +1249,7 @@ func BudgetSlider(c *ui.Context, amount *float32, opts ...BudgetSliderOptions) u
 			tr := 10.5 + thumbPop*2.5
 			tRect := ui.Rect{X: tx - tr, Y: midY - tr, W: tr * 2, H: tr * 2}
 			p.Shadow(tRect, tr, 0, 2, 7, 0, t.Shadow)
-			p.Fill(tRect, ui.Hex("#ffffff"), tr)
+			p.Fill(tRect, t.Surface, tr)
 			p.Stroke(tRect, tierCol, tr, 2.5)
 			innerR := float32(3.2)
 			p.Fill(ui.Rect{X: tx - innerR, Y: midY - innerR, W: innerR * 2, H: innerR * 2}, tierCol, innerR)
@@ -1778,7 +1778,7 @@ func DualRangeSlider(c *ui.Context, low, high *float32, opts ...DualRangeOptions
 				tr := 9.5 + pop*2.5
 				tRect := ui.Rect{X: tx - tr, Y: trackY - tr, W: tr * 2, H: tr * 2}
 				p.Shadow(tRect, tr, 0, 2, 6, 0, t.Shadow)
-				p.Fill(tRect, ui.Hex("#ffffff"), tr)
+				p.Fill(tRect, t.Surface, tr)
 				p.Stroke(tRect, accent, tr, 2.5)
 			}
 			drawThumb(xL, lowPop)
@@ -2374,7 +2374,7 @@ func SegmentTimer(c *ui.Context, minutes *int, opts ...SegmentTimerOptions) ui.E
 		kr := 5.5 + knobBoost*2.0
 		kRect := ui.Rect{X: kx - kr, Y: ky - kr, W: kr * 2, H: kr * 2}
 		p.Shadow(kRect, kr, 0, 1, 5, 0, t.Shadow)
-		p.Fill(kRect, ui.Hex("#ffffff"), kr)
+		p.Fill(kRect, t.Surface, kr)
 		p.Stroke(kRect, accent, kr, 2)
 
 		// Center readout
@@ -2663,7 +2663,7 @@ func WorldClock(c *ui.Context, offsetHours *float32, opts ...WorldClockOptions) 
 			kr := float32(9)
 			kRect := ui.Rect{X: kx - kr, Y: midY - kr, W: kr * 2, H: kr * 2}
 			p.Shadow(kRect, kr, 0, 2, 5, 0, t.Shadow)
-			p.Fill(kRect, ui.Hex("#ffffff"), kr)
+			p.Fill(kRect, t.Surface, kr)
 			p.Stroke(kRect, accent, kr, 2.2)
 		})
 	})

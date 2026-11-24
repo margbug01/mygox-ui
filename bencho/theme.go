@@ -1,6 +1,6 @@
 // Package bencho provides native GPU-rendered interactive UI blocks and
-// micro-interactions for MyGo (github.com/egoist/mygo), modeled after the
-// block catalog at bencho.dev.
+// micro-interactions for MyGo (github.com/egoist/mygo), styled in the same
+// restrained monochrome neutral zinc palette as mygox-ui/coss and mygox-ui/motion.
 package bencho
 
 import (
@@ -23,6 +23,7 @@ type Theme struct {
 	TextMuted     ui.Color
 	TextSubtle    ui.Color
 	Accent        ui.Color
+	AccentText    ui.Color
 	AccentSoft    ui.Color
 	Success       ui.Color
 	Warning       ui.Color
@@ -30,47 +31,49 @@ type Theme struct {
 	Shadow        ui.Color
 }
 
-// LightTheme returns the paper-light Bencho studio palette.
+// LightTheme returns the crisp monochrome light zinc palette aligned with coss and motion.
 func LightTheme() Theme {
 	return Theme{
 		Dark:          false,
-		Background:    ui.Hex("#f7f7f5"),
+		Background:    ui.Hex("#ffffff"),
 		Surface:       ui.Hex("#ffffff"),
-		SurfaceSubtle: ui.Hex("#f0f0ed"),
-		SurfaceHover:  ui.Hex("#e7e7e2"),
-		Border:        ui.Hex("#e5e5e0"),
-		BorderStrong:  ui.Hex("#cfcfc8"),
-		Text:          ui.Hex("#111111"),
-		TextMuted:     ui.Hex("#555552"),
-		TextSubtle:    ui.Hex("#82827c"),
-		Accent:        ui.Hex("#5865ff"),
-		AccentSoft:    ui.Hex("#5865ff").Alpha(0.12),
-		Success:       ui.Hex("#16a34a"),
-		Warning:       ui.Hex("#d97706"),
-		Danger:        ui.Hex("#dc2626"),
-		Shadow:        ui.RGBA(17, 17, 17, 0.08),
+		SurfaceSubtle: ui.Hex("#f4f4f5"),
+		SurfaceHover:  ui.Hex("#e4e4e7"),
+		Border:        ui.Hex("#e4e4e7"),
+		BorderStrong:  ui.Hex("#d4d4d8"),
+		Text:          ui.Hex("#18181b"),
+		TextMuted:     ui.Hex("#52525b"),
+		TextSubtle:    ui.Hex("#71717a"),
+		Accent:        ui.Hex("#18181b"),
+		AccentText:    ui.Hex("#fafafa"),
+		AccentSoft:    ui.RGBA(24, 24, 27, 0.07),
+		Success:       ui.Hex("#00bc7d"),
+		Warning:       ui.Hex("#fe9a00"),
+		Danger:        ui.Hex("#fb2c36"),
+		Shadow:        ui.RGBA(9, 9, 11, 0.08),
 	}
 }
 
-// DarkTheme returns the neutral obsidian Bencho dark palette.
+// DarkTheme returns the restrained neutral dark zinc palette aligned with coss and motion.
 func DarkTheme() Theme {
 	return Theme{
 		Dark:          true,
-		Background:    ui.Hex("#0a0a0a"),
-		Surface:       ui.Hex("#141414"),
-		SurfaceSubtle: ui.Hex("#1c1c1c"),
-		SurfaceHover:  ui.Hex("#262626"),
-		Border:        ui.Hex("#242424"),
-		BorderStrong:  ui.Hex("#383838"),
+		Background:    ui.Hex("#161616"),
+		Surface:       ui.Hex("#1c1c1e"),
+		SurfaceSubtle: ui.Hex("#242427"),
+		SurfaceHover:  ui.Hex("#2e2e32"),
+		Border:        ui.RGBA(255, 255, 255, 0.08),
+		BorderStrong:  ui.RGBA(255, 255, 255, 0.16),
 		Text:          ui.Hex("#f5f5f5"),
-		TextMuted:     ui.Hex("#a3a3a3"),
-		TextSubtle:    ui.Hex("#737373"),
-		Accent:        ui.Hex("#7c8bff"),
-		AccentSoft:    ui.Hex("#7c8bff").Alpha(0.18),
-		Success:       ui.Hex("#22c55e"),
-		Warning:       ui.Hex("#f59e0b"),
-		Danger:        ui.Hex("#ef4444"),
-		Shadow:        ui.RGBA(0, 0, 0, 0.50),
+		TextMuted:     ui.Hex("#a1a1aa"),
+		TextSubtle:    ui.Hex("#71717a"),
+		Accent:        ui.Hex("#f4f4f5"),
+		AccentText:    ui.Hex("#09090b"),
+		AccentSoft:    ui.RGBA(255, 255, 255, 0.10),
+		Success:       ui.Hex("#00bc7d"),
+		Warning:       ui.Hex("#fe9a00"),
+		Danger:        ui.Hex("#ff6467"),
+		Shadow:        ui.RGBA(0, 0, 0, 0.48),
 	}
 }
 
@@ -100,8 +103,8 @@ func ApplyTheme(c *ui.Context, dark bool) Theme {
 	base.Text = t.Text
 	base.TextMuted = t.TextMuted
 	base.Accent = t.Accent
-	base.AccentHover = t.Accent
-	base.AccentText = ui.Hex("#ffffff")
+	base.AccentHover = t.BorderStrong
+	base.AccentText = t.AccentText
 	base.Radius = 10
 	c.SetTheme(base)
 	return t

@@ -1540,7 +1540,7 @@ func SelectionActions(c *ui.Context, items []SelectableItem, selected map[string
 							Border(1, boxBorder)
 						if isSel {
 							cb.Draw(func(p *ui.Painter, r ui.Rect) {
-								drawCheckmark(p, r, ui.Hex("#ffffff"))
+								drawCheckmark(p, r, t.AccentText)
 							})
 						}
 						txtCol := t.Text
@@ -1585,7 +1585,7 @@ func SelectionActions(c *ui.Context, items []SelectableItem, selected map[string
 
 			bar.Children(func() {
 				ui.Box(c).Padding(2, 6).Radius(999).Background(accent).Children(func() {
-					ui.Text(c, fmt.Sprintf("%d", selCount)).FontSize(10.5).FontWeight(700).TextColor(ui.Hex("#ffffff"))
+					ui.Text(c, fmt.Sprintf("%d", selCount)).FontSize(10.5).FontWeight(700).TextColor(t.AccentText)
 				})
 
 				ui.Row(c).AlignItems(ui.Center).Gap(4).Children(func() {
@@ -1941,7 +1941,7 @@ func AccessRequest(c *ui.Context, phase *AccessRequestPhase, opts ...AccessReque
 					Background(accent).
 					Cursor(ui.CursorPointer)
 				approveBtn.Children(func() {
-					ui.Text(c, "Approve").FontSize(12).FontWeight(600).TextColor(ui.Hex("#ffffff"))
+					ui.Text(c, "Approve").FontSize(12).FontWeight(600).TextColor(t.AccentText)
 				})
 				if approveBtn.Clicked() {
 					setPhase(AccessRequestApproved)

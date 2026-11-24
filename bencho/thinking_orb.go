@@ -32,9 +32,17 @@ func ThinkingOrb(c *ui.Context, opts ...ThinkingOrbOptions) ui.Element {
 	if o.Size <= 0 {
 		o.Size = 112
 	}
-	colA := colorOr(o.ColorA, t.Accent)
-	colB := colorOr(o.ColorB, ui.Hex("#38bdf8"))
-	colC := colorOr(o.ColorC, ui.Hex("#a855f7"))
+	defaultA := ui.Hex("#3f3f46")
+	defaultB := ui.Hex("#a1a1aa")
+	defaultC := ui.Hex("#18181b")
+	if t.Dark {
+		defaultA = ui.Hex("#71717a")
+		defaultB = ui.Hex("#e4e4e7")
+		defaultC = ui.Hex("#27272a")
+	}
+	colA := colorOr(o.ColorA, defaultA)
+	colB := colorOr(o.ColorB, defaultB)
+	colC := colorOr(o.ColorC, defaultC)
 
 	stageSize := o.Size + 36
 	wrap := ui.Column(c).

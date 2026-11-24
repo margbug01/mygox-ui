@@ -44,7 +44,7 @@ func pmPillButton(c *ui.Context, t Theme, label string, primary bool) ui.Element
 	border := t.BorderStrong
 	if primary {
 		bg = t.Accent
-		fg = ui.Hex("#ffffff")
+		fg = t.AccentText
 		border = t.Accent
 	}
 	btn := ui.Box(c).
@@ -2032,7 +2032,7 @@ func SkeletonMorph(c *ui.Context, opts ...SkeletonMorphOptions) ui.Element {
 									ui.Text(c, "MK").
 										FontSize(12).
 										FontWeight(700).
-										TextColor(ui.Hex("#ffffff"))
+										TextColor(t.AccentText)
 								})
 							ui.Column(c).Gap(2).Children(func() {
 								ui.Text(c, "Mina Kovacs").

@@ -168,7 +168,7 @@ func ConfirmSend(c *ui.Context, onSend func(), opts ...ConfirmSendOptions) ui.El
 				ui.Text(c, o.ConfirmLabel).
 					FontSize(13).
 					FontWeight(600).
-					TextColor(ui.Hex("#ffffff"))
+					TextColor(t.AccentText)
 			})
 			if confirmBtn.Clicked() {
 				transition(ConfirmSendSending)

@@ -384,7 +384,7 @@ func AIChatInput(c *ui.Context, value *string, opts ...AIChatInputOptions) ui.El
 				}
 				sc := sendBtn.Spring("chat_send_sc", scTarget, ui.SpringOptions{Duration: 180 * time.Millisecond, Bounce: 0.30})
 				sendBg := lerpColor(t.SurfaceSubtle, t.Accent, ready)
-				sendIconCol := lerpColor(t.TextSubtle, ui.Hex("#ffffff"), ready)
+				sendIconCol := lerpColor(t.TextSubtle, t.AccentText, ready)
 				sendBtn.Background(sendBg).Scale(sc, sc).Children(func() {
 					ui.Text(c, "↑").FontSize(13).FontWeight(700).TextColor(sendIconCol)
 				})
@@ -1858,7 +1858,7 @@ func AssigneePicker(c *ui.Context, members []Assignee, opts ...AssigneePickerOpt
 						Border(1, badgeBorder).
 						Children(func() {
 							if chk > 0.35 {
-								ui.Text(c, "✓").FontSize(10).FontWeight(700).TextColor(ui.Hex("#ffffff"))
+								ui.Text(c, "✓").FontSize(10).FontWeight(700).TextColor(t.AccentText)
 							}
 						})
 				})
@@ -2012,7 +2012,7 @@ func AspectRatioSelector(c *ui.Context, selected *int, opts ...AspectRatioOption
 				if isSel {
 					bg = t.Accent
 					bd = t.Accent
-					tc = ui.Hex("#ffffff")
+					tc = t.AccentText
 				}
 				pill := ui.Row(c).
 					Key("ar_"+pr.Label).
