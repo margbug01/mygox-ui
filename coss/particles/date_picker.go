@@ -29,34 +29,34 @@ func init() {
 func PDatePicker1(c *ui.Context) {
 	host := ui.Box(c)
 	open := ui.Local(host, "open", func() bool { return false })
-	d := ui.Local(host, "d", func() time.Time { return calRefDate })
+	d := ui.Local(host, "d", func() time.Time { return time.Now() })
 	host.Children(func() {
 		btn := coss.Button(c, d.Format("Jan 02, 2006")).
 			Variant(coss.ButtonOutline).
 			LeadingIcon(icons.Calendar()).
 			OnClick(func() { *open = !*open })
-		coss.Popover(c, btn.Element, open, func() { coss.Calendar(c, d) })
+		coss.Popover(c, btn.Element, open, func() { coss.Calendar(c, coss.CalendarProps{Selected: d}) })
 	})
 }
 
 func PDatePicker2(c *ui.Context) {
 	host := ui.Box(c)
 	open := ui.Local(host, "open", func() bool { return false })
-	d := ui.Local(host, "d", func() time.Time { return calRefDate })
+	d := ui.Local(host, "d", func() time.Time { return time.Now() })
 	host.Children(func() {
 		label := fmt.Sprintf("%s – %s", d.Format("Nov 02"), d.AddDate(0, 0, 5).Format("Nov 02, 2006"))
 		btn := coss.Button(c, label).
 			Variant(coss.ButtonOutline).
 			LeadingIcon(icons.Calendar()).
 			OnClick(func() { *open = !*open })
-		coss.Popover(c, btn.Element, open, func() { coss.Calendar(c, d) })
+		coss.Popover(c, btn.Element, open, func() { coss.Calendar(c, coss.CalendarProps{Selected: d}) })
 	})
 }
 
 func PDatePicker3(c *ui.Context) {
 	host := ui.Box(c).WidthPercent(100)
 	open := ui.Local(host, "open", func() bool { return false })
-	d := ui.Local(host, "d", func() time.Time { return calRefDate })
+	d := ui.Local(host, "d", func() time.Time { return time.Now() })
 	host.Children(func() {
 		coss.Field(c, func() {
 			coss.FieldLabel(c, "Date of birth")
@@ -64,7 +64,7 @@ func PDatePicker3(c *ui.Context) {
 				Variant(coss.ButtonOutline).
 				LeadingIcon(icons.Calendar()).
 				OnClick(func() { *open = !*open })
-			coss.Popover(c, btn.Element, open, func() { coss.Calendar(c, d) })
+			coss.Popover(c, btn.Element, open, func() { coss.Calendar(c, coss.CalendarProps{Selected: d}) })
 		})
 	})
 }
@@ -72,7 +72,7 @@ func PDatePicker3(c *ui.Context) {
 func PDatePicker4(c *ui.Context) {
 	host := ui.Box(c)
 	open := ui.Local(host, "open", func() bool { return false })
-	d := ui.Local(host, "d", func() time.Time { return calRefDate })
+	d := ui.Local(host, "d", func() time.Time { return time.Now() })
 	host.Children(func() {
 		btn := coss.Button(c, d.Format("Jan 02, 2006")).
 			Variant(coss.ButtonOutline).
@@ -81,11 +81,11 @@ func PDatePicker4(c *ui.Context) {
 		coss.Popover(c, btn.Element, open, func() {
 			ui.Column(c).Gap(8).Children(func() {
 				ui.Row(c).Gap(6).Children(func() {
-					coss.Button(c, "Today").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() { *d = calRefDate })
-					coss.Button(c, "Tomorrow").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() { *d = calRefDate.AddDate(0, 0, 1) })
-					coss.Button(c, "Next week").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() { *d = calRefDate.AddDate(0, 0, 7) })
+					coss.Button(c, "Today").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() { *d = time.Now() })
+					coss.Button(c, "Tomorrow").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() { *d = time.Now().AddDate(0, 0, 1) })
+					coss.Button(c, "Next week").Size(coss.SizeXS).Variant(coss.ButtonOutline).OnClick(func() { *d = time.Now().AddDate(0, 0, 7) })
 				})
-				coss.Calendar(c, d)
+				coss.Calendar(c, coss.CalendarProps{Selected: d})
 			})
 		})
 	})
@@ -94,21 +94,21 @@ func PDatePicker4(c *ui.Context) {
 func PDatePicker5(c *ui.Context) {
 	host := ui.Box(c).Width(220)
 	open := ui.Local(host, "open", func() bool { return false })
-	d := ui.Local(host, "d", func() time.Time { return calRefDate })
-	txt := ui.Local(host, "txt", func() string { return calRefDate.Format("2006-01-02") })
+	d := ui.Local(host, "d", func() time.Time { return time.Now() })
+	txt := ui.Local(host, "txt", func() string { return time.Now().Format("2006-01-02") })
 	host.Children(func() {
 		grp := coss.InputGroup(c, func() {
 			coss.InputGroupInput(c, txt).Placeholder("YYYY-MM-DD")
 			coss.IconButton(c, icons.Calendar(), "Open calendar").Size(coss.SizeIconXS).Variant(coss.ButtonGhost).OnClick(func() { *open = !*open })
 		})
-		coss.Popover(c, grp, open, func() { coss.Calendar(c, d) })
+		coss.Popover(c, grp, open, func() { coss.Calendar(c, coss.CalendarProps{Selected: d}) })
 	})
 }
 
 func PDatePicker6(c *ui.Context) {
 	host := ui.Box(c)
 	open := ui.Local(host, "open", func() bool { return false })
-	d := ui.Local(host, "d", func() time.Time { return calRefDate })
+	d := ui.Local(host, "d", func() time.Time { return time.Now() })
 	prev := *d
 	host.Children(func() {
 		btn := coss.Button(c, d.Format("Jan 02, 2006")).
@@ -116,7 +116,7 @@ func PDatePicker6(c *ui.Context) {
 			LeadingIcon(icons.Calendar()).
 			OnClick(func() { *open = !*open })
 		coss.Popover(c, btn.Element, open, func() {
-			coss.Calendar(c, d)
+			coss.Calendar(c, coss.CalendarProps{Selected: d})
 			if !d.Equal(prev) {
 				*open = false
 			}
@@ -127,13 +127,13 @@ func PDatePicker6(c *ui.Context) {
 func PDatePicker7(c *ui.Context) {
 	host := ui.Box(c)
 	open := ui.Local(host, "open", func() bool { return false })
-	d := ui.Local(host, "d", func() time.Time { return calRefDate })
+	d := ui.Local(host, "d", func() time.Time { return time.Now() })
 	host.Children(func() {
 		btn := coss.Button(c, "2 dates selected").
 			Variant(coss.ButtonOutline).
 			LeadingIcon(icons.Calendar()).
 			OnClick(func() { *open = !*open })
-		coss.Popover(c, btn.Element, open, func() { coss.Calendar(c, d) })
+		coss.Popover(c, btn.Element, open, func() { coss.Calendar(c, coss.CalendarProps{Selected: d}) })
 	})
 }
 
@@ -141,22 +141,22 @@ func PDatePicker8(c *ui.Context) {
 	t := theme.Of(c)
 	host := ui.Box(c).Width(200)
 	open := ui.Local(host, "open", func() bool { return false })
-	d := ui.Local(host, "d", func() time.Time { return calRefDate })
+	d := ui.Local(host, "d", func() time.Time { return time.Now() })
 	host.Children(func() {
 		btn := coss.ButtonBox(c, func() {
 			ui.Text(c, d.Format("Jan 02, 2006")).FontSize(14).Grow(1)
 			ui.Icon(c, icons.ChevronsUpDown()).Size(14, 14).TextColor(t.MutedForeground)
 		}).Variant(coss.ButtonOutline).OnClick(func() { *open = !*open })
 		btn.WidthPercent(100)
-		coss.Popover(c, btn.Element, open, func() { coss.Calendar(c, d) })
+		coss.Popover(c, btn.Element, open, func() { coss.Calendar(c, coss.CalendarProps{Selected: d}) })
 	})
 }
 
 func PDatePicker9(c *ui.Context) {
 	host := ui.Box(c)
 	open := ui.Local(host, "open", func() bool { return false })
-	d1 := ui.Local(host, "d1", func() time.Time { return calRefDate })
-	d2 := ui.Local(host, "d2", func() time.Time { return calRefDate.AddDate(0, 1, 0) })
+	d1 := ui.Local(host, "d1", func() time.Time { return time.Now() })
+	d2 := ui.Local(host, "d2", func() time.Time { return time.Now().AddDate(0, 1, 0) })
 	host.Children(func() {
 		btn := coss.Button(c, fmt.Sprintf("%s – %s", d1.Format("Nov 02"), d2.Format("Dec 02"))).
 			Variant(coss.ButtonOutline).
@@ -164,8 +164,8 @@ func PDatePicker9(c *ui.Context) {
 			OnClick(func() { *open = !*open })
 		coss.Popover(c, btn.Element, open, func() {
 			ui.Row(c).Gap(10).Children(func() {
-				coss.Calendar(c, d1)
-				coss.Calendar(c, d2)
+				coss.Calendar(c, coss.CalendarProps{Selected: d1})
+				coss.Calendar(c, coss.CalendarProps{Selected: d2})
 			})
 		})
 	})
