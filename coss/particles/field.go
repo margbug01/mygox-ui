@@ -288,8 +288,7 @@ func PField17(c *ui.Context) {
 	v := ui.Local(host, "v", func() float64 { return 1 })
 	host.Children(func() {
 		coss.Field(c, func() {
-			coss.FieldLabel(c, "Quantity")
-			coss.NumberField(c, coss.NumberFieldSpec{Value: v, Min: 1, Max: 100})
+			coss.NumberField(c, coss.NumberFieldSpec{Value: v, Min: 1, Max: 100, Label: "Quantity"})
 			coss.FieldDescription(c, "Choose a value between 1 and 100.")
 		})
 	})
