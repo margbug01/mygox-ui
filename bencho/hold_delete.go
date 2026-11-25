@@ -1,182 +1,111 @@
 package bencho
 
 import (
-	"fmt"
+	"math"
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/margbug01/mygox-ui/coss/icons"
 )
 
-// HoldDeleteOptions configures HoldDelete.
+// HoldDeleteOptions configures HoldDelete; zero fields take bencho.dev's defaults.
 type HoldDeleteOptions struct {
-	Label        string
-	HoldingLabel string
-	DoneLabel    string
-	HoldDuration time.Duration
-	ResetAfter   time.Duration
-	Width        float32
+	Hold   time.Duration // how long it has to be held, 0.6s to 3s; 1.5s by default
+	Rewind float32       // how fast it drains when let go, 0 to 100; 60 by default
+	Shake  float32       // how hard the bin trembles near the end, 0 to 100; 50 by default
+	Corner float32       // corner radius, 0 to 20; 20 by default
 }
 
 type holdDeleteState struct {
-	holding   bool
-	holdStart time.Time
-	done      bool
-	doneAt    time.Time
-	abortedAt time.Time
+	fill    float32 // 0..1, how far the hold has filled the pill
+	last    time.Time
+	deleted time.Time // when it completed; zero while not deleted
 }
 
-// HoldDelete renders a destructive action button that requires pressing and
-// holding continuously until its fill progress reaches 100%.
+const holdDeleteReset = 1600 * time.Millisecond
+
+// HoldDelete is a delete button that asks for a long press before anything is
+// removed: the pill fills while held, the bin shakes near the end, and letting
+// go early drains it back. onDelete runs once the hold completes.
 func HoldDelete(c *ui.Context, onDelete func(), opts ...HoldDeleteOptions) ui.Element {
 	var o HoldDeleteOptions
 	if len(opts) > 0 {
 		o = opts[0]
 	}
+	if o.Hold <= 0 {
+		o.Hold = 1500 * time.Millisecond
+	}
+	if o.Rewind == 0 {
+		o.Rewind = 60
+	}
+	if o.Shake == 0 {
+		o.Shake = 50
+	}
+	if o.Corner == 0 {
+		o.Corner = 20
+	}
 	t := ThemeFrom(c)
-	if o.Label == "" {
-		o.Label = "Hold to delete"
-	}
-	if o.HoldingLabel == "" {
-		o.HoldingLabel = "Keep holding..."
-	}
-	if o.DoneLabel == "" {
-		o.DoneLabel = "Deleted"
-	}
-	if o.HoldDuration <= 0 {
-		o.HoldDuration = 900 * time.Millisecond
-	}
-	if o.ResetAfter <= 0 {
-		o.ResetAfter = 1800 * time.Millisecond
-	}
-	if o.Width <= 0 {
-		o.Width = 196
-	}
 
-	btn := ui.Row(c).
-		Width(o.Width).
-		Height(40).
-		Center().
-		Radius(999).
-		Cursor(ui.CursorPointer).
-		Clip()
-
-	st := ui.Local(btn, "hold_delete", func() holdDeleteState {
-		return holdDeleteState{}
-	})
-
+	pill := ui.Box(c).Size(156, 40).Radius(o.Corner).Background(t.Surface).Clip().Cursor(ui.CursorPointer)
+	st := ui.Local(pill, "hold_delete", func() holdDeleteState { return holdDeleteState{last: c.Now()} })
 	now := c.Now()
-	pressed := btn.Pressed()
-
-	var progress float32
-	if st.done {
-		progress = 1
-		c.AnimationFrame()
-		if now.Sub(st.doneAt) >= o.ResetAfter {
-			st.done = false
-			st.holding = false
+	dt := float32(min(max(now.Sub(st.last).Seconds(), 0), 0.1))
+	st.last = now
+	done := !st.deleted.IsZero()
+	switch {
+	case done:
+		if now.Sub(st.deleted) >= holdDeleteReset {
+			st.deleted, st.fill, done = time.Time{}, 0, false
+		} else {
+			c.After(holdDeleteReset - now.Sub(st.deleted))
 		}
-	} else if pressed {
-		if !st.holding {
-			st.holding = true
-			st.holdStart = now
-		}
-		c.AnimationFrame()
-		elapsed := now.Sub(st.holdStart)
-		progress = clamp32(float32(elapsed.Seconds()/o.HoldDuration.Seconds()), 0, 1)
-		if elapsed >= o.HoldDuration {
-			st.holding = false
-			st.done = true
-			st.doneAt = now
+	case pill.Pressed():
+		st.fill = min(st.fill+dt/float32(o.Hold.Seconds()), 1)
+		if st.fill >= 1 {
+			st.deleted, done = now, true
 			if onDelete != nil {
 				onDelete()
 			}
 		}
-	} else if st.holding {
-		st.holding = false
-		st.abortedAt = now
+	case st.fill > 0:
+		// Rewind 0 drains over 2s, 100 in a tenth of a second.
+		st.fill = max(st.fill-dt/(2-1.9*o.Rewind/100), 0)
+	}
+	if !done && (st.fill > 0 || pill.Pressed()) {
+		c.AnimationFrame()
+	}
+	fill := st.fill
+	if done {
+		fill = 1
 	}
 
-	// Smooth retraction when released early.
-	fillVisual := btn.Spring("hd_fill", progress, ui.SpringOptions{
-		Duration: 140 * time.Millisecond,
-		Bounce:   0.05,
-	})
-	if pressed {
-		fillVisual = progress
-	}
-
-	scaleTarget := float32(1)
-	if pressed && !st.done {
-		scaleTarget = 0.97
-	}
-	sc := btn.Spring("hd_scale", scaleTarget, ui.SpringOptions{
-		Duration: 180 * time.Millisecond,
-		Bounce:   0.25,
-	})
-
-	bg := t.SurfaceSubtle
-	border := t.Danger.Alpha(0.45)
-	textCol := t.Danger
-	label := o.Label
-	if st.done {
-		bg = t.Danger
-		border = t.Danger
-		textCol = ui.Hex("#ffffff")
-		label = o.DoneLabel
-	} else if pressed {
-		label = fmt.Sprintf("%s %d%%", o.HoldingLabel, int(progress*100+0.5))
-		if progress > 0.55 {
-			textCol = ui.Hex("#ffffff")
+	pill.Draw(func(p *ui.Painter, r ui.Rect) {
+		if fill > 0 {
+			p.Clip(r, o.Corner, func() { p.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W * fill, H: r.H}, t.Danger.Alpha(0.14), 0) })
 		}
-	}
-
-	btn.Background(bg).
-		Border(1, border).
-		Scale(sc, sc).
-		Draw(func(p *ui.Painter, r ui.Rect) {
-			if r.W <= 0 || r.H <= 0 || fillVisual <= 0.002 || st.done {
-				return
+	})
+	pill.Children(func() {
+		ui.Row(c).WidthPercent(100).HeightPercent(100).Center().Gap(7).Children(func() {
+			icon, label := icons.Trash(), "Delete"
+			if done {
+				icon, label = icons.Check(), "Deleted"
 			}
-			p.Fill(
-				ui.Rect{X: r.X, Y: r.Y, W: r.W * clamp32(fillVisual, 0, 1), H: r.H},
-				t.Danger.Alpha(0.88),
-				r.H*0.5,
-			)
-		}).
-		Children(func() {
-			ui.Text(c, label).
-				FontSize(13).
-				FontWeight(600).
-				TextColor(textCol)
+			bin := ui.Icon(c, icon).Size(16, 16).TextColor(t.Danger)
+			if near := (fill - 0.7) / 0.3; near > 0 && !done {
+				// The bin trembles harder as the hold nears its end.
+				amp := o.Shake / 100 * 14 * near
+				bin.Rotate(amp * float32(math.Sin(phaseSeconds(now)*48)))
+			}
+			ui.Text(c, label).FontSize(14).TextColor(t.Danger)
 		})
-
-	return btn
-}
-
-type holdDeleteDemoState struct {
-	count int
+	})
+	return pill
 }
 
 func init() {
 	registerDemo(
 		"hold-delete",
-		"Press-and-hold destructive trigger with smooth progress fill and early-release cancel.",
-		func(c *ui.Context) {
-			holder := ui.Column(c).AlignItems(ui.Center).Gap(8)
-			st := ui.Local(holder, "demo_hold_delete", func() holdDeleteDemoState {
-				return holdDeleteDemoState{}
-			})
-			holder.Children(func() {
-				HoldDelete(c, func() {
-					st.count++
-				})
-				if st.count > 0 {
-					t := ThemeFrom(c)
-					ui.Text(c, fmt.Sprintf("Deleted %d×", st.count)).
-						FontSize(11).
-						TextColor(t.TextSubtle)
-				}
-			})
-		},
+		"A delete button that asks for a long press: the pill fills while held, the bin shakes near the end, letting go early drains it back.",
+		func(c *ui.Context) { HoldDelete(c, nil) },
 	)
 }

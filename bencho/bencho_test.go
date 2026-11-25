@@ -277,51 +277,39 @@ func TestConfirmSendFlipsToReceipt(t *testing.T) {
 	}
 }
 
-func TestHoldDeleteEarlyReleaseCancelsAndFullHoldCompletes(t *testing.T) {
+// Letting go early drains the pill without deleting; holding the full time
+// deletes once, then the button comes back.
+func TestHoldDeleteNeedsTheFullHold(t *testing.T) {
 	deleted := 0
 	view := func(c *ui.Context) {
-		bencho.ApplyTheme(c, true)
-		ui.Box(c).Padding(16).Children(func() {
-			bencho.HoldDelete(c, func() {
-				deleted++
-			}, bencho.HoldDeleteOptions{
-				HoldDuration: 300 * time.Millisecond,
-				ResetAfter:   400 * time.Millisecond,
-			})
-		})
+		bencho.ApplyTheme(c, false)
+		bencho.HoldDelete(c, func() { deleted++ })
+	}
+	tt := ui.NewTester(view, 156, 40)
+	tt.Frame()
+	tinted := func() bool { return tt.Image().RGBAAt(4, 20) != tt.Image().RGBAAt(150, 20) }
+
+	tt.Press(78, 20)
+	step(tt, 900*time.Millisecond)
+	if !tinted() {
+		t.Fatal("the pill should fill while held")
+	}
+	tt.Release(78, 20)
+	step(tt, 1500*time.Millisecond)
+	if deleted != 0 || tinted() {
+		t.Fatalf("letting go at 0.9s of 1.5s should drain without deleting, deleted %d", deleted)
 	}
 
-	tt := ui.NewTester(view, 280, 120)
-	tt.Frame()
-
-	r, ok := tt.Find("Hold to delete")
-	if !ok {
-		t.Fatalf("expected Hold to delete button, got %v", tt.Texts())
-	}
-	cx, cy := r.X+r.W*0.5, r.Y+r.H*0.5
-
-	// Short hold should cancel without firing onDelete.
-	tt.Press(cx, cy)
-	tt.Frame()
-	tt.Advance(100 * time.Millisecond)
-	tt.Frame()
-	tt.Release(cx, cy)
-	tt.Frame()
-	if deleted != 0 {
-		t.Fatalf("early release should not trigger delete, got %d", deleted)
-	}
-
-	// Full hold past 300ms should trigger onDelete once.
-	tt.Press(cx, cy)
-	tt.Frame()
-	for i := 0; i < 4; i++ {
-		tt.Advance(100 * time.Millisecond)
-		tt.Frame()
-	}
-	tt.Release(cx, cy)
+	tt.Press(78, 20)
+	step(tt, 1600*time.Millisecond)
+	tt.Release(78, 20)
 	tt.Frame()
 	if deleted != 1 || !tt.HasText("Deleted") {
-		t.Fatalf("expected deleted=1 and Deleted text, got deleted=%d texts=%v", deleted, tt.Texts())
+		t.Fatalf("a full hold should delete once, deleted %d, got %v", deleted, tt.Texts())
+	}
+	step(tt, 2*time.Second)
+	if !tt.HasText("Delete") || tt.HasText("Deleted") {
+		t.Fatalf("the button should come back after deleting, got %v", tt.Texts())
 	}
 }
 
