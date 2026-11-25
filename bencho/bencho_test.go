@@ -324,3 +324,37 @@ func TestHoldDeleteEarlyReleaseCancelsAndFullHoldCompletes(t *testing.T) {
 		t.Fatalf("expected deleted=1 and Deleted text, got deleted=%d texts=%v", deleted, tt.Texts())
 	}
 }
+
+// Joining pops you into the room under Leave and speakers take turns; Leave
+// takes you out again.
+func TestHuddleJoinSpeakAndLeave(t *testing.T) {
+	view := func(c *ui.Context) {
+		bencho.ApplyTheme(c, false)
+		bencho.Huddle(c)
+	}
+	tt := ui.NewTester(view, 300, 202)
+	tt.Frame()
+	if tt.HasText("You") || !tt.HasText("Join huddle") {
+		t.Fatalf("before joining want only Ines and Tom under Join huddle, got %v", tt.Texts())
+	}
+	if err := tt.Click("Join huddle"); err != nil {
+		t.Fatal(err)
+	}
+	step(tt, 600*time.Millisecond)
+	if !tt.HasText("You") || !tt.HasText("Leave") {
+		t.Fatalf("after joining want You in the room and Leave, got %v", tt.Texts())
+	}
+	// You speak first: your avatar darkens under the wave; then Tom's turn.
+	you := tt.Image().RGBAAt(227, 72)
+	step(tt, 1300*time.Millisecond)
+	if now := tt.Image().RGBAAt(227, 72); now == you {
+		t.Fatalf("your avatar should brighten when Tom takes the turn, still %v", now)
+	}
+	if err := tt.Click("Leave"); err != nil {
+		t.Fatal(err)
+	}
+	step(tt, 700*time.Millisecond)
+	if tt.HasText("You") || !tt.HasText("Join huddle") {
+		t.Fatalf("after leaving want Join huddle back without you, got %v", tt.Texts())
+	}
+}
