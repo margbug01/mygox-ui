@@ -1,9 +1,11 @@
 // Command benchoparity renders bencho blocks centered on bencho.dev's 822×800
 // preview stage and lays out, one sheet per block: bencho.dev's still of the
-// block, then ours at rest, with the pointer over the center, pressed for
-// 700ms and 900ms after release, each cropped to the still's size plus 32px.
+// block, then ours at rest, with the pointer over the block's center (or -at,
+// from its top left), pressed there for 700ms, and -after its release, each
+// cropped to the still's size plus 32px.
 //
 //	go run ./tools/benchoparity -ref ~/bencho-ref -out /tmp/bp -only hold-delete,dice
+//	go run ./tools/benchoparity -ref ~/bencho-ref -out /tmp/bp -only confirm-send -at 160,322 -after 3s
 //
 // fetch-refs.mjs, run with ego-browser, fills the -ref directory with
 // <slug>.jpg (bencho.dev/stills, 2x) and specs.json (each block's display
@@ -40,6 +42,8 @@ func main() {
 	out := flag.String("out", "", "output directory")
 	only := flag.String("only", "", "comma-separated slugs; all when empty")
 	dark := flag.Bool("dark", false, "render the dark theme")
+	at := flag.String("at", "", "x,y in the block, from its top left, to point at and press; its center when empty")
+	after := flag.Duration("after", 900*time.Millisecond, "how long after release the last state is taken")
 	flag.Parse()
 	if *out == "" {
 		fmt.Fprintln(os.Stderr, "benchoparity: -out is required")
@@ -69,14 +73,19 @@ func main() {
 			w, h = 320, 240
 		}
 		crop := image.Rect(stageW/2-w/2-pad, stageH/2-h/2-pad, stageW/2+(w+1)/2+pad, stageH/2+(h+1)/2+pad).Intersect(image.Rect(0, 0, stageW, stageH))
-		save(filepath.Join(*out, b.Slug+"-"+mode+".png"), sheet(still, render(b, *dark), crop))
+		px, py := float32(stageW/2), float32(stageH/2)
+		var ax, ay float32
+		if _, err := fmt.Sscanf(*at, "%g,%g", &ax, &ay); err == nil {
+			px, py = float32(stageW/2-w/2)+ax, float32(stageH/2-h/2)+ay
+		}
+		save(filepath.Join(*out, b.Slug+"-"+mode+".png"), sheet(still, render(b, *dark, px, py, *after), crop))
 		n++
 	}
 	fmt.Printf("benchoparity: %d sheets in %s\n", n, *out)
 }
 
-// render drives the pointer the way fetch-refs.mjs does on bencho.dev.
-func render(b bencho.Block, dark bool) []image.Image {
+// render points at (px, py) on the stage, presses there for 700ms and lets go.
+func render(b bencho.Block, dark bool, px, py float32, after time.Duration) []image.Image {
 	view := func(c *ui.Context) {
 		t := bencho.ApplyTheme(c, dark)
 		ui.Column(c).Size(stageW, stageH).Center().Background(t.SurfaceSubtle).TextColor(t.Text).Children(func() { b.Demo(c) })
@@ -93,13 +102,12 @@ func render(b bencho.Block, dark bool) []image.Image {
 	tt.Frame()
 	tt.Move(5, stageH-5)
 	rest := shot(2100 * time.Millisecond)
-	tt.Move(stageW/2, stageH/2)
+	tt.Move(px, py)
 	hover := shot(900 * time.Millisecond)
-	tt.Press(stageW/2, stageH/2)
+	tt.Press(px, py)
 	press := shot(700 * time.Millisecond)
-	tt.Release(stageW/2, stageH/2)
-	after := shot(900 * time.Millisecond)
-	return []image.Image{rest, hover, press, after}
+	tt.Release(px, py)
+	return []image.Image{rest, hover, press, shot(after)}
 }
 
 // sheet lays out, at 2x, the still (centered in the crop's size) and our four
