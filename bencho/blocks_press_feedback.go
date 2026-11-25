@@ -3,7 +3,6 @@ package bencho
 import (
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -26,13 +25,6 @@ func pfDrawCheck(p *ui.Painter, cx, cy, size, trim float32, strokeWidth float32,
 		path.Trim(0, clamp32(trim, 0, 1))
 	}
 	p.StrokePath(&path, strokeWidth, col)
-}
-
-func pfDrawSearchIcon(p *ui.Painter, cx, cy, r float32, col ui.Color) {
-	var ring ui.Path
-	ring.Circle(cx-r*0.16, cy-r*0.16, r*0.56)
-	p.StrokePath(&ring, 1.55, col)
-	p.Line(cx+r*0.24, cy+r*0.24, cx+r*0.72, cy+r*0.72, 1.65, col)
 }
 
 func pfDrawCloseIcon(p *ui.Painter, cx, cy, r float32, col ui.Color) {
@@ -704,207 +696,6 @@ func DragStepper(c *ui.Context, value *int, opts ...DragStepperOptions) ui.Eleme
 }
 
 // ============================================================================
-// 12. seek — Search
-// ============================================================================
-
-// SeekSearchOptions configures SeekSearch.
-type SeekSearchOptions struct {
-	Placeholder string
-	Width       float32
-	MaxChips    int
-	OnSelect    func(string)
-}
-
-type pfSeekState struct {
-	open   bool
-	query  string
-	picked string
-}
-
-func pfDefaultSeekItems() []string {
-	return []string{"Springs", "Shaders", "Gestures", "Palette", "Toasts", "Layout"}
-}
-
-// SeekSearch renders a compact search pill button that smoothly springs open
-// into an expandable search input bar with live match chips and a close/clear control.
-func SeekSearch(c *ui.Context, items []string, opts ...SeekSearchOptions) ui.Element {
-	var o SeekSearchOptions
-	if len(opts) > 0 {
-		o = opts[0]
-	}
-	t := ThemeFrom(c)
-	if len(items) == 0 {
-		items = pfDefaultSeekItems()
-	}
-	if o.Width <= 0 {
-		o.Width = 286
-	}
-	if o.Placeholder == "" {
-		o.Placeholder = "Seek blocks..."
-	}
-	if o.MaxChips <= 0 {
-		o.MaxChips = 5
-	}
-
-	root := ui.Column(c).
-		Width(o.Width).
-		AlignItems(ui.Center).
-		Gap(8)
-
-	st := ui.Local(root, "pf_seek_st", func() pfSeekState {
-		return pfSeekState{}
-	})
-
-	openTarget := float32(0)
-	if st.open {
-		openTarget = 1
-	}
-	openAmt := root.Spring("pf_seek_open", openTarget, ui.SpringOptions{
-		Duration: 300 * time.Millisecond,
-		Bounce:   0.22,
-	})
-
-	barW := lerp32(114, o.Width, openAmt)
-
-	// Filter live matching items
-	q := strings.ToLower(strings.TrimSpace(st.query))
-	var matches []string
-	for _, it := range items {
-		if q == "" || strings.Contains(strings.ToLower(it), q) {
-			matches = append(matches, it)
-			if len(matches) >= o.MaxChips {
-				break
-			}
-		}
-	}
-
-	root.Children(func() {
-		bar := ui.Row(c).
-			Width(barW).
-			Height(38).
-			Padding(0, 10).
-			AlignItems(ui.Center).
-			Justify(ui.SpaceBetween).
-			Gap(7).
-			Radius(999).
-			Background(t.Surface).
-			Border(1, lerpColor(t.BorderStrong, t.Accent.Alpha(0.65), openAmt)).
-			Clip()
-
-		if !st.open {
-			bar.Cursor(ui.CursorPointer)
-			if bar.Hovered() {
-				bar.Background(t.SurfaceHover)
-			}
-			bar.Children(func() {
-				ui.Row(c).WidthPercent(100).Center().Gap(7).Children(func() {
-					ui.Box(c).Width(14).Height(14).Draw(func(p *ui.Painter, r ui.Rect) {
-						pfDrawSearchIcon(p, r.X+r.W*0.5, r.Y+r.H*0.5, 6.5, t.TextMuted)
-					})
-					lbl := "Search"
-					if st.picked != "" {
-						lbl = st.picked
-					}
-					ui.Text(c, lbl).FontSize(12.5).FontWeight(600).TextColor(t.Text).NoWrap()
-				})
-			})
-			if bar.Clicked() {
-				st.open = true
-			}
-		} else {
-			bar.Children(func() {
-				ui.Box(c).Width(14).Height(14).Draw(func(p *ui.Painter, r ui.Rect) {
-					pfDrawSearchIcon(p, r.X+r.W*0.5, r.Y+r.H*0.5, 6.5, t.Accent)
-				})
-
-				inp := ui.TextInput(c, &st.query).
-					Width(clamp32(barW-72, 60, o.Width-72)).
-					Placeholder(o.Placeholder).
-					FontSize(12)
-				if inp.Submitted() && len(matches) > 0 {
-					st.picked = matches[0]
-					st.query = matches[0]
-					if o.OnSelect != nil {
-						o.OnSelect(matches[0])
-					}
-				}
-
-				clearBtn := ui.Box(c).
-					Key("seek_close").
-					Width(22).
-					Height(22).
-					Center().
-					Radius(999).
-					Background(t.SurfaceSubtle).
-					Cursor(ui.CursorPointer).
-					Draw(func(p *ui.Painter, r ui.Rect) {
-						pfDrawCloseIcon(p, r.X+r.W*0.5, r.Y+r.H*0.5, 3.8, t.TextMuted)
-					})
-				if clearBtn.Clicked() {
-					if st.query != "" {
-						st.query = ""
-					} else {
-						st.open = false
-					}
-				}
-			})
-		}
-
-		// Live match chips when expanded
-		if openAmt > 0.15 {
-			chipsWrap := ui.Row(c).
-				WidthPercent(100).
-				Wrap().
-				Gap(6).
-				Opacity(clamp32((openAmt-0.15)/0.85, 0, 1)).
-				Translate(0, (1-openAmt)*-6)
-
-			chipsWrap.Children(func() {
-				if len(matches) == 0 {
-					ui.Text(c, "No matching blocks").FontSize(11).TextColor(t.TextSubtle)
-					return
-				}
-				for i, m := range matches {
-					val := m
-					active := st.picked == val
-					chip := ui.Row(c).
-						Key(i).
-						Height(25).
-						Padding(0, 10).
-						Center().
-						Radius(999).
-						Cursor(ui.CursorPointer)
-					if active {
-						chip.Background(t.AccentSoft).Border(1, t.Accent.Alpha(0.60))
-					} else {
-						chip.Background(t.Surface).Border(1, t.Border)
-						if chip.Hovered() {
-							chip.Background(t.SurfaceHover)
-						}
-					}
-					chip.Children(func() {
-						col := t.TextMuted
-						if active {
-							col = t.Accent
-						}
-						ui.Text(c, val).FontSize(11).FontWeight(500).TextColor(col)
-					})
-					if chip.Clicked() {
-						st.picked = val
-						st.query = val
-						if o.OnSelect != nil {
-							o.OnSelect(val)
-						}
-					}
-				}
-			})
-		}
-	})
-
-	return root
-}
-
-// ============================================================================
 // Demo state structs & catalog registrations
 // ============================================================================
 
@@ -970,13 +761,4 @@ func init() {
 		},
 	)
 
-	registerDemo(
-		"seek",
-		"Compact search pill button that springs open into an expandable search bar with live match chips.",
-		func(c *ui.Context) {
-			ui.Box(c).Center().Children(func() {
-				SeekSearch(c, pfDefaultSeekItems())
-			})
-		},
-	)
 }
