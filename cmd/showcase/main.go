@@ -248,7 +248,7 @@ func (a *showcaseApp) suiteTopBar(c *ui.Context, t theme.Tokens, isMobile bool) 
 					Gap(2).
 					AlignItems(ui.Center).
 					Children(func() {
-						a.suiteTabButton(c, t, "UI", "530", sectionCoss, isMobile)
+						a.suiteTabButton(c, t, "UI", fmt.Sprint(len(particles.All())), sectionCoss, isMobile)
 						a.suiteTabButton(c, t, "Flow", "Canvas", sectionFlow, isMobile)
 						a.suiteTabButton(c, t, "Motion", "33", sectionMotion, isMobile)
 						a.suiteTabButton(c, t, "Bencho", "184", sectionBencho, isMobile)

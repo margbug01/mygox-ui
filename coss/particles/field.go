@@ -220,7 +220,7 @@ func PField11(c *ui.Context) {
 				{Value: "uk", Label: "United Kingdom"},
 				{Value: "ca", Label: "Canada"},
 				{Value: "au", Label: "Australia"},
-			}, "Select a country")
+			}, coss.SelectOptions{Placeholder: "Select a country"})
 			coss.FieldDescription(c, "This is an optional field")
 		})
 	})
@@ -324,7 +324,7 @@ func PField18(c *ui.Context) {
 					{Value: "designer", Label: "Designer"},
 					{Value: "manager", Label: "Product Manager"},
 					{Value: "other", Label: "Other"},
-				}, "Select your role")
+				}, coss.SelectOptions{Placeholder: "Select your role"})
 				coss.FieldDescription(c, "This is an optional field")
 			})
 			coss.Field(c, func() { coss.Checkbox(c, &s.newsletter, "Subscribe to newsletter") })

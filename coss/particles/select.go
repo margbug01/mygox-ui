@@ -39,12 +39,21 @@ func init() {
 	Register(Entry{ID: "p-select-22", Family: "select", Description: "Select with custom tint border", View: PSelect22, Source: extractFunc(selectSource, "PSelect22")})
 	Register(Entry{ID: "p-select-23", Family: "select", Description: "Select with field label", View: PSelect23, Source: extractFunc(selectSource, "PSelect23")})
 	Register(Entry{ID: "p-select-24", Family: "select", Description: "Color palette select with swatches", View: PSelect24, Source: extractFunc(selectSource, "PSelect24")})
+	Register(Entry{ID: "p-select-fold", Family: "select", Description: "Select that unfolds out of its value (mygox motion, not on coss.com)", View: PSelectFold, Source: extractFunc(selectSource, "PSelectFold")})
 }
 
 var selFrameworks = []coss.SelectOption[string]{
 	{Value: "next", Label: "Next.js"},
 	{Value: "vite", Label: "Vite"},
 	{Value: "astro", Label: "Astro"},
+}
+
+// PSelectFold is mygox's own: the options spring out below the choice, and
+// a pick slides up into the trigger.
+func PSelectFold(c *ui.Context) {
+	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
+	v := ui.Local(host, "v", func() string { return "next" })
+	host.Children(func() { coss.Select(c, v, selFrameworks, coss.SelectOptions{Fold: true}) })
 }
 
 func PSelect1(c *ui.Context) {
@@ -56,25 +65,31 @@ func PSelect1(c *ui.Context) {
 func PSelect2(c *ui.Context) {
 	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	v := ui.Local(host, "v", func() string { return "" })
-	host.Children(func() { coss.Select(c, v, selFrameworks, "Select framework").Size(coss.SelectSM) })
+	host.Children(func() {
+		coss.Select(c, v, selFrameworks, coss.SelectOptions{Placeholder: "Select framework"}).Size(coss.SelectSM)
+	})
 }
 
 func PSelect3(c *ui.Context) {
 	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	v := ui.Local(host, "v", func() string { return "" })
-	host.Children(func() { coss.Select(c, v, selFrameworks, "Select framework").Size(coss.SelectLG) })
+	host.Children(func() {
+		coss.Select(c, v, selFrameworks, coss.SelectOptions{Placeholder: "Select framework"}).Size(coss.SelectLG)
+	})
 }
 
 func PSelect4(c *ui.Context) {
 	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	v := ui.Local(host, "v", func() string { return "" })
-	host.Children(func() { coss.Select(c, v, selFrameworks, "Select framework").Disabled(true).Opacity(0.64) })
+	host.Children(func() {
+		coss.Select(c, v, selFrameworks, coss.SelectOptions{Placeholder: "Select framework"}).Disabled(true).Opacity(0.64)
+	})
 }
 
 func PSelect5(c *ui.Context) {
 	host := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	v := ui.Local(host, "v", func() string { return "" })
-	host.Children(func() { coss.Select(c, v, selFrameworks, "Select framework") })
+	host.Children(func() { coss.Select(c, v, selFrameworks, coss.SelectOptions{Placeholder: "Select framework"}) })
 }
 
 func PSelect6(c *ui.Context) {
@@ -264,7 +279,7 @@ func PSelect11(c *ui.Context) {
 	host.Children(func() {
 		coss.Field(c, func() {
 			coss.FieldLabel(c, "Framework")
-			coss.Select(c, v, selFrameworks, "Select a framework")
+			coss.Select(c, v, selFrameworks, coss.SelectOptions{Placeholder: "Select a framework"})
 			coss.FieldDescription(c, "Pick your favorite.")
 		})
 		coss.Button(c, "Submit").WidthPercent(100)
