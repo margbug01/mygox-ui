@@ -207,43 +207,42 @@ func TestElasticSliderStretchesPastEndsAndSpringsBack(t *testing.T) {
 	}
 }
 
-func TestLiveVoteCastsAndSwitchesVote(t *testing.T) {
-	opts := []bencho.VoteOption{
-		{Label: "Alpha", Votes: 10},
-		{Label: "Beta", Votes: 10},
-	}
-	selected := -1
-	votedIdx := -1
-
+// Voting turns rows into results while a few more voters come in; pressing
+// another row moves the vote, pressing yours again takes it back.
+func TestLiveVoteMovesAndTakesBackVote(t *testing.T) {
+	opts := []bencho.VoteOption{{Label: "Alpha", Votes: 6}, {Label: "Beta", Votes: 3}}
+	vote := -1
 	view := func(c *ui.Context) {
 		bencho.ApplyTheme(c, false)
-		ui.Box(c).Padding(16).Children(func() {
-			bencho.LiveVote(c, opts, &selected, bencho.LiveVoteOptions{
-				Question: "Pick one",
-				OnVote: func(idx int) {
-					votedIdx = idx
-				},
-			})
-		})
+		bencho.LiveVote(c, opts, &vote, bencho.LiveVoteOptions{Question: "Pick one"})
 	}
-
-	tt := ui.NewTester(view, 340, 260)
+	tt := ui.NewTester(view, 360, 260)
 	tt.Frame()
-
-	if err := tt.Click("Alpha"); err != nil {
-		t.Fatalf("click Alpha: %v", err)
-	}
-	tt.Frame()
-	if selected != 0 || votedIdx != 0 || opts[0].Votes != 11 || opts[1].Votes != 10 {
-		t.Fatalf("unexpected state after voting Alpha: sel=%d voted=%d opts=%+v", selected, votedIdx, opts)
+	if !tt.HasText("9 votes · Closes Friday") || tt.HasText("67%") {
+		t.Fatalf("before voting want 9 votes and no results, got %v", tt.Texts())
 	}
 
 	if err := tt.Click("Beta"); err != nil {
-		t.Fatalf("click Beta: %v", err)
+		t.Fatal(err)
 	}
+	step(tt, 300*time.Millisecond)
+	if vote != 1 || !tt.HasText("10 votes · Closes Friday") {
+		t.Fatalf("after voting Beta want vote 1 and 10 votes; vote %d, got %v", vote, tt.Texts())
+	}
+	step(tt, 3*time.Second)
+	if !tt.HasText("13 votes · Closes Friday") || !tt.HasText("38%") {
+		t.Fatalf("three voters should have come in, Beta at 5 of 13, got %v", tt.Texts())
+	}
+
+	tt.Click("Alpha")
 	tt.Frame()
-	if selected != 1 || votedIdx != 1 || opts[0].Votes != 10 || opts[1].Votes != 11 {
-		t.Fatalf("unexpected state after switching to Beta: sel=%d voted=%d opts=%+v", selected, votedIdx, opts)
+	if vote != 0 {
+		t.Fatalf("pressing Alpha should move the vote there, vote %d", vote)
+	}
+	tt.Click("Alpha")
+	step(tt, 600*time.Millisecond)
+	if vote != -1 || !tt.HasText("12 votes · Closes Friday") || tt.HasText("%") {
+		t.Fatalf("pressing your vote again should take it back, vote %d, got %v", vote, tt.Texts())
 	}
 }
 

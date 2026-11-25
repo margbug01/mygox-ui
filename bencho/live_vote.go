@@ -2,177 +2,174 @@ package bencho
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/margbug01/mygox-ui/coss/icons"
 )
 
-// VoteOption represents a single selectable choice in LiveVote.
+// VoteOption is one choice in LiveVote: its votes, not counting yours, and
+// the initials of a few who voted for it.
 type VoteOption struct {
 	Label string
 	Votes int
+	Faces []string
 }
 
 // LiveVoteOptions configures LiveVote.
 type LiveVoteOptions struct {
-	Question string
-	Width    float32
-	Accent   ui.Color
-	OnVote   func(index int)
+	Question  string
+	Closes    string // "Closes Friday" by default
+	HideFaces bool   // hide the voters' initials on each row
+	OnVote    func(index int)
 }
 
-// LiveVote renders an interactive poll whose percentage bars spring smoothly
-// whenever a user casts or changes their vote.
-func LiveVote(c *ui.Context, options []VoteOption, selected *int, opts ...LiveVoteOptions) ui.Element {
+// liveVoteArrivals are the voters who come in after your first vote, by when
+// and which option (modulo the number of options).
+var liveVoteArrivals = []struct {
+	at  time.Duration
+	opt int
+}{{700 * time.Millisecond, 0}, {1400 * time.Millisecond, 2}, {2300 * time.Millisecond, 1}}
+
+type liveVoteState struct {
+	firstVote time.Time
+}
+
+// LiveVote is a team poll. Vote and every option turns into its result, bars
+// filling and numbers counting up while a few more voters come in. Press
+// another option to move your vote, or yours again to take it back. *vote is
+// the option you voted for, -1 for none.
+func LiveVote(c *ui.Context, options []VoteOption, vote *int, opts ...LiveVoteOptions) ui.Element {
 	var o LiveVoteOptions
 	if len(opts) > 0 {
 		o = opts[0]
 	}
-	t := ThemeFrom(c)
-	if o.Width <= 0 {
-		o.Width = 264
+	if o.Closes == "" {
+		o.Closes = "Closes Friday"
 	}
-	accent := colorOr(o.Accent, t.Accent)
+	t := ThemeFrom(c)
 
+	card := ui.Column(c).Width(320).Padding(20, 16, 16, 16).Radius(18).Background(t.Surface)
+	st := ui.Local(card, "live_vote", func() liveVoteState { return liveVoteState{} })
+	if *vote >= 0 && st.firstVote.IsZero() {
+		st.firstVote = c.Now()
+	}
+	counts := make([]int, len(options))
 	total := 0
-	for _, opt := range options {
-		if opt.Votes > 0 {
-			total += opt.Votes
+	for i, opt := range options {
+		counts[i] = opt.Votes
+		if i == *vote {
+			counts[i]++
 		}
 	}
-
-	curSel := -1
-	if selected != nil {
-		curSel = *selected
+	if !st.firstVote.IsZero() {
+		since := c.Now().Sub(st.firstVote)
+		for _, a := range liveVoteArrivals {
+			if since >= a.at {
+				counts[a.opt%len(options)]++
+			} else {
+				c.After(a.at - since)
+				break
+			}
+		}
 	}
-
-	card := ui.Column(c).
-		Width(o.Width).
-		Padding(14).
-		Gap(8).
-		Radius(14).
-		Background(t.Surface).
-		Border(1, t.Border)
+	for _, n := range counts {
+		total += n
+	}
+	voted := *vote >= 0
 
 	card.Children(func() {
-		if o.Question != "" {
-			ui.Row(c).WidthPercent(100).Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, o.Question).
-					FontSize(13).
-					FontWeight(600).
-					TextColor(t.Text)
-				ui.Text(c, fmt.Sprintf("%d votes", total)).
-					FontSize(11).
-					TextColor(t.TextSubtle)
-			})
-		}
-
-		for i := range options {
-			idx := i
-			opt := options[idx]
-			isSel := curSel == idx
-
-			targetPct := float32(0)
-			if total > 0 {
-				targetPct = float32(opt.Votes) / float32(total)
-			}
-
-			borderCol := t.Border
-			if isSel {
-				borderCol = accent.Alpha(0.70)
-			}
-
-			row := ui.Row(c).
-				Key(idx).
-				WidthPercent(100).
-				Height(36).
-				Padding(0, 12).
-				Radius(10).
-				Justify(ui.SpaceBetween).
-				AlignItems(ui.Center).
-				Background(t.SurfaceSubtle).
-				Border(1, borderCol).
-				Cursor(ui.CursorPointer).
-				Clip()
-
-			pct := row.Spring("vote_pct", targetPct, ui.SpringOptions{
-				Duration: 360 * time.Millisecond,
-				Bounce:   0.22,
-			})
-
-			row.Draw(func(p *ui.Painter, r ui.Rect) {
-				if r.W <= 0 || r.H <= 0 || pct <= 0.001 {
-					return
-				}
-				fillCol := t.BorderStrong.Alpha(0.32)
-				if isSel {
-					fillCol = accent.Alpha(0.24)
-				}
-				p.Fill(ui.Rect{X: r.X, Y: r.Y, W: r.W * clamp32(pct, 0, 1), H: r.H}, fillCol, 9)
-			})
-
-			row.Children(func() {
-				labelCol := t.Text
-				if isSel {
-					labelCol = accent
-				}
-				ui.Text(c, opt.Label).
-					FontSize(12).
-					FontWeight(500).
-					TextColor(labelCol)
-				ui.Text(c, fmt.Sprintf("%d%%", int(targetPct*100+0.5))).
-					FontSize(12).
-					FontWeight(600).
-					TextColor(t.TextMuted)
-			})
-
-			if row.Clicked() {
-				if curSel != idx {
-					if curSel >= 0 && curSel < len(options) && options[curSel].Votes > 0 {
-						options[curSel].Votes--
-					}
-					options[idx].Votes++
-					if selected != nil {
-						*selected = idx
+		ui.Text(c, o.Question).FontSize(17).FontWeight(500).TextColor(t.Text).Padding(0, 4)
+		ui.Text(c, fmt.Sprintf("%d votes · %s", total, o.Closes)).FontSize(14).TextColor(t.TextSubtle).Padding(3, 4, 0, 4)
+		ui.Column(c).WidthPercent(100).Gap(6).Padding(16, 0, 0, 0).Children(func() {
+			for i, opt := range options {
+				liveVoteRow(c, t, i, opt, counts[i], total, voted, i == *vote, o.HideFaces, func() {
+					if *vote == i {
+						*vote = -1
+					} else {
+						*vote = i
 					}
 					if o.OnVote != nil {
-						o.OnVote(idx)
+						o.OnVote(*vote)
 					}
-				}
+				})
 			}
-		}
+		})
 	})
-
 	return card
 }
 
-type liveVoteDemoState struct {
-	options  []VoteOption
-	selected int
+func liveVoteRow(c *ui.Context, t Theme, i int, opt VoteOption, count, total int, voted, mine, hideFaces bool, toggle func()) {
+	row := ui.Box(c).Key(i).WidthPercent(100).Height(44).Radius(12).Background(t.SurfaceSubtle).Cursor(ui.CursorPointer).OnClick(toggle)
+	share := float32(0)
+	if voted && total > 0 {
+		share = float32(count) / float32(total)
+	}
+	bar := row.Spring("bar", share, ui.SpringOptions{Duration: 900 * time.Millisecond})
+	shown := row.Spring("shown", b2f(voted), ui.SpringOptions{Duration: 400 * time.Millisecond})
+	pressed := row.Spring("press", b2f(row.Pressed()), ui.SpringOptions{Duration: 160 * time.Millisecond})
+	row.Scale(1-0.015*pressed, 1-0.015*pressed)
+	row.Draw(func(p *ui.Painter, r ui.Rect) {
+		if bar > 0.001 {
+			fill := r
+			fill.W = max(r.W*bar, 12)
+			col := t.Text.Alpha(0.07)
+			if mine {
+				col = t.Text.Alpha(0.13)
+			}
+			p.Clip(r, 12, func() { p.Fill(fill, col.Alpha(shown), 12) })
+		}
+	})
+	row.Children(func() {
+		ui.Row(c).Absolute().Left(0).Top(0).WidthPercent(100).Height(44).Padding(0, 14, 0, 12).AlignItems(ui.Center).Gap(10).Children(func() {
+			ring := ui.Box(c).Size(19, 19).Radius(10).Center()
+			if mine {
+				ring.Background(t.Text).Children(func() {
+					ui.Icon(c, icons.Check()).Size(12, 12).TextColor(t.Surface)
+				})
+			} else {
+				ring.Border(1.5, t.TextSubtle.Alpha(0.6))
+			}
+			ui.Text(c, opt.Label).FontSize(15).TextColor(t.Text).Grow(1).SingleLine()
+			if voted {
+				if !hideFaces {
+					liveVoteFaces(c, t, opt.Faces, shown)
+				}
+				ui.Text(c, fmt.Sprintf("%d%%", int(math.Round(float64(bar*100))))).FontSize(14).FontWeight(500).TextColor(t.Text).Opacity(shown).Width(38).TextAlign(ui.End)
+			}
+		})
+	})
+}
+
+func liveVoteFaces(c *ui.Context, t Theme, faces []string, shown float32) {
+	shades := [...]ui.Color{t.TextSubtle, t.TextMuted, t.Text}
+	ui.Row(c).Opacity(shown).Children(func() {
+		for j, f := range faces[:min(len(faces), 3)] {
+			ui.Box(c).Key(j).Size(21, 21).Radius(11).Background(shades[j%3]).Border(2, t.SurfaceSubtle).Center().Margin(0, 0, 0, float32(min(j, 1))*-5).Children(func() {
+				ui.Text(c, f).FontSize(8.5).FontWeight(600).TextColor(t.Surface)
+			})
+		}
+	})
 }
 
 func init() {
 	registerDemo(
 		"live-vote",
-		"Live poll card with animated percentage fill bars and instant vote switching.",
+		"A team poll: vote and every option turns into its result, bars filling, numbers counting up, a few voters coming in.",
 		func(c *ui.Context) {
-			holder := ui.Box(c).Center()
-			st := ui.Local(holder, "demo_live_vote", func() liveVoteDemoState {
-				return liveVoteDemoState{
-					selected: -1,
-					options: []VoteOption{
-						{Label: "Spring physics", Votes: 14},
-						{Label: "Shader glow", Votes: 9},
-						{Label: "Micro haptics", Votes: 6},
-					},
-				}
-			})
+			holder := ui.Box(c)
+			vote := ui.Local(holder, "live_vote_choice", func() int { return -1 })
 			holder.Children(func() {
-				LiveVote(c, st.options, &st.selected, LiveVoteOptions{
-					Question: "Favorite detail?",
-					Width:    248,
-				})
+				LiveVote(c, liveVoteDemoOptions, vote, LiveVoteOptions{Question: "What should we ship next?"})
 			})
 		},
 	)
+}
+
+var liveVoteDemoOptions = []VoteOption{
+	{Label: "Dark mode", Votes: 46, Faces: []string{"AK", "MS", "JL"}},
+	{Label: "Offline sync", Votes: 38, Faces: []string{"RP", "TN"}},
+	{Label: "Calendar view", Votes: 27, Faces: []string{"EV", "OB", "SK"}},
+	{Label: "Public API", Votes: 17, Faces: []string{"DW"}},
 }
