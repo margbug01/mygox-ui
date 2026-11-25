@@ -33,6 +33,7 @@ const (
 var (
 	genieArtOnce sync.Once
 	genieArt     []*ui.Bitmap
+	geniePixels  []*image.RGBA // the same pictures, for reading colours back
 )
 
 // genieNoise is smooth value noise in about 0 to 1.
@@ -71,6 +72,31 @@ func genieArtwork() []*ui.Bitmap {
 			return [3]float64{float64(s >> 16 & 255), float64(s >> 8 & 255), float64(s & 255)}
 		}
 		paints := []func(x, y float64) [3]float64{
+			func(x, y float64) [3]float64 { // alpine: snow peaks, a green bluff, a purple flower field
+				field := 0.5 + 0.42*x
+				if y > field {
+					col := genieMix(hex(0x6b34b8), hex(0x9a5be0), genieNoise(x*14, y*30, 21))
+					if genieNoise(x*9, y*9, 22) > 0.72 {
+						col = genieMix(hex(0xf2471c), hex(0xff7a3c), genieNoise(x*20, y*20, 23))
+					}
+					if math.Mod(x*37+genieNoise(x*3, y*3, 24)*2, 1) < 0.08 {
+						col = genieMix(col, hex(0x1d3b1a), 0.7)
+					}
+					return col
+				}
+				bluff := 0.38 + 0.03*math.Sin(x*9)
+				if x > 0.04 && y > bluff && (x < 0.58 || y > bluff+(x-0.58)*1.35) {
+					col := genieMix(hex(0x0f3a1c), hex(0x1d5a2a), genieNoise(x*10, y*6, 25))
+					return genieMix(col, hex(0x3f8d45), 1-(y-bluff)*14)
+				}
+				peak := 0.24 - 0.13*math.Max(0, 1-math.Abs(x-0.3)*5) - 0.15*math.Max(0, 1-math.Abs(x-0.74)*4.5)
+				if y > peak {
+					snow := genieMix(hex(0xf3f2f6), hex(0xdcdcf0), genieNoise(x*8, y*8, 26))
+					streak := genieNoise(x*16+y*6, y*3, 27)
+					return genieMix(snow, hex(0x6c70d0), (streak-0.55)*6)
+				}
+				return genieMix(hex(0x6f73d4), hex(0x8386de), genieNoise(x*20, y*20, 28))
+			},
 			func(x, y float64) [3]float64 { // ridge
 				ridge := 0.25 + 0.3*genieNoise(x*2, 0.3, 1) + 0.15*math.Sin(x*3)
 				if y < ridge {
@@ -126,6 +152,7 @@ func genieArtwork() []*ui.Bitmap {
 				}
 			}
 			genieArt = append(genieArt, ui.NewBitmap(img))
+			geniePixels = append(geniePixels, img)
 		}
 	})
 	return genieArt
@@ -185,7 +212,7 @@ func GenieEffect(c *ui.Context, opts ...GenieEffectOptions) ui.Element {
 		o.Speed = 600 * time.Millisecond
 	}
 	t := ThemeFrom(c)
-	art := genieArtwork()
+	art := genieArtwork()[1:] // the alpine picture is Dust delete's
 	holder := ui.Box(c).Size(genieW, genieDockY+genieThumb)
 	st := ui.Local(holder, "genie", func() genieState { return genieState{shown: 0, leaving: -1} })
 	k := float32(1)
