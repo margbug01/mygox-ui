@@ -3,7 +3,6 @@ package bencho
 import (
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -44,189 +43,6 @@ func hcStarPath(cx, cy, outerR, innerR float32) *ui.Path {
 	}
 	p.Close()
 	return &p
-}
-
-// -----------------------------------------------------------------------------
-// 5. CodeReveal ("code-reveal")
-// -----------------------------------------------------------------------------
-
-// CodeRevealOptions configures CodeReveal.
-type CodeRevealOptions struct {
-	Width    float32
-	Height   float32
-	Filename string
-	Lines    []string
-}
-
-// CodeReveal renders a stylized code snippet obscured by subtle scanlines and
-// dimming that focuses cleanly into crisp highlighted lines beneath the pointer.
-func CodeReveal(c *ui.Context, opts ...CodeRevealOptions) ui.Element {
-	var o CodeRevealOptions
-	if len(opts) > 0 {
-		o = opts[0]
-	}
-	t := ThemeFrom(c)
-	if o.Width <= 0 {
-		o.Width = 296
-	}
-	if o.Height <= 0 {
-		o.Height = 176
-	}
-	if o.Filename == "" {
-		o.Filename = "spring.go"
-	}
-	lines := o.Lines
-	if len(lines) == 0 {
-		lines = []string{
-			"func Spring(v, target float32) {",
-			"  sp := ui.SpringOptions{",
-			"    Duration: 320 * time.Millisecond,",
-			"    Bounce:   0.26,",
-			"  }",
-			"  return el.Spring(\"k\", target, sp)",
-		}
-	}
-
-	card := ui.Column(c).
-		Size(o.Width, o.Height).
-		Radius(14).
-		Background(t.Surface).
-		BorderWidth(1, 1, 1, 1).
-		BorderColor(t.Border).
-		Clip()
-
-	card.Children(func() {
-		// Window header bar.
-		ui.Row(c).
-			WidthPercent(100).
-			Height(30).
-			Padding(0, 12).
-			Justify(ui.SpaceBetween).
-			AlignItems(ui.Center).
-			Background(t.SurfaceSubtle).
-			BorderWidth(0, 0, 1, 0).
-			BorderColor(t.Border).
-			Children(func() {
-				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Box(c).Size(7, 7).Radius(99).Background(ui.Hex("#ef4444").Alpha(0.75))
-					ui.Box(c).Size(7, 7).Radius(99).Background(ui.Hex("#f59e0b").Alpha(0.75))
-					ui.Box(c).Size(7, 7).Radius(99).Background(ui.Hex("#22c55e").Alpha(0.75))
-					ui.Text(c, o.Filename).
-						FontSize(10).
-						FontWeight(600).
-						TextColor(t.TextMuted).
-						Margin(0, 0, 0, 4).
-						SingleLine()
-				})
-				ui.Text(c, "Hover to inspect").
-					FontSize(9).
-					TextColor(t.TextSubtle).
-					SingleLine()
-			})
-
-		bodyH := o.Height - 30
-		body := ui.Box(c).
-			Size(o.Width, bodyH).
-			Cursor(ui.CursorPointer)
-
-		hovered := body.Hovered()
-		_, py, over := body.PointerPosition()
-		focusTarget := float32(0)
-		targetY := bodyH * 0.5
-		if hovered || over {
-			focusTarget = 1
-			targetY = clamp32(py, 16, bodyH-16)
-		}
-
-		sp := ui.SpringOptions{Duration: 220 * time.Millisecond, Bounce: 0.08}
-		focus := body.Spring("hc_cr_f", focusTarget, sp)
-		bandY := body.Spring("hc_cr_y", targetY, ui.SpringOptions{Duration: 180 * time.Millisecond, Bounce: 0.06})
-
-		lineH := float32(20)
-		topPad := float32(12)
-		bandHalf := float32(22)
-
-		kwCol := ui.Hex("#a855f7")
-		strCol := ui.Hex("#10b981")
-		numCol := ui.Hex("#f59e0b")
-		if !t.Dark {
-			kwCol = ui.Hex("#7c3aed")
-			strCol = ui.Hex("#059669")
-			numCol = ui.Hex("#d97706")
-		}
-
-		body.Draw(func(p *ui.Painter, r ui.Rect) {
-			// Highlighted horizontal focus band behind active lines.
-			if focus > 0.02 {
-				bandRect := ui.Rect{
-					X: r.X + 4,
-					Y: r.Y + bandY - bandHalf,
-					W: r.W - 8,
-					H: bandHalf * 2,
-				}
-				p.Fill(bandRect, t.Accent.Alpha(0.11*focus), 8)
-				p.Fill(ui.Rect{X: r.X + 4, Y: bandRect.Y + 4, W: 2.5, H: bandRect.H - 8}, t.Accent.Alpha(0.95*focus), 2)
-			}
-
-			// Draw each code line with proximity-driven clarity.
-			for i, ln := range lines {
-				ly := topPad + float32(i)*lineH
-				centerY := ly + lineH*0.5
-				dist := float32(math.Abs(float64(centerY - bandY)))
-				inBand := clamp32(1-(dist-10)/26, 0, 1) * focus
-
-				alpha := lerp32(0.32, 1.0, inBand)
-				lnNumCol := lerpColor(t.TextSubtle.Alpha(0.4), t.Accent, inBand)
-				p.Text(r.X+12, r.Y+ly+2, fmt.Sprintf("%d", i+1), 10, lnNumCol)
-
-				// Simple keyword/literal tinting by line content.
-				codeCol := t.Text.Alpha(alpha)
-				trimmed := strings.TrimSpace(ln)
-				if strings.HasPrefix(trimmed, "func ") || strings.HasPrefix(trimmed, "return ") {
-					codeCol = lerpColor(t.Text.Alpha(alpha), kwCol.Alpha(alpha), 0.55)
-				} else if strings.Contains(trimmed, "Millisecond") || strings.Contains(trimmed, "0.26") {
-					codeCol = lerpColor(t.Text.Alpha(alpha), numCol.Alpha(alpha), 0.55)
-				} else if strings.Contains(trimmed, "\"") {
-					codeCol = lerpColor(t.Text.Alpha(alpha), strCol.Alpha(alpha), 0.55)
-				}
-				p.Text(r.X+28, r.Y+ly+2, ln, 10.5, codeCol)
-			}
-
-			// Subtle horizontal scanlines outside the hovered reveal band.
-			scanCol := ui.Hex("#ffffff").Alpha(0.045)
-			if !t.Dark {
-				scanCol = ui.Hex("#111111").Alpha(0.045)
-			}
-			for sy := float32(4); sy < r.H; sy += 4 {
-				dist := float32(math.Abs(float64(sy - bandY)))
-				clearAmt := clamp32(1-(dist-12)/24, 0, 1) * focus
-				lineAlpha := 1 - clearAmt
-				if lineAlpha > 0.08 {
-					p.Line(r.X, r.Y+sy, r.X+r.W, r.Y+sy, 1, scanCol.Alpha(float32(scanCol.A)/255.0*lineAlpha))
-				}
-			}
-
-			// Soft top/bottom dimming veil that clears cleanly at the focus band.
-			veilCol := t.Surface
-			topFadeEnd := clamp32((bandY-bandHalf)/r.H, 0.05, 0.85)
-			botFadeStart := clamp32((bandY+bandHalf)/r.H, 0.15, 0.95)
-			if focus < 0.05 {
-				p.Fill(r, veilCol.Alpha(0.28), 0)
-			} else {
-				p.FillGradient(r, ui.LinearGradient{
-					Angle: 180,
-					Stops: []ui.GradientStop{
-						{Color: veilCol.Alpha(0.55 * focus), At: 0},
-						{Color: ui.Transparent, At: topFadeEnd},
-						{Color: ui.Transparent, At: botFadeStart},
-						{Color: veilCol.Alpha(0.55 * focus), At: 1},
-					},
-				}, 0)
-			}
-		})
-	})
-
-	return card
 }
 
 // -----------------------------------------------------------------------------
@@ -2027,11 +1843,6 @@ func MagnifyingDock(c *ui.Context, opts ...MagnifyingDockOptions) ui.Element {
 }
 
 func init() {
-	registerDemo(
-		"code-reveal",
-		"Code snippet obscured by subtle scanlines that clarifies cleanly beneath the hovered pointer band.",
-		func(c *ui.Context) { CodeReveal(c) },
-	)
 	registerDemo(
 		"folder",
 		"Interactive desktop folder whose front flap hinges open while 3 mini document cards spring upward.",
