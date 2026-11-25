@@ -22,6 +22,7 @@ func init() {
 	Register(Entry{ID: "p-progress-1", Family: "progress", Description: "Animated progress bar", View: PProgress1, Source: extractFunc(miscSource, "PProgress1")})
 	Register(Entry{ID: "p-progress-2", Family: "progress", Description: "Progress bar with label and percentage", View: PProgress2, Source: extractFunc(miscSource, "PProgress2")})
 	Register(Entry{ID: "p-progress-3", Family: "progress", Description: "Progress bar with custom formatted value", View: PProgress3, Source: extractFunc(miscSource, "PProgress3")})
+	Register(Entry{ID: "p-progress-bounce", Family: "progress", Description: "Progress bar that springs to each value and throws sparks going forward (mygox motion, not on coss.com)", View: PProgressBounce, Source: extractFunc(miscSource, "PProgressBounce")})
 	Register(Entry{ID: "p-skeleton-2", Family: "skeleton", Description: "User card loading skeleton", View: PSkeleton2, Source: extractFunc(miscSource, "PSkeleton2")})
 }
 
@@ -78,6 +79,21 @@ func PSpinner1(c *ui.Context) {
 
 // PProgress1 renders a progress bar that starts at 20 and grows by a
 // random step every second until it is full.
+// PProgressBounce is mygox's own: the bar springs to each new value,
+// running a little past it, and throws sparks as it moves forward.
+func PProgressBounce(c *ui.Context) {
+	box := ui.Column(c).WidthPercent(100).MaxWidth(256).Gap(12).AlignItems(ui.Start)
+	value := ui.Local(box, "value", func() float32 { return 20 })
+	box.Children(func() {
+		coss.Progress(c, *value, coss.ProgressOptions{Bounce: 40, Sparks: true})
+		coss.Button(c, "Advance").Variant(coss.ButtonOutline).OnClick(func() {
+			if *value += 20; *value > 100 {
+				*value = 0
+			}
+		})
+	})
+}
+
 func PProgress1(c *ui.Context) {
 	box := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	value := ui.Local(box, "value", func() float32 { return 20 })

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/margbug01/mygox-ui/coss"
 )
 
 // ProgressTrackerOptions configures ProgressTracker; the zero value is
@@ -24,7 +25,6 @@ const (
 	progressTrackerBarY                = 58
 	progressTrackerRow0                = 94.5 // the first row's middle
 	progressTrackerPitch               = 38.4
-	progressTrackerSparkLife           = 550 * time.Millisecond
 	progressTrackerBurstLife           = 750 * time.Millisecond
 )
 
@@ -32,7 +32,6 @@ var progressTrackerFrom, progressTrackerTo = ui.Hex("#756af4"), ui.Hex("#a452d8"
 
 type progressTrackerState struct {
 	done      []bool
-	sparkAt   time.Time // when the bar last moved forward
 	allDoneAt time.Time
 }
 
@@ -76,47 +75,21 @@ func ProgressTracker(c *ui.Context, tasks []string, opts ...ProgressTrackerOptio
 				n++
 			}
 		}
-		if st.done[i] {
-			st.sparkAt = now
-			if n == len(tasks) {
-				st.allDoneAt = now
-			}
+		if st.done[i] && n == len(tasks) {
+			st.allDoneAt = now
 		}
 		if o.OnChange != nil {
 			o.OnChange(n)
 		}
 	}
 
-	frac := float32(count) / float32(max(1, len(tasks)))
-	bar := card.Spring("bar", frac, ui.SpringOptions{Duration: 650 * time.Millisecond, Bounce: float64(clamp32(o.Bounce, 0, 100)) / 100 * 0.7})
 	roll := card.Spring("count", float32(count), ui.SpringOptions{Duration: 420 * time.Millisecond})
-	sparkAge := now.Sub(st.sparkAt)
 	burstAge := now.Sub(st.allDoneAt)
-	if (!o.NoSparks && sparkAge < progressTrackerSparkLife) || (count == len(tasks) && burstAge < progressTrackerBurstLife) {
+	if count == len(tasks) && burstAge < progressTrackerBurstLife {
 		c.AnimationFrame()
 	}
 
 	card.Draw(func(p *ui.Painter, r ui.Rect) {
-		track := ui.Rect{X: r.X + 20, Y: r.Y + progressTrackerBarY, W: r.W - 40, H: 8}
-		p.Fill(track, t.SurfaceHover, 4)
-		if w := track.W * clamp32(bar, 0, 1.08); w > 0.5 {
-			fill := track
-			fill.W = max(w, 8)
-			p.FillGradient(fill, ui.LinearGradient{Angle: 90, Stops: []ui.GradientStop{{Color: progressTrackerFrom, At: 0}, {Color: progressTrackerTo, At: 1}}}, 4)
-		}
-		// Sparks off the bar's head as it moves forward.
-		if !o.NoSparks && sparkAge < progressTrackerSparkLife && !st.sparkAt.IsZero() {
-			k := float32(sparkAge.Seconds() / progressTrackerSparkLife.Seconds())
-			hx, hy := track.X+track.W*clamp32(bar, 0, 1), track.Y+4
-			for j := range 8 {
-				a := float64(j)/8*2*math.Pi + 0.4
-				d := 4 + 22*k
-				x := hx + float32(math.Cos(a))*d*1.3
-				y := hy + float32(math.Sin(a))*d*0.8
-				s := 3.2 * (1 - k)
-				p.Fill(ui.Rect{X: x - s/2, Y: y - s/2, W: s, H: s}, lerpColor(progressTrackerFrom, progressTrackerTo, float32(j%3)/2).Alpha(1-k), s/2)
-			}
-		}
 		// The count, its done number rolling up or down.
 		_, th := p.MeasureText(0, ui.Span{Text: "0", Size: 15})
 		tw, _ := p.MeasureText(0, ui.Span{Text: fmt.Sprintf("/%d", len(tasks)), Size: 15})
@@ -140,6 +113,11 @@ func ProgressTracker(c *ui.Context, tasks []string, opts ...ProgressTrackerOptio
 	})
 
 	card.Children(func() {
+		// The bar, springing forward and throwing sparks.
+		coss.Progress(c, float32(count*100)/float32(max(1, len(tasks))), coss.ProgressOptions{
+			Bounce: o.Bounce, Sparks: !o.NoSparks,
+			Style: &coss.ProgressStyle{Height: 8, Track: t.SurfaceHover, From: progressTrackerFrom, To: progressTrackerTo},
+		}).Absolute().Left(20).Top(progressTrackerBarY).Width(progressTrackerW - 40)
 		ui.Text(c, o.Title).Absolute().Left(20).Top(19).FontSize(18).FontWeight(500).TextColor(t.Text)
 		ui.Text(c, fmt.Sprintf("%d/%d", count, len(tasks))).Absolute().Left(0).Top(0).Opacity(0) // the count as text, for screen readers
 		for i, task := range tasks {
