@@ -28,6 +28,8 @@ func init() {
 	Register(Entry{ID: "p-tabs-13", Family: "tabs", Description: "Tabs with icon only and grouped tooltips", View: PTabs13, Source: extractFunc(tabsSource, "PTabs13")})
 	Register(Entry{ID: "p-tabs-14", Family: "tabs", Description: "Small segmented control built with tabs", View: PTabs14, Source: extractFunc(tabsSource, "PTabs14")})
 	Register(Entry{ID: "p-tabs-15", Family: "tabs", Description: "Large segmented control built with tabs", View: PTabs15, Source: extractFunc(tabsSource, "PTabs15")})
+	Register(Entry{ID: "p-tabs-stretch", Family: "tabs", Description: "Tabs whose selection stretches across to the tab chosen (mygox motion, not on coss.com)", View: PTabsStretch, Source: extractFunc(tabsSource, "PTabsStretch")})
+	Register(Entry{ID: "p-tabs-jelly", Family: "tabs", Description: "Tabs whose chosen tab grows like jelly, pushing the others aside (mygox motion, not on coss.com)", View: PTabsJelly, Source: extractFunc(tabsSource, "PTabsJelly")})
 }
 
 // tabPanelNote is the coss panel paragraph: p-4 text-center text-xs
@@ -78,6 +80,18 @@ func numberedTabs(c *ui.Context, o coss.TabsOptions, width float32) {
 
 func overviewIcons() []*ui.SVG {
 	return []*ui.SVG{icons.House(), icons.PanelsTopLeft(), icons.Settings()}
+}
+
+// PTabsStretch is mygox's own: the selection slides across to the tab
+// chosen, its leading edge first, and lands with a bounce.
+func PTabsStretch(c *ui.Context) {
+	numberedTabs(c, coss.TabsOptions{Motion: coss.TabsStretch}, 0)
+}
+
+// PTabsJelly is mygox's own: the tab chosen grows and darkens, pushing the
+// others aside, and settles with a wobble.
+func PTabsJelly(c *ui.Context) {
+	numberedTabs(c, coss.TabsOptions{Motion: coss.TabsJelly}, 0)
 }
 
 func PTabs1(c *ui.Context) {
