@@ -330,11 +330,14 @@ func (a *showcaseApp) benchoCard(c *ui.Context, t theme.Tokens, blk bencho.Block
 			if isMobile {
 				minH = 160
 			}
+			// Blocks sit on bencho.dev's grey stage, which their white cards stand out from.
 			ui.Column(c).
 				WidthPercent(100).
 				MinHeight(minH).
+				Grow(1).
 				Center().
 				Padding(20, 16).
+				Background(bencho.ThemeFor(a.dark).SurfaceSubtle).
 				Children(func() {
 					blk.Demo(c)
 				})
