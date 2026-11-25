@@ -35,7 +35,7 @@ const (
 
 // countryWheelFlag is drawn as stripes, a Nordic cross or a disc.
 type countryWheelFlag struct {
-	kind   byte       // 'v' vertical stripes, 'h' horizontal, '+' cross, 'o' disc, '$' a currency's sign
+	kind   byte       // 'v' vertical stripes, 'h' horizontal, '+' Nordic cross, 's' Swiss cross, 'o' disc, '$' a currency's sign
 	cols   []ui.Color // the stripes, or field then cross (then inner cross)
 	weight []float32  // stripe widths, all equal when nil
 	sign   string
@@ -114,6 +114,12 @@ func countryWheelDrawFlag(p *ui.Painter, r ui.Rect, f countryWheelFlag, alpha fl
 				p.Fill(ui.Rect{X: cx - b/2, Y: r.Y, W: b, H: r.H}, col.Alpha(alpha), 0)
 				p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H/2 - b/2, W: r.W, H: b}, col.Alpha(alpha), 0)
 			}
+		case 's':
+			p.Fill(r, f.cols[0].Alpha(alpha), 0)
+			arm, long := r.H*0.2, r.H*0.6
+			cx, cy := r.X+r.W/2, r.Y+r.H/2
+			p.Fill(ui.Rect{X: cx - arm/2, Y: cy - long/2, W: arm, H: long}, f.cols[1].Alpha(alpha), 0)
+			p.Fill(ui.Rect{X: cx - long/2, Y: cy - arm/2, W: long, H: arm}, f.cols[1].Alpha(alpha), 0)
 		case 'o':
 			p.Fill(r, f.cols[0].Alpha(alpha), 0)
 			d := r.H * 0.6
