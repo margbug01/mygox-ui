@@ -17,7 +17,7 @@ func TestFlapBoardFlipsToTheNextMessage(t *testing.T) {
 	step(tt, 50*time.Millisecond)
 	before := tt.Image()
 	tt.ClickAt(140, 52)
-	step(tt, 120*time.Millisecond)
+	step(tt, 260*time.Millisecond) // the sweep reaches the middle tiles
 	if changed(before, tt.Image(), 140) == 0 {
 		t.Fatal("the flaps start falling")
 	}
