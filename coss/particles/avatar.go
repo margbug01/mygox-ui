@@ -62,6 +62,7 @@ func init() {
 	Register(Entry{ID: "p-avatar-19", Family: "avatar", Description: "Avatars sized from a parent element", View: PAvatar19, Source: extractFunc(avatarSource, "PAvatar19")})
 	Register(Entry{ID: "p-avatar-20", Family: "avatar", Description: "Avatar with a tooltip", View: PAvatar20, Source: extractFunc(avatarSource, "PAvatar20")})
 	Register(Entry{ID: "p-avatar-21", Family: "avatar", Description: "Avatar group with a tooltip per member", View: PAvatar21, Source: extractFunc(avatarSource, "PAvatar21")})
+	Register(Entry{ID: "p-avatar-group-lift", Family: "avatar", Description: "Avatar group that lifts round the pointer and names the avatar under it (mygox motion, not on coss.com)", View: PAvatarGroupLift, Source: extractFunc(avatarSource, "PAvatarGroupLift")})
 }
 
 func cossTooltip(c *ui.Context, anchor ui.Element, text string) {
@@ -92,6 +93,17 @@ func avatarGroupMember(c *ui.Context, el ui.Element, i int, size float32, lastOn
 		z = i + 1
 	}
 	el.ZIndex(z).Shadow(0, 0, 0, size/16, theme.Of(c).Background)
+}
+
+// PAvatarGroupLift is mygox's own: pointed along, the row lifts round the
+// pointer and one tooltip slides to name the avatar under it.
+func PAvatarGroupLift(c *ui.Context) {
+	coss.AvatarGroup(c, []coss.AvatarGroupMember{
+		{Name: "Felix Kim", Fallback: "FK", Image: avatarFK},
+		{Name: "Nora Ellis", Fallback: "NE", Image: avatarNE},
+		{Name: "Emma Walsh", Fallback: "EW", Image: avatarEW},
+		{Name: "Leo Park", Fallback: "LP"},
+	}, coss.AvatarGroupOptions{})
 }
 
 func PAvatar1(c *ui.Context) {

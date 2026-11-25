@@ -11,8 +11,8 @@ import (
 
 func TestAllRegisteredParticlesRenderHeadless(t *testing.T) {
 	all := particles.All()
-	if len(all) != 534 {
-		t.Fatalf("expected the 530 particles of coss.com and mygox's own motion ones, 534, got %d", len(all))
+	if len(all) != 535 {
+		t.Fatalf("expected the 530 particles of coss.com and mygox's own motion ones, 535, got %d", len(all))
 	}
 
 	for _, e := range all {
