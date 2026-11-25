@@ -64,11 +64,11 @@ func ConfirmSend(c *ui.Context, opts ...ConfirmSendOptions) ui.Element {
 	if len(opts) > 0 {
 		o = opts[0]
 	}
-	o.Amount = cmp(o.Amount, "€150")
-	o.Recipient = cmp(o.Recipient, "Ann Lee")
-	o.From = cmp(o.From, "Standard ·· 4821")
-	o.Fee = cmp(o.Fee, "€0.00")
-	o.Arrives = cmp(o.Arrives, "Instantly")
+	o.Amount = orDefault(o.Amount, "€150")
+	o.Recipient = orDefault(o.Recipient, "Ann Lee")
+	o.From = orDefault(o.From, "Standard ·· 4821")
+	o.Fee = orDefault(o.Fee, "€0.00")
+	o.Arrives = orDefault(o.Arrives, "Instantly")
 	glow := confirmSendGlows[o.Glow]
 	if glow[0] == (ui.Color{}) {
 		glow = confirmSendGlows[ConfirmSendSunset]
@@ -190,7 +190,7 @@ func confirmSendReceipt(c *ui.Context, t Theme, o ConfirmSendOptions, arrived ti
 	})
 }
 
-func cmp(s, def string) string {
+func orDefault(s, def string) string {
 	if s == "" {
 		return def
 	}
