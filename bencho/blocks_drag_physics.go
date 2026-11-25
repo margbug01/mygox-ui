@@ -3,7 +3,6 @@ package bencho
 import (
 	"fmt"
 	"math"
-	"sort"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -170,144 +169,6 @@ func dpNewStage(c *ui.Context, key string, bg, border ui.Color, w, h float32) ui
 		BorderWidth(1, 1, 1, 1).
 		BorderColor(border).
 		Cursor(ui.CursorPointer)
-}
-
-// =============================================================================
-// 11. dot-globe — DotGlobe
-// =============================================================================
-
-// DotGlobeOptions configures DotGlobe.
-type DotGlobeOptions struct {
-	Width  float32
-	Height float32
-	Accent ui.Color
-}
-
-type dpSpherePt struct {
-	x, y, z float32
-	lat     float32
-}
-
-var dpFibPoints = func() []dpSpherePt {
-	const n = 180
-	pts := make([]dpSpherePt, n)
-	golden := float64(math.Pi) * (3.0 - math.Sqrt(5.0))
-	for i := 0; i < n; i++ {
-		y := 1.0 - (float64(i)/float64(n-1))*2.0
-		rad := math.Sqrt(math.Max(0, 1.0-y*y))
-		theta := golden * float64(i)
-		pts[i] = dpSpherePt{
-			x:   float32(math.Cos(theta) * rad),
-			y:   float32(y),
-			z:   float32(math.Sin(theta) * rad),
-			lat: float32(math.Abs(y)),
-		}
-	}
-	return pts
-}()
-
-type dpDotGlobeState struct {
-	rotY      float32
-	rotX      float32
-	velY      float32
-	velX      float32
-	lastFrame time.Time
-}
-
-// DotGlobe renders a 3D Fibonacci-lattice dot sphere with depth-shaded front
-// and back dots. Dragging rotates the sphere smoothly with angular momentum.
-func DotGlobe(c *ui.Context, opts ...DotGlobeOptions) ui.Element {
-	var o DotGlobeOptions
-	if len(opts) > 0 {
-		o = opts[0]
-	}
-	t := ThemeFrom(c)
-	w, h := dpStageSize(o.Width, o.Height)
-	accent := colorOr(o.Accent, t.Accent)
-
-	stage := dpNewStage(c, "dp_dot_globe_stage", dpSurface(t), t.Border, w, h)
-	st := ui.Local(stage, "dp_dot_globe_state", func() dpDotGlobeState {
-		return dpDotGlobeState{rotX: 0.22, velY: 0.35}
-	})
-
-	dx, dy, dragging := stage.Dragged()
-	now := c.Now()
-	dt := dpStepDT(&st.lastFrame, now)
-
-	if dragging {
-		st.rotY += dx * 0.014
-		st.rotX = clamp32(st.rotX+dy*0.012, -1.3, 1.3)
-		if dt > 0 {
-			st.velY = lerp32(st.velY, (dx*0.014)/dt, 0.45)
-			st.velX = lerp32(st.velX, (dy*0.012)/dt, 0.45)
-		}
-	} else {
-		st.rotY += st.velY*dt + 0.22*dt
-		st.rotX = clamp32(st.rotX+st.velX*dt, -1.3, 1.3)
-		damp := float32(math.Pow(0.20, float64(dt)))
-		st.velY *= damp
-		st.velX *= damp
-	}
-	c.AnimationFrame()
-
-	stage.Draw(func(p *ui.Painter, r ui.Rect) {
-		if r.W <= 0 || r.H <= 0 {
-			return
-		}
-		cx := r.X + r.W*0.5
-		cy := r.Y + r.H*0.5 - 2
-		rad := dpMin32(r.W, r.H) * 0.38
-
-		// Soft atmospheric rim glow.
-		p.FillRadialGradient(ui.Rect{X: cx - rad*1.12, Y: cy - rad*1.12, W: rad * 2.24, H: rad * 2.24}, ui.RadialGradient{
-			Center: ui.Point{X: 0.42, Y: 0.36},
-			Stops: []ui.GradientStop{
-				{Color: accent.Alpha(0.14), At: 0},
-				{Color: accent.Alpha(0.04), At: 0.7},
-				{Color: accent.Alpha(0), At: 1},
-			},
-		}, rad*1.12)
-
-		type projDot struct {
-			sx, sy float32
-			z      float32
-			lat    float32
-		}
-		proj := make([]projDot, len(dpFibPoints))
-		for i, pt := range dpFibPoints {
-			rx, ry, rz := dpRotate3D(pt.x, pt.y, pt.z, st.rotY, st.rotX)
-			persp := 2.6 / (2.6 - rz*0.65)
-			proj[i] = projDot{
-				sx:  cx + rx*rad*persp,
-				sy:  cy + ry*rad*persp,
-				z:   rz,
-				lat: pt.lat,
-			}
-		}
-		sort.Slice(proj, func(i, j int) bool { return proj[i].z < proj[j].z })
-
-		dotHi := ui.Hex("#ffffff")
-		dotBack := t.TextSubtle
-		if !t.Dark {
-			dotHi = accent
-		}
-
-		for _, d := range proj {
-			depth := clamp32((d.z+1)*0.5, 0, 1) // 0 back .. 1 front
-			dotR := lerp32(1.05, 3.0, depth*depth)
-			alpha := lerp32(0.12, 0.96, depth*depth)
-			col := lerpColor(dotBack, accent, depth)
-			if depth > 0.72 {
-				col = lerpColor(col, dotHi, (depth-0.72)/0.28*0.65)
-			}
-			dpFillCircle(p, d.sx, d.sy, dotR, col.Alpha(alpha))
-		}
-
-		dpDrawPillBadge(p, r.X+12, r.Y+10, "180 pts", t.Surface.Alpha(0.92), t.BorderStrong, t.Text)
-		dpDrawHint(p, r, t, "Drag to spin dot sphere", 0.72)
-	})
-
-	return stage
 }
 
 // =============================================================================
@@ -691,15 +552,6 @@ func DragBall(c *ui.Context, opts ...DragBallOptions) ui.Element {
 // =============================================================================
 
 func init() {
-	registerDemo(
-		"dot-globe",
-		"3D Fibonacci-lattice dot sphere with depth-shaded front and back dots and smooth drag angular momentum.",
-		func(c *ui.Context) {
-			ui.Box(c).Center().Children(func() {
-				DotGlobe(c)
-			})
-		},
-	)
 	registerDemo(
 		"glass-bubble",
 		"Frosted iridescent glass orb drifting over a patterned backdrop that squashes elastically as you drag it.",
