@@ -28,23 +28,6 @@ func pfDrawCheck(p *ui.Painter, cx, cy, size, trim float32, strokeWidth float32,
 	p.StrokePath(&path, strokeWidth, col)
 }
 
-func pfDrawHeart(p *ui.Painter, cx, cy, r float32, fillAmt float32, fillCol, strokeCol ui.Color) {
-	var path ui.Path
-	path.Cap(ui.RoundCap).Join(ui.RoundJoin)
-	topY := cy - r*0.22
-	botY := cy + r*0.88
-	path.MoveTo(cx, botY)
-	path.CubeTo(cx-r*1.18, cy+r*0.22, cx-r*1.08, cy-r*0.86, cx, topY)
-	path.CubeTo(cx+r*1.08, cy-r*0.86, cx+r*1.18, cy+r*0.22, cx, botY)
-	path.Close()
-
-	if fillAmt > 0.02 {
-		p.FillPath(&path, fillCol.Alpha(clamp32(fillAmt, 0, 1)))
-	}
-	strokeAlpha := clamp32(1-fillAmt*0.65, 0.35, 1)
-	p.StrokePath(&path, 1.6, lerpColor(strokeCol, fillCol, fillAmt).Alpha(strokeAlpha))
-}
-
 func pfDrawSearchIcon(p *ui.Painter, cx, cy, r float32, col ui.Color) {
 	var ring ui.Path
 	ring.Circle(cx-r*0.16, cy-r*0.16, r*0.56)
@@ -718,187 +701,6 @@ func DragStepper(c *ui.Context, value *int, opts ...DragStepperOptions) ui.Eleme
 	})
 
 	return wrap
-}
-
-// ============================================================================
-// 8. like — Like
-// ============================================================================
-
-// LikeButtonOptions configures LikeButton.
-type LikeButtonOptions struct {
-	Color    ui.Color
-	OnToggle func(liked bool, count int)
-}
-
-type pfLikeState struct {
-	burstAt  time.Time
-	countAt  time.Time
-	countDir float32
-}
-
-// LikeButton renders a tactile Heart/Like button with spring pop scale,
-// bursting micro-sparkle ring on ui.Painter, and animated counter transition.
-func LikeButton(c *ui.Context, liked *bool, count *int, opts ...LikeButtonOptions) ui.Element {
-	var o LikeButtonOptions
-	if len(opts) > 0 {
-		o = opts[0]
-	}
-	t := ThemeFrom(c)
-	heartCol := colorOr(o.Color, ui.Hex("#f43f5e"))
-
-	isLiked := false
-	if liked != nil {
-		isLiked = *liked
-	}
-	curCount := 128
-	if count != nil {
-		curCount = *count
-	}
-
-	stage := ui.Box(c).
-		Width(148).
-		Height(76).
-		Center()
-
-	st := ui.Local(stage, "pf_like_st", func() pfLikeState {
-		return pfLikeState{}
-	})
-
-	now := c.Now()
-	burstElapsed := float32(99)
-	if !st.burstAt.IsZero() {
-		burstElapsed = float32(now.Sub(st.burstAt).Seconds())
-	}
-	burstDur := float32(0.55)
-	burstActive := burstElapsed < burstDur
-	if burstActive {
-		c.AnimationFrame()
-	}
-
-	countElapsed := float32(99)
-	if !st.countAt.IsZero() {
-		countElapsed = float32(now.Sub(st.countAt).Seconds())
-	}
-	if countElapsed < 0.28 {
-		c.AnimationFrame()
-	}
-
-	fillAmt := stage.Spring("pf_like_fill", func() float32 {
-		if isLiked {
-			return 1
-		}
-		return 0
-	}(), ui.SpringOptions{Duration: 260 * time.Millisecond, Bounce: 0.3})
-
-	popTarget := float32(1)
-	if burstActive && burstElapsed < 0.14 {
-		popTarget = 1.32
-	}
-	heartScale := stage.Spring("pf_like_pop", popTarget, ui.SpringOptions{
-		Duration: 300 * time.Millisecond,
-		Bounce:   0.52,
-	})
-
-	stage.Children(func() {
-		btn := ui.Row(c).
-			Key("like_pill").
-			Height(42).
-			Padding(0, 16, 0, 12).
-			Center().
-			Gap(9).
-			Radius(999).
-			Cursor(ui.CursorPointer)
-
-		btnScale := btn.Spring("pf_like_btn_sc", func() float32 {
-			if btn.Pressed() {
-				return 0.94
-			}
-			return 1
-		}(), ui.SpringOptions{Duration: 150 * time.Millisecond, Bounce: 0.25})
-
-		bg := lerpColor(t.Surface, heartCol.Alpha(0.14), fillAmt)
-		bdr := lerpColor(t.BorderStrong, heartCol.Alpha(0.55), fillAmt)
-		if !isLiked && btn.Hovered() {
-			bg = t.SurfaceHover
-		}
-
-		btn.Background(bg).Border(1, bdr).Scale(btnScale, btnScale).Children(func() {
-			// Heart + bursting micro-sparkle ring
-			ui.Box(c).Width(22).Height(22).DrawOver(func(p *ui.Painter, r ui.Rect) {
-				cx, cy := r.X+r.W*0.5, r.Y+r.H*0.5
-
-				if burstActive {
-					prog := clamp32(burstElapsed/burstDur, 0, 1)
-					ease := 1 - (1-prog)*(1-prog)
-					fade := clamp32(1-prog, 0, 1)
-
-					// Expanding sparkle ring
-					ringR := lerp32(7, 23, ease)
-					var ring ui.Path
-					ring.Circle(cx, cy, ringR)
-					p.StrokePath(&ring, lerp32(2.2, 0.4, prog), heartCol.Alpha(fade*0.65))
-
-					// 8 radiating dual-tone micro-sparkles
-					sparkCol2 := ui.Hex("#fbbf24")
-					for i := 0; i < 8; i++ {
-						ang := float64(i)*math.Pi/4.0 + 0.22
-						dist := lerp32(9, 27, ease)
-						sx := cx + float32(math.Cos(ang))*dist
-						sy := cy + float32(math.Sin(ang))*dist
-						dotR := lerp32(2.6, 0.4, prog)
-						col := heartCol
-						if i%2 == 1 {
-							col = sparkCol2
-						}
-						var dot ui.Path
-						dot.Circle(sx, sy, dotR)
-						p.FillPath(&dot, col.Alpha(fade*0.95))
-					}
-				}
-
-				pfDrawHeart(p, cx, cy, 8.2*heartScale, fillAmt, heartCol, t.TextMuted)
-			})
-
-			// Animated counter
-			cProg := clamp32(countElapsed/0.22, 0, 1)
-			cOffset := (1 - cProg) * st.countDir * 8
-			cAlpha := 0.45 + cProg*0.55
-			txtCol := lerpColor(t.Text, heartCol, fillAmt)
-
-			ui.Text(c, fmt.Sprintf("%d", curCount)).
-				FontSize(14).
-				FontWeight(700).
-				TextColor(txtCol).
-				Translate(0, cOffset).
-				Opacity(cAlpha)
-		})
-
-		if btn.Clicked() {
-			nextLiked := !isLiked
-			if nextLiked {
-				curCount++
-				st.burstAt = now
-				st.countDir = -1
-			} else {
-				if curCount > 0 {
-					curCount--
-				}
-				st.countDir = 1
-			}
-			st.countAt = now
-			if liked != nil {
-				*liked = nextLiked
-			}
-			if count != nil {
-				*count = curCount
-			}
-			if o.OnToggle != nil {
-				o.OnToggle(nextLiked, curCount)
-			}
-		}
-	})
-
-	return stage
 }
 
 // ============================================================================
@@ -1678,11 +1480,6 @@ type pfStepperDemoState struct {
 	val int
 }
 
-type pfLikeDemoState struct {
-	liked bool
-	count int
-}
-
 type pfChecklistDemoState struct {
 	items []ChecklistItem
 }
@@ -1737,20 +1534,6 @@ func init() {
 					Step:  1,
 					Label: "Tap −/+ or drag center",
 				})
-			})
-		},
-	)
-
-	registerDemo(
-		"like",
-		"Heart/Like button with spring pop scale, bursting micro-sparkle ring on ui.Painter, and animated counter.",
-		func(c *ui.Context) {
-			holder := ui.Box(c).Center()
-			st := ui.Local(holder, "demo_pf_like", func() pfLikeDemoState {
-				return pfLikeDemoState{liked: false, count: 142}
-			})
-			holder.Children(func() {
-				LikeButton(c, &st.liked, &st.count)
 			})
 		},
 	)
