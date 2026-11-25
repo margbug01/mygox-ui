@@ -159,60 +159,51 @@ func changed(a, b *image.RGBA, maxY int) int {
 	return n
 }
 
-func TestElasticSliderDragAndRubberBandBounds(t *testing.T) {
-	val := float32(20)
-	changes := 0
+// Dragging sets the value; pulling past an end stretches the pill, which
+// springs back to its width once let go.
+func TestElasticSliderStretchesPastEndsAndSpringsBack(t *testing.T) {
+	val := float32(64)
 	view := func(c *ui.Context) {
-		bencho.ApplyTheme(c, false)
-		ui.Box(c).Padding(20).Children(func() {
-			bencho.ElasticSlider(c, &val, bencho.ElasticSliderOptions{
-				Min:   0,
-				Max:   100,
-				Step:  1,
-				Width: 200,
-				Label: "Gain",
-				Unit:  "%",
-				OnChange: func(float32) {
-					changes++
-				},
-			})
-		})
+		th := bencho.ApplyTheme(c, false)
+		ui.Box(c).Size(400, 100).Padding(26, 70).Background(th.SurfaceSubtle).Children(func() { bencho.ElasticSlider(c, &val) })
+	}
+	tt := ui.NewTester(view, 400, 100)
+	tt.Frame()
+	width := func() int { // the pill's extent along its middle row
+		img := tt.Image()
+		bg := img.RGBAAt(0, 50)
+		x0, x1 := -1, -1
+		for x := 0; x < 400; x++ {
+			if img.RGBAAt(x, 50) != bg {
+				if x0 < 0 {
+					x0 = x
+				}
+				x1 = x
+			}
+		}
+		return x1 - x0 + 1
+	}
+	if w := width(); w < 258 || w > 262 {
+		t.Fatalf("pill at rest is %dpx wide, want 260", w)
 	}
 
-	tt := ui.NewTester(view, 320, 140)
+	tt.Press(200, 50) // 50% across
 	tt.Frame()
-
-	// Track starts at x=20, width=200, y around 44..80. Press near midpoint (x=120 -> 50%).
-	tt.Press(120, 62)
-	tt.Frame()
-	if val < 45 || val > 55 {
-		t.Fatalf("expected midpoint drag near 50, got %.1f", val)
+	if val != 50 {
+		t.Fatalf("pressing the middle set %.0f, want 50", val)
 	}
-
-	// Over-drag past right edge should clamp to Max (100) without panicking.
-	tt.Move(290, 62)
-	tt.Advance(32 * time.Millisecond)
-	tt.Frame()
+	tt.Move(395, 50) // 65px past the right end
+	step(tt, 500*time.Millisecond)
 	if val != 100 {
-		t.Fatalf("expected over-drag right to clamp to 100, got %.1f", val)
+		t.Fatalf("dragging past the end set %.0f, want 100", val)
 	}
-
-	// Over-drag past left edge should clamp to Min (0).
-	tt.Move(2, 62)
-	tt.Advance(32 * time.Millisecond)
-	tt.Frame()
-	if val != 0 {
-		t.Fatalf("expected over-drag left to clamp to 0, got %.1f", val)
+	if w := width(); w < 270 {
+		t.Fatalf("pulled pill is %dpx wide, want it stretched past 260", w)
 	}
-
-	// Release should settle smoothly via spring.
-	tt.Release(2, 62)
-	for i := 0; i < 10; i++ {
-		tt.Advance(40 * time.Millisecond)
-		tt.Frame()
-	}
-	if changes == 0 {
-		t.Fatalf("expected OnChange callback to fire during drag")
+	tt.Release(395, 50)
+	step(tt, time.Second)
+	if w := width(); w < 258 || w > 262 {
+		t.Fatalf("released pill is %dpx wide, want it back at 260", w)
 	}
 }
 
