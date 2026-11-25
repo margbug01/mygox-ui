@@ -267,7 +267,7 @@ func PField15(c *ui.Context) {
 	host := ui.Box(c)
 	on := ui.Local(host, "on", func() bool { return false })
 	host.Children(func() {
-		coss.Field(c, func() { coss.Switch(c, on, "Email notifications") })
+		coss.Field(c, func() { coss.Switch(c, on, coss.SwitchOptions{Label: "Email notifications"}) })
 	})
 }
 

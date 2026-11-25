@@ -25,18 +25,27 @@ func init() {
 	Register(Entry{ID: "p-switch-7", Family: "switch", Description: "Weekly availability editor with time range combobox pickers", View: PSwitch7, Source: extractFunc(switchSource, "PSwitch7")})
 	Register(Entry{ID: "p-switch-8", Family: "switch", Description: "Weekly availability editor with grouped time range controls", View: PSwitch8, Source: extractFunc(switchSource, "PSwitch8")})
 	Register(Entry{ID: "p-switch-9", Family: "switch", Description: "Weekly availability editor with From/To labeled time groups", View: PSwitch9, Source: extractFunc(switchSource, "PSwitch9")})
+	Register(Entry{ID: "p-switch-liquid", Family: "switch", Description: "Switch whose thumb flies across like a drop and can be dragged (mygox motion, not on coss.com)", View: PSwitchLiquid, Source: extractFunc(switchSource, "PSwitchLiquid")})
+}
+
+// PSwitchLiquid is mygox's own: the thumb springs across, stretching like
+// a drop the faster it flies, and can be dragged across too.
+func PSwitchLiquid(c *ui.Context) {
+	host := ui.Box(c)
+	on := ui.Local(host, "on", func() bool { return false })
+	host.Children(func() { coss.Switch(c, on, coss.SwitchOptions{Label: "Marketing emails", Liquid: true}) })
 }
 
 func PSwitch1(c *ui.Context) {
 	host := ui.Box(c)
 	on := ui.Local(host, "on", func() bool { return false })
-	host.Children(func() { coss.Switch(c, on, "Marketing emails") })
+	host.Children(func() { coss.Switch(c, on, coss.SwitchOptions{Label: "Marketing emails"}) })
 }
 
 func PSwitch2(c *ui.Context) {
 	host := ui.Box(c)
 	on := ui.Local(host, "on", func() bool { return false })
-	host.Children(func() { coss.Switch(c, on, "Marketing emails").Disabled(true) })
+	host.Children(func() { coss.Switch(c, on, coss.SwitchOptions{Label: "Marketing emails"}).Disabled(true) })
 }
 
 func PSwitch3(c *ui.Context) {
@@ -76,7 +85,7 @@ func PSwitch4(c *ui.Context) {
 				ui.Text(c, "You can enable or disable notifications at any time.").
 					FontSize(12).LineHeight(16.0 / 12).TextColor(t.MutedForeground)
 			})
-			coss.SwitchThumb(c, on, 12)
+			coss.Switch(c, on, coss.SwitchOptions{Thumb: 12})
 		})
 		if card.Clicked() {
 			*on = !*on
@@ -94,7 +103,7 @@ func PSwitch5(c *ui.Context) {
 	}
 	host.Children(func() {
 		coss.Form(c, func() {
-			coss.Field(c, func() { coss.Switch(c, on, "Enable marketing emails") })
+			coss.Field(c, func() { coss.Switch(c, on, coss.SwitchOptions{Label: "Enable marketing emails"}) })
 			coss.Button(c, "Submit").Loading(loading).OnClick(func() {
 				*until = c.Now().Add(800 * time.Millisecond)
 			})
@@ -105,7 +114,7 @@ func PSwitch5(c *ui.Context) {
 func PSwitch6(c *ui.Context) {
 	host := ui.Box(c)
 	on := ui.Local(host, "on", func() bool { return false })
-	host.Children(func() { coss.SwitchThumb(c, on, 12).Label("Notifications") })
+	host.Children(func() { coss.Switch(c, on, coss.SwitchOptions{Thumb: 12}).Label("Notifications") })
 }
 
 type availabilityRange struct {
