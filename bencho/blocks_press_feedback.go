@@ -704,153 +704,6 @@ func DragStepper(c *ui.Context, value *int, opts ...DragStepperOptions) ui.Eleme
 }
 
 // ============================================================================
-// 9. checklist — Checklist
-// ============================================================================
-
-// ChecklistItem represents one task in Checklist.
-type ChecklistItem struct {
-	Label string
-	Done  bool
-}
-
-// ChecklistOptions configures Checklist.
-type ChecklistOptions struct {
-	Title    string
-	Width    float32
-	OnToggle func(index int, done bool)
-}
-
-// Checklist renders an interactive task checklist with animated checkbox fills,
-// strikethrough styling, and a live completion progress bar.
-func Checklist(c *ui.Context, items []ChecklistItem, opts ...ChecklistOptions) ui.Element {
-	var o ChecklistOptions
-	if len(opts) > 0 {
-		o = opts[0]
-	}
-	t := ThemeFrom(c)
-	if o.Width <= 0 {
-		o.Width = 282
-	}
-	if o.Title == "" {
-		o.Title = "Release prep"
-	}
-
-	doneCount := 0
-	for _, it := range items {
-		if it.Done {
-			doneCount++
-		}
-	}
-	fracTarget := float32(0)
-	if len(items) > 0 {
-		fracTarget = float32(doneCount) / float32(len(items))
-	}
-
-	card := ui.Column(c).
-		Width(o.Width).
-		Padding(12).
-		Gap(8).
-		Radius(15).
-		Background(t.Surface).
-		Border(1, t.Border)
-
-	prog := card.Spring("pf_cl_prog", fracTarget, ui.SpringOptions{
-		Duration: 320 * time.Millisecond,
-		Bounce:   0.18,
-	})
-	allDone := len(items) > 0 && doneCount == len(items)
-
-	card.Children(func() {
-		// Header + completion count
-		ui.Row(c).WidthPercent(100).Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, o.Title).FontSize(12).FontWeight(600).TextColor(t.Text)
-			badgeBg := t.SurfaceSubtle
-			badgeCol := t.TextMuted
-			if allDone {
-				badgeBg = t.Success.Alpha(0.16)
-				badgeCol = t.Success
-			}
-			ui.Row(c).Height(20).Padding(0, 7).Center().Radius(999).Background(badgeBg).Children(func() {
-				ui.Text(c, fmt.Sprintf("%d/%d", doneCount, len(items))).
-					FontSize(10.5).
-					FontWeight(600).
-					TextColor(badgeCol)
-			})
-		})
-
-		// Live progress bar
-		ui.Box(c).WidthPercent(100).Height(5).Draw(func(p *ui.Painter, r ui.Rect) {
-			p.Fill(r, t.SurfaceSubtle, r.H*0.5)
-			w := clamp32(prog, 0, 1) * r.W
-			if w > 0.5 {
-				fillCol := t.Accent
-				if allDone {
-					fillCol = t.Success
-				}
-				p.Fill(ui.Rect{X: r.X, Y: r.Y, W: w, H: r.H}, fillCol, r.H*0.5)
-			}
-		})
-
-		// Task rows
-		ui.Column(c).WidthPercent(100).Gap(3).Children(func() {
-			for i := range items {
-				idx := i
-				done := items[idx].Done
-
-				row := ui.Row(c).
-					Key(idx).
-					WidthPercent(100).
-					Height(27).
-					Padding(0, 6).
-					AlignItems(ui.Center).
-					Gap(8).
-					Radius(8).
-					Cursor(ui.CursorPointer)
-				if row.Hovered() {
-					row.Background(t.SurfaceSubtle)
-				}
-
-				chkAmt := row.Spring("pf_cl_item", func() float32 {
-					if done {
-						return 1
-					}
-					return 0
-				}(), ui.SpringOptions{Duration: 240 * time.Millisecond, Bounce: 0.28})
-
-				row.Children(func() {
-					ui.Box(c).Width(16).Height(16).Draw(func(p *ui.Painter, r ui.Rect) {
-						boxCol := lerpColor(t.SurfaceSubtle, t.Success, chkAmt)
-						bdrCol := lerpColor(t.BorderStrong, t.Success, chkAmt)
-						p.Fill(r, boxCol, 4.5)
-						p.Stroke(r, bdrCol, 4.5, 1.2)
-						if chkAmt > 0.1 {
-							pfDrawCheck(p, r.X+r.W*0.5, r.Y+r.H*0.5, 10, chkAmt, 1.8, ui.Hex("#ffffff"))
-						}
-					})
-
-					txt := ui.Text(c, items[idx].Label).
-						FontSize(12).
-						FontWeight(500).
-						TextColor(lerpColor(t.Text, t.TextSubtle, chkAmt))
-					if done {
-						txt.Strikethrough()
-					}
-				})
-
-				if row.Clicked() {
-					items[idx].Done = !items[idx].Done
-					if o.OnToggle != nil {
-						o.OnToggle(idx, items[idx].Done)
-					}
-				}
-			}
-		})
-	})
-
-	return card
-}
-
-// ============================================================================
 // 11. palette — Palette
 // ============================================================================
 
@@ -1227,10 +1080,6 @@ type pfStepperDemoState struct {
 	val int
 }
 
-type pfChecklistDemoState struct {
-	items []ChecklistItem
-}
-
 type pfPaletteDemoState struct {
 	selected int
 }
@@ -1281,27 +1130,6 @@ func init() {
 					Step:  1,
 					Label: "Tap −/+ or drag center",
 				})
-			})
-		},
-	)
-
-	registerDemo(
-		"checklist",
-		"Interactive task checklist with animated checkbox fills, strikethrough styling, and live progress bar.",
-		func(c *ui.Context) {
-			holder := ui.Box(c).Center()
-			st := ui.Local(holder, "demo_pf_checklist", func() pfChecklistDemoState {
-				return pfChecklistDemoState{
-					items: []ChecklistItem{
-						{Label: "Audit spring timings", Done: true},
-						{Label: "Verify dark contrast", Done: true},
-						{Label: "Record demo clip", Done: false},
-						{Label: "Publish catalog", Done: false},
-					},
-				}
-			})
-			holder.Children(func() {
-				Checklist(c, st.items)
 			})
 		},
 	)
