@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/margbug01/mygox-ui/coss"
 )
 
 // The small looping loaders: each draws itself from the clock, at a speed
@@ -210,97 +211,31 @@ func BounceLoader(c *ui.Context, opts ...LoaderShapeOptions) ui.Element {
 	})
 }
 
-// traceLoaderPoint is the point at fraction f round a rounded square of side
-// s and corner rad, clockwise from the top middle.
-func traceLoaderPoint(f, s, rad float64) (float64, float64) {
-	straight := s - 2*rad
-	arc := math.Pi / 2 * rad
-	side := straight + arc
-	d := math.Mod(f, 1) * 4 * side
-	// Start at the top middle, going right.
-	d += straight / 2
-	for corner := 0; ; corner++ {
-		if d < straight {
-			switch corner % 4 {
-			case 0:
-				return rad + d, 0
-			case 1:
-				return s, rad + d
-			case 2:
-				return s - rad - d, s
-			default:
-				return 0, s - rad - d
-			}
-		}
-		d -= straight
-		if d < arc {
-			a := d / rad
-			switch corner % 4 {
-			case 0:
-				return s - rad + rad*math.Sin(a), rad - rad*math.Cos(a)
-			case 1:
-				return s - rad + rad*math.Cos(a), s - rad + rad*math.Sin(a)
-			case 2:
-				return rad - rad*math.Sin(a), s - rad + rad*math.Cos(a)
-			default:
-				return rad - rad*math.Cos(a), rad - rad*math.Sin(a)
-			}
-		}
-		d -= arc
-	}
-}
-
 // TraceLoader is a dash running round its own faint track, its length
-// breathing as it goes; the track is a rounded square, or a circle with Circle.
+// breathing as it goes; the track is a rounded square, or a circle with
+// circle. It is coss's Spinner of that Kind, 28 across, in bencho's inks.
 func TraceLoader(c *ui.Context, circle bool, opts ...LoaderShapeOptions) ui.Element {
 	var o LoaderShapeOptions
 	if len(opts) > 0 {
 		o = opts[0]
 	}
-	t := ThemeFrom(c)
-	ink, faint := loaderInk(t)
-	now := loaderClock(c, o.Speed)
-	return ui.Box(c).Size(28, 28).Draw(func(p *ui.Painter, r ui.Rect) {
-		const w = 2.5
-		s := float64(r.W - w)
-		rad := 8.0
-		if circle {
-			rad = s / 2
-		}
-		p.Stroke(ui.Rect{X: r.X + w/2, Y: r.Y + w/2, W: float32(s), H: float32(s)}, faint, float32(rad), w)
-		head := now * 0.7
-		length := 0.12 + 0.1*(0.5+0.5*math.Sin(now*2*math.Pi*0.6))
-		var path ui.Path
-		for i := 0; i <= 24; i++ {
-			x, y := traceLoaderPoint(head-length+length*float64(i)/24, s, rad)
-			px, py := r.X+w/2+float32(x), r.Y+w/2+float32(y)
-			if i == 0 {
-				path.MoveTo(px, py)
-			} else {
-				path.LineTo(px, py)
-			}
-		}
-		path.Cap(ui.RoundCap)
-		p.StrokePath(&path, w, ink)
-	})
+	ink, faint := loaderInk(ThemeFrom(c))
+	kind := coss.SpinnerTraceSquare
+	if circle {
+		kind = coss.SpinnerTrace
+	}
+	return coss.Spinner(c, coss.SpinnerOptions{Kind: kind, Speed: o.Speed, Ink: ink, Track: faint}).Size(28).Element
 }
 
-// MorphLoader is a square that rounds into a circle as it turns, and back again.
+// MorphLoader is a square that rounds into a circle as it turns, and back
+// again: coss's SpinnerMorph, 28 across, in bencho's ink.
 func MorphLoader(c *ui.Context, opts ...LoaderShapeOptions) ui.Element {
 	var o LoaderShapeOptions
 	if len(opts) > 0 {
 		o = opts[0]
 	}
-	t := ThemeFrom(c)
-	now := loaderClock(c, o.Speed)
-	return ui.Box(c).Size(28, 28).Draw(func(p *ui.Painter, r ui.Rect) {
-		k := 0.5 - 0.5*math.Cos(now*2*math.Pi*0.5)
-		s := float32(20)
-		cx, cy := r.X+r.W/2, r.Y+r.H/2
-		p.Transform(ui.Rotation(float32(k*90)), cx, cy, func() {
-			p.Fill(ui.Rect{X: cx - s/2, Y: cy - s/2, W: s, H: s}, t.Text, lerp32(5, s/2, float32(k)))
-		})
-	})
+	ink, _ := loaderInk(ThemeFrom(c))
+	return coss.Spinner(c, coss.SpinnerOptions{Kind: coss.SpinnerMorph, Speed: o.Speed, Ink: ink}).Size(28).Element
 }
 
 // PixelLoader is a field of tiny pixels: as a circle they ripple out from the

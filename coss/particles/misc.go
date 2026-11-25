@@ -19,6 +19,8 @@ func init() {
 	Register(Entry{ID: "p-kbd-1", Family: "kbd", Description: "Single keys and keyboard shortcut combinations", View: PKbd1, Source: extractFunc(miscSource, "PKbd1")})
 	Register(Entry{ID: "p-separator-1", Family: "separator", Description: "Horizontal and vertical separators", View: PSeparator1, Source: extractFunc(miscSource, "PSeparator1")})
 	Register(Entry{ID: "p-spinner-1", Family: "spinner", Description: "Basic loading spinner", View: PSpinner1, Source: extractFunc(miscSource, "PSpinner1")})
+	Register(Entry{ID: "p-spinner-trace", Family: "spinner", Description: "Spinner whose dash runs round its own faint track (mygox motion, not on coss.com)", View: PSpinnerTrace, Source: extractFunc(miscSource, "PSpinnerTrace")})
+	Register(Entry{ID: "p-spinner-morph", Family: "spinner", Description: "Spinner that rounds from a square into a circle as it turns (mygox motion, not on coss.com)", View: PSpinnerMorph, Source: extractFunc(miscSource, "PSpinnerMorph")})
 	Register(Entry{ID: "p-progress-1", Family: "progress", Description: "Animated progress bar", View: PProgress1, Source: extractFunc(miscSource, "PProgress1")})
 	Register(Entry{ID: "p-progress-2", Family: "progress", Description: "Progress bar with label and percentage", View: PProgress2, Source: extractFunc(miscSource, "PProgress2")})
 	Register(Entry{ID: "p-progress-3", Family: "progress", Description: "Progress bar with custom formatted value", View: PProgress3, Source: extractFunc(miscSource, "PProgress3")})
@@ -73,13 +75,26 @@ func PSeparator1(c *ui.Context) {
 	})
 }
 
+// PSpinnerTrace is mygox's own: a dash running round a faint circle, and
+// round a rounded square, their length breathing.
+func PSpinnerTrace(c *ui.Context) {
+	ui.Row(c).Gap(16).Children(func() {
+		coss.Spinner(c, coss.SpinnerOptions{Kind: coss.SpinnerTrace}).Size(24)
+		coss.Spinner(c, coss.SpinnerOptions{Kind: coss.SpinnerTraceSquare}).Size(24)
+	})
+}
+
+// PSpinnerMorph is mygox's own: a square rounding into a circle as it
+// turns, and back.
+func PSpinnerMorph(c *ui.Context) {
+	coss.Spinner(c, coss.SpinnerOptions{Kind: coss.SpinnerMorph}).Size(24)
+}
+
 // PSpinner1 renders a standalone coss spinner.
 func PSpinner1(c *ui.Context) {
 	coss.Spinner(c).Size(24) // lucide renders 24px when no size class applies
 }
 
-// PProgress1 renders a progress bar that starts at 20 and grows by a
-// random step every second until it is full.
 // PProgressBounce is mygox's own: the bar springs to each new value,
 // running a little past it, and throws sparks as it moves forward.
 func PProgressBounce(c *ui.Context) {
@@ -114,6 +129,8 @@ func PSkeletonText(c *ui.Context) {
 	})
 }
 
+// PProgress1 renders a progress bar that starts at 20 and grows by a
+// random step every second until it is full.
 func PProgress1(c *ui.Context) {
 	box := ui.Box(c).WidthPercent(100).MaxWidth(256)
 	value := ui.Local(box, "value", func() float32 { return 20 })
