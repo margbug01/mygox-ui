@@ -28,14 +28,6 @@ func pfDrawCheck(p *ui.Painter, cx, cy, size, trim float32, strokeWidth float32,
 	p.StrokePath(&path, strokeWidth, col)
 }
 
-func pfDrawCopyIcon(p *ui.Painter, cx, cy, size float32, col ui.Color) {
-	s := size * 0.56
-	back := ui.Rect{X: cx - s*0.58, Y: cy - s*0.68, W: s * 0.92, H: s * 1.06}
-	front := ui.Rect{X: cx - s*0.26, Y: cy - s*0.34, W: s * 0.92, H: s * 1.06}
-	p.Stroke(back, col.Alpha(0.65), 2, 1.3)
-	p.Stroke(front, col, 2, 1.4)
-}
-
 func pfDrawHeart(p *ui.Painter, cx, cy, r float32, fillAmt float32, fillCol, strokeCol ui.Color) {
 	var path ui.Path
 	path.Cap(ui.RoundCap).Join(ui.RoundJoin)
@@ -93,168 +85,6 @@ func pfDrawMoodIcon(p *ui.Painter, cx, cy, r float32, mood int, col ui.Color) {
 func pfDrawCloseIcon(p *ui.Painter, cx, cy, r float32, col ui.Color) {
 	p.Line(cx-r, cy-r, cx+r, cy+r, 1.5, col)
 	p.Line(cx+r, cy-r, cx-r, cy+r, 1.5, col)
-}
-
-// ============================================================================
-// 1. copy-field — Copy field
-// ============================================================================
-
-// CopyFieldOptions configures CopyField.
-type CopyFieldOptions struct {
-	Label       string
-	CopyLabel   string
-	CopiedLabel string
-	Width       float32
-	ResetAfter  time.Duration
-	OnCopy      func(string)
-}
-
-type pfCopyFieldState struct {
-	copied   bool
-	copiedAt time.Time
-	count    int
-}
-
-// CopyField renders a monospace token or URL field with a tactile Copy button
-// that writes to the clipboard and flips to an emerald Copied pill before resetting.
-func CopyField(c *ui.Context, value string, opts ...CopyFieldOptions) ui.Element {
-	var o CopyFieldOptions
-	if len(opts) > 0 {
-		o = opts[0]
-	}
-	t := ThemeFrom(c)
-	if o.Width <= 0 {
-		o.Width = 286
-	}
-	if o.CopyLabel == "" {
-		o.CopyLabel = "Copy"
-	}
-	if o.CopiedLabel == "" {
-		o.CopiedLabel = "Copied"
-	}
-	if o.ResetAfter <= 0 {
-		o.ResetAfter = 1800 * time.Millisecond
-	}
-
-	root := ui.Column(c).
-		Width(o.Width).
-		Gap(6)
-
-	st := ui.Local(root, "pf_copy_field_st", func() pfCopyFieldState {
-		return pfCopyFieldState{}
-	})
-
-	now := c.Now()
-	if st.copied {
-		c.AnimationFrame()
-		if now.Sub(st.copiedAt) >= o.ResetAfter {
-			st.copied = false
-		}
-	}
-
-	copiedTarget := float32(0)
-	if st.copied {
-		copiedTarget = 1
-	}
-	copiedAmt := root.Spring("pf_cf_copied", copiedTarget, ui.SpringOptions{
-		Duration: 260 * time.Millisecond,
-		Bounce:   0.26,
-	})
-
-	root.Children(func() {
-		if o.Label != "" {
-			ui.Row(c).WidthPercent(100).Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, o.Label).FontSize(11).FontWeight(600).TextColor(t.TextMuted)
-				if st.count > 0 {
-					status := "Ready"
-					col := t.TextSubtle
-					if st.copied {
-						status = "In clipboard"
-						col = t.Success
-					}
-					ui.Text(c, status).FontSize(10).FontWeight(500).TextColor(col)
-				}
-			})
-		}
-
-		fieldBorder := lerpColor(t.BorderStrong, t.Success.Alpha(0.65), copiedAmt)
-		field := ui.Row(c).
-			WidthPercent(100).
-			Height(40).
-			Padding(4, 4, 4, 10).
-			AlignItems(ui.Center).
-			Justify(ui.SpaceBetween).
-			Gap(8).
-			Radius(11).
-			Background(t.Surface).
-			Border(1, fieldBorder)
-
-		field.Children(func() {
-			ui.Box(c).Grow(1).Shrink(1).MinWidth(0).Clip().Children(func() {
-				ui.Text(c, value).
-					Font("monospace").
-					FontSize(11.5).
-					FontWeight(500).
-					TextColor(t.Text).
-					NoWrap().
-					TruncateMiddle()
-			})
-
-			btn := ui.Row(c).
-				Key("copy_btn").
-				Height(30).
-				Padding(0, 10).
-				Center().
-				Gap(5).
-				Radius(8).
-				Cursor(ui.CursorPointer)
-
-			pressTarget := float32(1)
-			if btn.Pressed() {
-				pressTarget = 0.94
-			}
-			btnScale := btn.Spring("pf_cf_scale", pressTarget, ui.SpringOptions{
-				Duration: 160 * time.Millisecond,
-				Bounce:   0.25,
-			})
-
-			idleBg := t.SurfaceSubtle
-			if btn.Hovered() {
-				idleBg = t.SurfaceHover
-			}
-			bg := lerpColor(idleBg, t.Success.Alpha(0.18), copiedAmt)
-			bdr := lerpColor(t.Border, t.Success.Alpha(0.55), copiedAmt)
-			ink := lerpColor(t.Text, t.Success, copiedAmt)
-
-			btn.Background(bg).Border(1, bdr).Scale(btnScale, btnScale).Children(func() {
-				ui.Box(c).Width(13).Height(13).Draw(func(p *ui.Painter, r ui.Rect) {
-					cx, cy := r.X+r.W*0.5, r.Y+r.H*0.5
-					if copiedAmt > 0.35 {
-						pfDrawCheck(p, cx, cy, 11, (copiedAmt-0.35)/0.65, 1.7, t.Success)
-					} else {
-						pfDrawCopyIcon(p, cx, cy, 12, ink)
-					}
-				})
-				lbl := o.CopyLabel
-				if st.copied {
-					lbl = o.CopiedLabel
-				}
-				ui.Text(c, lbl).FontSize(11.5).FontWeight(600).TextColor(ink)
-			})
-
-			if btn.Clicked() {
-				c.WriteClipboard(value)
-				st.copied = true
-				st.copiedAt = now
-				st.count++
-				if o.OnCopy != nil {
-					o.OnCopy(value)
-				}
-			}
-		})
-	})
-
-	return root
 }
 
 // ============================================================================
@@ -2362,18 +2192,6 @@ type pfPaletteDemoState struct {
 }
 
 func init() {
-	registerDemo(
-		"copy-field",
-		"Monospace token field with a tactile Copy button that writes clipboard and flips to an emerald Copied pill.",
-		func(c *ui.Context) {
-			ui.Box(c).Center().Children(func() {
-				CopyField(c, "mg_live_9f4a8c2e7b1d3048", CopyFieldOptions{
-					Label: "API TOKEN",
-				})
-			})
-		},
-	)
-
 	registerDemo(
 		"feedback-bar",
 		"Compact Was this helpful? rating bar that expands inline for quick tags and confirmation.",
