@@ -24,6 +24,7 @@ func init() {
 	Register(Entry{ID: "p-progress-3", Family: "progress", Description: "Progress bar with custom formatted value", View: PProgress3, Source: extractFunc(miscSource, "PProgress3")})
 	Register(Entry{ID: "p-progress-bounce", Family: "progress", Description: "Progress bar that springs to each value and throws sparks going forward (mygox motion, not on coss.com)", View: PProgressBounce, Source: extractFunc(miscSource, "PProgressBounce")})
 	Register(Entry{ID: "p-skeleton-2", Family: "skeleton", Description: "User card loading skeleton", View: PSkeleton2, Source: extractFunc(miscSource, "PSkeleton2")})
+	Register(Entry{ID: "p-skeleton-text", Family: "skeleton", Description: "Skeleton bars that stretch into the text they stand for (mygox motion, not on coss.com)", View: PSkeletonText, Source: extractFunc(miscSource, "PSkeletonText")})
 }
 
 // PKbd1 displays single keys and keyboard shortcut combinations.
@@ -91,6 +92,25 @@ func PProgressBounce(c *ui.Context) {
 				*value = 0
 			}
 		})
+	})
+}
+
+// PSkeletonText is mygox's own: once loaded, each skeleton bar stretches
+// to its line's width and fades as the words come through, a line after
+// the one before.
+func PSkeletonText(c *ui.Context) {
+	box := ui.Column(c).Gap(6).AlignItems(ui.Start)
+	start := ui.Local(box, "start", func() time.Time { return c.Now() })
+	since := float32(c.Now().Sub(*start).Seconds())
+	loaded := func(line int) float32 { return min(max((since-0.9-float32(line)*0.16)/0.52, 0), 1) }
+	if loaded(2) < 1 {
+		c.AnimationFrame()
+	}
+	box.Children(func() {
+		coss.Skeleton(c, coss.SkeletonOptions{Text: "Mara Olsen", Bar: 0.7, Loaded: loaded(0)})
+		coss.Skeleton(c, coss.SkeletonOptions{Text: "Designer working on calm tools.", Bar: 0.9, Loaded: loaded(1)})
+		coss.Skeleton(c, coss.SkeletonOptions{Text: "Collects good interactions.", Bar: 0.6, Loaded: loaded(2)})
+		coss.Button(c, "Reload").Variant(coss.ButtonOutline).Margin(8, 0, 0, 0).OnClick(func() { *start = c.Now() })
 	})
 }
 

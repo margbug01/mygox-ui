@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/margbug01/mygox-ui/coss"
 )
 
 // SkeletonMorphOptions configures SkeletonMorph.
@@ -53,16 +54,9 @@ func SkeletonMorph(c *ui.Context, opts ...SkeletonMorphOptions) ui.Element {
 	// A run of text that loads as a bar of skel of its width, then stretches to
 	// its full width while the words come through.
 	text := func(key any, s string, size float32, weight int, col ui.Color, skel float32, p float32) {
-		grow := clamp32(p*1.6, 0, 1)
-		grow = 1 - (1-grow)*(1-grow)
-		w := ui.Box(c).Key(key)
-		w.Children(func() {
-			ui.Text(c, s).FontSize(size).FontWeight(weight).TextColor(col).Opacity(clamp32((p-0.35)*2.2, 0, 1)).SingleLine()
-			if p < 1 {
-				ui.Box(c).Absolute().Left(0).Top(size * 0.3).Height(size * 0.85).
-					WidthPercent(100 * lerp32(skel, 1, grow)).Radius(6).Background(bone).Opacity(1 - clamp32((p-0.45)*2.2, 0, 1))
-			}
-		})
+		coss.Skeleton(c.Key(key), coss.SkeletonOptions{Text: s, Bar: skel, Loaded: p, Style: &coss.SkeletonStyle{
+			FontSize: size, FontWeight: weight, Color: col, Bone: bone, Corner: 6,
+		}})
 	}
 
 	card.Children(func() {
