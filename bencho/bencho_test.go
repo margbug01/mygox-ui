@@ -1,6 +1,7 @@
 package bencho_test
 
 import (
+	"image"
 	"testing"
 	"time"
 
@@ -115,31 +116,47 @@ func TestAllImplementedDemosRenderDarkAndLight(t *testing.T) {
 	}
 }
 
-func TestThinkingOrbRespondsToHover(t *testing.T) {
-	view := func(c *ui.Context) {
-		bencho.ApplyTheme(c, true)
-		ui.Box(c).Padding(16).Children(func() {
-			bencho.ThinkingOrb(c, bencho.ThinkingOrbOptions{
-				Size:  96,
-				Label: "Orb",
-			})
-		})
+// Pointing at the orb wakes it up: its dots travel further in the same time.
+func TestThinkingOrbWakesOnHover(t *testing.T) {
+	for _, style := range []bencho.ThinkingOrbStyle{bencho.ThinkingOrbSpinning, bencho.ThinkingOrbWeaving} {
+		motion := func(hover bool) int {
+			view := func(c *ui.Context) {
+				bencho.ApplyTheme(c, false)
+				ui.Box(c).Size(140, 172).Children(func() { bencho.ThinkingOrb(c, bencho.ThinkingOrbOptions{Style: style}) })
+			}
+			tt := ui.NewTester(view, 140, 172)
+			tt.Frame()
+			if hover {
+				tt.Move(70, 70)
+			}
+			step(tt, 900*time.Millisecond)
+			before := tt.Image()
+			before = &image.RGBA{Pix: append([]uint8(nil), before.Pix...), Stride: before.Stride, Rect: before.Rect}
+			step(tt, 32*time.Millisecond)
+			return changed(before, tt.Image(), 140)
+		}
+		idle, awake := motion(false), motion(true)
+		if idle == 0 || awake < idle*3/2 {
+			t.Fatalf("%s: hovered orb should move more than idle: idle moved %d, hovered %d", style, idle, awake)
+		}
 	}
-	tt := ui.NewTester(view, 260, 260)
-	tt.Frame()
-	if !tt.HasText("Orb") {
-		t.Fatalf("expected idle label Orb, got %v", tt.Texts())
-	}
+}
 
-	tt.Move(80, 80)
-	tt.Advance(50 * time.Millisecond)
-	tt.Frame()
-	if !tt.HasText("Orb · active") {
-		t.Fatalf("expected active label on hover, got %v", tt.Texts())
+func step(tt *ui.Tester, d time.Duration) {
+	for ; d > 0; d -= 16 * time.Millisecond {
+		tt.Advance(16 * time.Millisecond)
+		tt.Frame()
 	}
-	if !tt.FramePending() {
-		t.Fatalf("expected ThinkingOrb to keep requesting animation frames")
+}
+
+// changed sums how much the green channel moved between a and b above maxY,
+// which for small motions grows with how far things moved.
+func changed(a, b *image.RGBA, maxY int) int {
+	n := 0
+	for i := 1; i < min(len(a.Pix), maxY*a.Stride); i += 4 {
+		n += max(int(a.Pix[i])-int(b.Pix[i]), int(b.Pix[i])-int(a.Pix[i]))
 	}
+	return n
 }
 
 func TestElasticSliderDragAndRubberBandBounds(t *testing.T) {
