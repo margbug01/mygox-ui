@@ -704,166 +704,6 @@ func DragStepper(c *ui.Context, value *int, opts ...DragStepperOptions) ui.Eleme
 }
 
 // ============================================================================
-// 11. palette — Palette
-// ============================================================================
-
-// PaletteSwatch defines one selectable color in Palette.
-type PaletteSwatch struct {
-	Name string
-	Hex  string
-}
-
-// PaletteOptions configures Palette.
-type PaletteOptions struct {
-	Width    float32
-	OnSelect func(index int, swatch PaletteSwatch)
-}
-
-type pfPaletteState struct {
-	copiedAt time.Time
-}
-
-func pfDefaultSwatches() []PaletteSwatch {
-	return []PaletteSwatch{
-		{Name: "Indigo", Hex: "#6366F1"},
-		{Name: "Rose", Hex: "#F43F5E"},
-		{Name: "Amber", Hex: "#F59E0B"},
-		{Name: "Emerald", Hex: "#10B981"},
-		{Name: "Sky", Hex: "#0EA5E9"},
-		{Name: "Slate", Hex: "#64748B"},
-	}
-}
-
-// Palette renders an interactive color swatch strip where clicking selects and
-// copies a swatch's hex code, springs the swatch larger, and updates a preview chip.
-func Palette(c *ui.Context, swatches []PaletteSwatch, selected *int, opts ...PaletteOptions) ui.Element {
-	var o PaletteOptions
-	if len(opts) > 0 {
-		o = opts[0]
-	}
-	t := ThemeFrom(c)
-	if len(swatches) == 0 {
-		swatches = pfDefaultSwatches()
-	}
-	if o.Width <= 0 {
-		o.Width = 282
-	}
-
-	selIdx := 0
-	if selected != nil && *selected >= 0 && *selected < len(swatches) {
-		selIdx = *selected
-	}
-
-	card := ui.Column(c).
-		Width(o.Width).
-		Padding(14).
-		Gap(12).
-		Radius(16).
-		Background(t.Surface).
-		Border(1, t.Border)
-
-	st := ui.Local(card, "pf_palette_st", func() pfPaletteState {
-		return pfPaletteState{}
-	})
-
-	now := c.Now()
-	justCopied := !st.copiedAt.IsZero() && now.Sub(st.copiedAt) < 1500*time.Millisecond
-	if justCopied {
-		c.AnimationFrame()
-	}
-
-	cur := swatches[selIdx]
-	curCol := ui.Hex(cur.Hex)
-
-	card.Children(func() {
-		// Swatch strip
-		ui.Row(c).
-			WidthPercent(100).
-			Height(48).
-			Justify(ui.SpaceBetween).
-			AlignItems(ui.Center).
-			Children(func() {
-				for i, sw := range swatches {
-					idx := i
-					isSel := idx == selIdx
-					col := ui.Hex(sw.Hex)
-
-					item := ui.Box(c).
-						Key(idx).
-						Width(34).
-						Height(34).
-						Center().
-						Radius(11).
-						Cursor(ui.CursorPointer)
-
-					scTarget := float32(1)
-					if isSel {
-						scTarget = 1.24
-					} else if item.Hovered() {
-						scTarget = 1.10
-					}
-					sc := item.Spring("pf_pal_sc", scTarget, ui.SpringOptions{
-						Duration: 260 * time.Millisecond,
-						Bounce:   0.38,
-					})
-
-					item.Scale(sc, sc).Draw(func(p *ui.Painter, r ui.Rect) {
-						if isSel {
-							outer := ui.Rect{X: r.X - 2.5, Y: r.Y - 2.5, W: r.W + 5, H: r.H + 5}
-							p.Stroke(outer, col.Alpha(0.70), 13, 1.8)
-						}
-						p.Fill(r, col, 10)
-						p.Stroke(r, ui.Hex("#ffffff").Alpha(0.22), 10, 1)
-						if isSel {
-							pfDrawCheck(p, r.X+r.W*0.5, r.Y+r.H*0.5, 11, 1, 2.0, ui.Hex("#ffffff"))
-						}
-					})
-
-					if item.Clicked() {
-						if selected != nil {
-							*selected = idx
-						}
-						c.WriteClipboard(sw.Hex)
-						st.copiedAt = now
-						if o.OnSelect != nil {
-							o.OnSelect(idx, sw)
-						}
-					}
-				}
-			})
-
-		// Live preview chip
-		chip := ui.Row(c).
-			WidthPercent(100).
-			Height(36).
-			Padding(0, 10).
-			AlignItems(ui.Center).
-			Justify(ui.SpaceBetween).
-			Radius(10).
-			Background(t.SurfaceSubtle).
-			Border(1, curCol.Alpha(0.45))
-
-		chip.Children(func() {
-			ui.Row(c).AlignItems(ui.Center).Gap(8).Children(func() {
-				ui.Box(c).Width(14).Height(14).Radius(999).Background(curCol)
-				ui.Text(c, cur.Name).FontSize(12).FontWeight(600).TextColor(t.Text)
-				ui.Text(c, cur.Hex).Font("monospace").FontSize(11).TextColor(t.TextMuted)
-			})
-
-			statusText := "Click swatch"
-			statusCol := t.TextSubtle
-			if justCopied {
-				statusText = "Copied!"
-				statusCol = t.Success
-			}
-			ui.Text(c, statusText).FontSize(10.5).FontWeight(600).TextColor(statusCol)
-		})
-	})
-
-	return card
-}
-
-// ============================================================================
 // 12. seek — Search
 // ============================================================================
 
@@ -1080,10 +920,6 @@ type pfStepperDemoState struct {
 	val int
 }
 
-type pfPaletteDemoState struct {
-	selected int
-}
-
 func init() {
 	registerDemo(
 		"confirm",
@@ -1130,20 +966,6 @@ func init() {
 					Step:  1,
 					Label: "Tap −/+ or drag center",
 				})
-			})
-		},
-	)
-
-	registerDemo(
-		"palette",
-		"Interactive color swatch palette that copies hex, springs the active swatch larger, and updates a preview chip.",
-		func(c *ui.Context) {
-			holder := ui.Box(c).Center()
-			st := ui.Local(holder, "demo_pf_palette", func() pfPaletteDemoState {
-				return pfPaletteDemoState{selected: 0}
-			})
-			holder.Children(func() {
-				Palette(c, pfDefaultSwatches(), &st.selected)
 			})
 		},
 	)
