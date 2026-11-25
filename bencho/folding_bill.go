@@ -51,6 +51,7 @@ type foldingBillState struct {
 	zbuf   []float32
 	dark   bool
 	print  FoldingBillPrint
+	atRest bool // the picture shows the bill at rest
 }
 
 // foldingBillView turns the bill's plane to where it is seen from: turned
@@ -252,9 +253,9 @@ func FoldingBill(c *ui.Context, opts ...FoldingBillOptions) ui.Element {
 	if t.Dark {
 		dark, light = lerpColor(dark, t.Background, 0.35), lerpColor(light, ui.Hex("#9aa0a6"), 0.25)
 	}
-	if st.img == nil || moving || st.dark != t.Dark || st.print != o.Print {
+	if st.img == nil || moving || !st.atRest || st.dark != t.Dark || st.print != o.Print {
 		foldingBillRender(st, dark, light)
-		st.dark, st.print = t.Dark, o.Print
+		st.dark, st.print, st.atRest = t.Dark, o.Print, !moving
 	}
 	box.Draw(func(p *ui.Painter, r ui.Rect) {
 		p.ImageRegion(st.bitmap, ui.Rect{}, r, ui.ImageOptions{})
