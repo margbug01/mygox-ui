@@ -17,6 +17,7 @@ func init() {
 	Register(Entry{ID: "p-accordion-2", Family: "accordion", Description: "Accordion with one panel open", View: PAccordion2, Source: extractFunc(accordionSource, "PAccordion2")})
 	Register(Entry{ID: "p-accordion-3", Family: "accordion", Description: "Accordion allowing multiple panels open", View: PAccordion3, Source: extractFunc(accordionSource, "PAccordion3")})
 	Register(Entry{ID: "p-accordion-4", Family: "accordion", Description: "Controlled accordion", View: PAccordion4, Source: extractFunc(accordionSource, "PAccordion4")})
+	Register(Entry{ID: "p-accordion-reveal", Family: "accordion", Description: "Accordion whose answers ease in word by word (mygox motion, not on coss.com)", View: PAccordionReveal, Source: extractFunc(accordionSource, "PAccordionReveal")})
 }
 
 var accordionFAQ = []struct {
@@ -25,6 +26,18 @@ var accordionFAQ = []struct {
 	{"item-1", "What is Base UI?", "Base UI is a library of high-quality unstyled React components for design systems and web apps."},
 	{"item-2", "How do I get started?", `Head to the "Quick start" guide in the docs. If you've used unstyled libraries before, you'll feel at home.`},
 	{"item-3", "Can I use it for my project?", "Of course! Base UI is free and open source."},
+}
+
+// PAccordionReveal is mygox's own: an opening panel's words ease in one
+// after another, and the plus turns into a cross.
+func PAccordionReveal(c *ui.Context) {
+	items := make([]coss.AccordionItemSpec, len(accordionFAQ))
+	for i, f := range accordionFAQ {
+		items[i] = coss.AccordionItemSpec{ID: f.id, Title: f.title, Text: f.body}
+	}
+	ui.Box(c).WidthPercent(100).MaxWidthPercent(80).Children(func() {
+		coss.Accordion(c, items, coss.AccordionOptions{RevealWords: true, Icon: coss.AccordionPlus})
+	})
 }
 
 // PAccordion1 renders a basic accordion with the third item open by default.

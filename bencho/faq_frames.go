@@ -8,6 +8,12 @@ import (
 	"github.com/margbug01/mygox-ui/coss/icons"
 )
 
+// FAQItem is one question and its answer.
+type FAQItem struct {
+	Question string
+	Answer   string
+}
+
 // FAQFramesOptions configures FAQFrames.
 type FAQFramesOptions struct {
 	Bounce float32 // how far a frame's height runs past its answer as it opens, 0 to 16; 3 by default
