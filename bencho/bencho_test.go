@@ -162,7 +162,7 @@ func changed(a, b *image.RGBA, maxY int) int {
 // Dragging sets the value; pulling past an end stretches the pill, which
 // springs back to its width once let go.
 func TestElasticSliderStretchesPastEndsAndSpringsBack(t *testing.T) {
-	val := float32(64)
+	val := float64(64)
 	view := func(c *ui.Context) {
 		th := bencho.ApplyTheme(c, false)
 		ui.Box(c).Size(400, 100).Padding(26, 70).Background(th.SurfaceSubtle).Children(func() { bencho.ElasticSlider(c, &val) })

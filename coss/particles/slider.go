@@ -38,6 +38,7 @@ func init() {
 	Register(Entry{ID: "p-slider-20", Family: "slider", Description: "Equalizer with vertical sliders", View: PSlider20, Source: extractFunc(sliderSource, "PSlider20")})
 	Register(Entry{ID: "p-slider-21", Family: "slider", Description: "Object position sliders with reset", View: PSlider21, Source: extractFunc(sliderSource, "PSlider21")})
 	Register(Entry{ID: "p-slider-22", Family: "slider", Description: "Price slider with histogram", View: PSlider22, Source: extractFunc(sliderSource, "PSlider22")})
+	Register(Entry{ID: "p-slider-elastic", Family: "slider", Description: "Slider that stretches past its ends (mygox motion, not on coss.com)", View: PSliderElastic, Source: extractFunc(sliderSource, "PSliderElastic")})
 	Register(Entry{ID: "p-slider-23", Family: "slider", Description: "Slider in form", View: PSlider23, Source: extractFunc(sliderSource, "PSlider23")})
 }
 
@@ -78,6 +79,14 @@ func sliderNumber(c *ui.Context, v *float64, lo, hi float64, width float32) {
 		*v = min(max(n, lo), hi)
 		s.shown = *v
 	}
+}
+
+// PSliderElastic is mygox's own: pulled past an end, the slider stretches
+// like rubber, and springs back when let go.
+func PSliderElastic(c *ui.Context) {
+	host := sliderHost(c)
+	val := ui.Local(host, "val", func() float64 { return 50 })
+	host.Children(func() { coss.Slider(c, val, 0, 100, coss.SliderOptions{Stretch: 50}).Step(1) })
 }
 
 func PSlider1(c *ui.Context) {

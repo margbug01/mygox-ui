@@ -3,6 +3,7 @@ package coss
 import (
 	"math"
 	"slices"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/margbug01/mygox-ui/coss/theme"
@@ -12,9 +13,26 @@ import (
 // and the thumb overhangs it, as in coss.
 const sliderThumb = 16
 
+// SliderOptions are a Slider's optional motion and look.
+type SliderOptions struct {
+	// Stretch lets the slider be pulled past either end, stretching like
+	// rubber, up to 40px at 100, and squashing as it does; let go, it
+	// springs back, and the value glides to each new place. 0 is off.
+	Stretch float32
+	// Bounce is how lively the snap back is, 0 to 100; 50 when 0.
+	Bounce float32
+	// Draw paints the slider in another design: r is its box, stretched
+	// and squashed by the pull, and frac how far along the value is.
+	Draw func(p *ui.Painter, r ui.Rect, frac float32)
+}
+
 // Slider renders coss's horizontal slider for one value, built on
 // ui.SliderBase.
-func Slider(c *ui.Context, value *float64, lo, hi float64) ui.Element {
+func Slider(c *ui.Context, value *float64, lo, hi float64, opts ...SliderOptions) ui.Element {
+	var o SliderOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
 	t := theme.Of(c)
 	sl := ui.SliderBase(c, value, lo, hi).
 		WidthPercent(100).
@@ -24,8 +42,53 @@ func Slider(c *ui.Context, value *float64, lo, hi float64) ui.Element {
 		Cursor(ui.CursorPointer).
 		FocusRingColor(t.Ring)
 	v := *value
-	sl.Draw(func(p *ui.Painter, r ui.Rect) { drawSlider(p, t, r, []float64{v}, lo, hi, false) })
+	if o.Stretch == 0 && o.Draw == nil {
+		sl.Draw(func(p *ui.Painter, r ui.Rect) { drawSlider(p, t, r, []float64{v}, lo, hi, false) })
+		return sl
+	}
+	frac := float32(0)
+	if hi > lo {
+		frac = float32((v - lo) / (hi - lo))
+	}
+	var pull float32 // px past an end, signed, rubber-banded
+	if o.Stretch > 0 {
+		if o.Bounce == 0 {
+			o.Bounce = 50
+		}
+		px, _, _ := sl.PointerPosition()
+		if _, _, dragging := sl.Dragged(); dragging || sl.Pressed() {
+			w, most := sl.Bounds().W, o.Stretch/100*40
+			switch {
+			case px < 0:
+				pull = -rubberBand(-px, most)
+			case px > w:
+				pull = rubberBand(px-w, most)
+			}
+		}
+		pull = sl.Spring("elastic_pull", pull, ui.SpringOptions{Duration: 420 * time.Millisecond, Bounce: float64(o.Bounce) / 100 * 0.6})
+		frac = sl.Spring("elastic_value", frac, ui.SpringOptions{Duration: 160 * time.Millisecond})
+	}
+	draw := o.Draw
+	if draw == nil {
+		draw = func(p *ui.Painter, r ui.Rect, frac float32) {
+			drawSlider(p, t, r, []float64{lo + float64(frac)*(hi-lo)}, lo, hi, false)
+		}
+	}
+	sl.Draw(func(p *ui.Painter, r ui.Rect) {
+		stretch := float32(math.Abs(float64(pull)))
+		h := r.H - stretch*0.18
+		draw(p, ui.Rect{X: r.X + min(pull, 0), Y: r.Y + (r.H-h)/2, W: r.W + stretch, H: h}, frac)
+	})
 	return sl
+}
+
+// rubberBand eases over, px past an end, so that it nears limit but never
+// reaches it.
+func rubberBand(over, limit float32) float32 {
+	if limit <= 0 {
+		return 0
+	}
+	return limit * (1 - 1/(1+over/limit))
 }
 
 // SliderCollision is what a dragged thumb does on meeting another, after
