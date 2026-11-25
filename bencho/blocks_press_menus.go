@@ -72,135 +72,6 @@ func drawPlusRotated(p *ui.Painter, r ui.Rect, angleDeg float32, half float32, c
 // -----------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------
-// 3. pill-accordion ("Pill accordion")
-// -----------------------------------------------------------------------------
-
-// PillAccordionOptions configures PillAccordion.
-type PillAccordionOptions struct {
-	Width    float32
-	Accent   ui.Color
-	OnChange func(openIndex int)
-}
-
-// PillAccordion renders floating pill-shaped expandable items whose corner
-// radius and padding smoothly morph when opened.
-func PillAccordion(c *ui.Context, items []FAQItem, openIndex *int, opts ...PillAccordionOptions) ui.Element {
-	var o PillAccordionOptions
-	if len(opts) > 0 {
-		o = opts[0]
-	}
-	t := ThemeFrom(c)
-	if o.Width <= 0 {
-		o.Width = 276
-	}
-	accent := colorOr(o.Accent, t.Accent)
-
-	curOpen := -1
-	if openIndex != nil {
-		curOpen = *openIndex
-	}
-
-	root := ui.Column(c).
-		Width(o.Width).
-		Gap(7)
-
-	root.Children(func() {
-		for i := range items {
-			idx := i
-			item := items[idx]
-			isOpen := curOpen == idx
-
-			target := float32(0)
-			if isOpen {
-				target = 1
-			}
-
-			pill := ui.Column(c).
-				Key(idx).
-				WidthPercent(100).
-				Clip().
-				Cursor(ui.CursorPointer)
-
-			p := clamp32(pill.Spring("pill_acc_p", target, ui.SpringOptions{
-				Duration: 340 * time.Millisecond,
-				Bounce:   0.22,
-			}), 0, 1)
-
-			rad := lerp32(18, 13, p)
-			padY := lerp32(7, 10, p)
-			padX := lerp32(14, 15, p)
-			bg := lerpColor(t.Surface, t.SurfaceSubtle, p*0.45)
-			borderCol := lerpColor(t.Border, accent.Alpha(0.60), p)
-
-			pill.
-				Padding(padY, padX).
-				Radius(rad).
-				Background(bg).
-				Border(1, borderCol)
-
-			pill.Children(func() {
-				ui.Row(c).
-					WidthPercent(100).
-					Justify(ui.SpaceBetween).
-					AlignItems(ui.Center).
-					Gap(8).
-					Children(func() {
-						ui.Row(c).AlignItems(ui.Center).Gap(7).Children(func() {
-							dotSize := lerp32(6, 7.5, p)
-							ui.Box(c).
-								Size(dotSize, dotSize).
-								Radius(999).
-								Background(lerpColor(t.BorderStrong, accent, p))
-							ui.Text(c, item.Question).
-								FontSize(11.5).
-								FontWeight(600).
-								TextColor(t.Text).
-								SingleLine()
-						})
-
-						ui.Box(c).Size(14, 14).Draw(func(painter *ui.Painter, r ui.Rect) {
-							drawChevron(painter, r, p*180, lerpColor(t.TextSubtle, accent, p))
-						})
-					})
-
-				bodyH := p * 33
-				if bodyH > 0.5 {
-					bodyAlpha := clamp32((p-0.14)/0.86, 0, 1)
-					ui.Box(c).
-						WidthPercent(100).
-						Height(bodyH).
-						Clip().
-						Opacity(bodyAlpha).
-						Children(func() {
-							ui.Box(c).Padding(5, 0, 0, 14).Children(func() {
-								ui.Text(c, item.Answer).
-									FontSize(10.5).
-									LineHeight(1.35).
-									TextColor(t.TextMuted)
-							})
-						})
-				}
-			})
-
-			if pill.Clicked() {
-				next := idx
-				if isOpen {
-					next = -1
-				}
-				if openIndex != nil {
-					*openIndex = next
-				}
-				if o.OnChange != nil {
-					o.OnChange(next)
-				}
-			}
-		}
-	})
-
-	return root
-}
-
-// -----------------------------------------------------------------------------
 // 4. tree-view ("Tree view")
 // -----------------------------------------------------------------------------
 
@@ -2017,39 +1888,12 @@ type billingCardDemoState struct {
 }
 
 func init() {
-	sampleFAQs := []FAQItem{
-		{
-			Question: "How do springs stay 60fps?",
-			Answer:   "Each transition integrates analytically on GPU frames without layout thrashing.",
-		},
-		{
-			Question: "Does it support Dark mode?",
-			Answer:   "Every token resolves dynamically from ThemeFrom(c) for light and dark surfaces.",
-		},
-		{
-			Question: "Can I compose custom themes?",
-			Answer:   "Pass custom Accent colors or swap context theme tokens at runtime.",
-		},
-	}
 
 	// 1. faq-frames
 
 	// 2. faq-accordion
 
 	// 3. pill-accordion
-	registerDemo(
-		"pill-accordion",
-		"Floating pill-shaped expandable items whose corner radius and padding morph when opened.",
-		func(c *ui.Context) {
-			holder := ui.Box(c).Center()
-			st := ui.Local(holder, "demo_pill_accordion", func() faqDemoState {
-				return faqDemoState{open: 0}
-			})
-			holder.Children(func() {
-				PillAccordion(c, sampleFAQs, &st.open)
-			})
-		},
-	)
 
 	// 4. tree-view
 	treeNodes := []TreeNode{
