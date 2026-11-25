@@ -103,14 +103,12 @@ func ThinkingLoader(c *ui.Context, opts ...ThinkingLoaderOptions) ui.Element {
 					}
 					label := ui.Box(c).Key(idx).Translate(0, 20*(1-roll)).Opacity(roll)
 					label.Children(func() {
-						ui.Text(c, cur).FontSize(15).TextColor(ink).SingleLine()
-						if !done && !o.NoShine {
-							// A light sweeping across the words.
-							x := float32(math.Mod(phase*0.8, 1.4)-0.2) * 200
-							ui.Box(c).Key("shine").Absolute().Left(x).Top(0).Size(36, 20).Clip().Children(func() {
-								ui.Text(c, cur).Absolute().Left(-x).Top(0).FontSize(15).TextColor(t.Text.Alpha(0.85)).SingleLine()
-							})
+						if done || o.NoShine {
+							ui.Text(c, cur).FontSize(15).TextColor(ink).SingleLine()
+							return
 						}
+						// A light sweeping across the words.
+						shimmerText(c, cur, 15, ink, t.Text.Alpha(0.85), float32(math.Mod(phase*0.8, 1.4)-0.2))
 					})
 				})
 				ui.Icon(c, icons.ChevronDown()).Size(14, 14).TextColor(t.TextSubtle).Margin(0, 0, 0, 10).Rotate(180 * clamp32(k, 0, 1))
