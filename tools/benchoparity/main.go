@@ -1,20 +1,23 @@
-// Command benchoparity renders bencho blocks on bencho.dev's 822×800 preview
-// stage in the four states fetch-refs.mjs captures there (at rest, pointer
-// over the center, pressed for 700ms, 900ms after release) and stacks
-// bencho.dev's row above ours, half size, one sheet per block.
+// Command benchoparity renders bencho blocks centered on bencho.dev's 822×800
+// preview stage and lays out, one sheet per block: bencho.dev's still of the
+// block, then ours at rest, with the pointer over the center, pressed for
+// 700ms and 900ms after release, each cropped to the still's size plus 32px.
 //
 //	go run ./tools/benchoparity -ref ~/bencho-ref -out /tmp/bp -only hold-delete,dice
 //
 // fetch-refs.mjs, run with ego-browser, fills the -ref directory with
-// NNN-<slug>-{a-rest,b-hover,c-press,d-after}.png and NNN-<slug>.json.
+// <slug>.jpg (bencho.dev/stills, 2x) and specs.json (each block's display
+// size, description, props and controls).
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
+	_ "image/jpeg"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -26,9 +29,11 @@ import (
 	"github.com/margbug01/mygox-ui/bencho"
 )
 
-const stageW, stageH = 822, 800
+const stageW, stageH, pad = 822, 800, 32
 
-var states = []string{"a-rest", "b-hover", "c-press", "d-after"}
+type spec struct {
+	Size [2]int `json:"size"`
+}
 
 func main() {
 	ref := flag.String("ref", "", "directory of bencho.dev captures")
@@ -41,24 +46,30 @@ func main() {
 		os.Exit(2)
 	}
 	os.MkdirAll(*out, 0o755)
+	specs := map[string]spec{}
+	if data, err := os.ReadFile(filepath.Join(*ref, "specs.json")); err == nil {
+		json.Unmarshal(data, &specs)
+	}
 	slugs := strings.FieldsFunc(*only, func(r rune) bool { return r == ',' })
+	mode := "light"
+	if *dark {
+		mode = "dark"
+	}
 	n := 0
 	for _, b := range bencho.Catalog() {
 		if len(slugs) > 0 && !slices.Contains(slugs, b.Slug) || b.Demo == nil {
 			continue
 		}
-		ours := render(b, *dark)
-		refs := make([]image.Image, len(states))
-		for i, s := range states {
-			if m, _ := filepath.Glob(filepath.Join(*ref, "[0-9][0-9][0-9]-"+b.Slug+"-"+s+".png")); len(m) == 1 {
-				refs[i] = load(m[0])
-			}
+		still := load(filepath.Join(*ref, b.Slug+".jpg"))
+		w, h := specs[b.Slug].Size[0], specs[b.Slug].Size[1]
+		if w == 0 && still != nil {
+			w, h = still.Bounds().Dx()/2, still.Bounds().Dy()/2
 		}
-		mode := "light"
-		if *dark {
-			mode = "dark"
+		if w == 0 {
+			w, h = 320, 240
 		}
-		save(filepath.Join(*out, b.Slug+"-"+mode+".png"), sheet(refs, ours))
+		crop := image.Rect(stageW/2-w/2-pad, stageH/2-h/2-pad, stageW/2+(w+1)/2+pad, stageH/2+(h+1)/2+pad).Intersect(image.Rect(0, 0, stageW, stageH))
+		save(filepath.Join(*out, b.Slug+"-"+mode+".png"), sheet(still, render(b, *dark), crop))
 		n++
 	}
 	fmt.Printf("benchoparity: %d sheets in %s\n", n, *out)
@@ -71,6 +82,7 @@ func render(b bencho.Block, dark bool) []image.Image {
 		ui.Column(c).Size(stageW, stageH).Center().Background(t.SurfaceSubtle).TextColor(t.Text).Children(func() { b.Demo(c) })
 	}
 	tt := ui.NewTester(view, stageW, stageH)
+	tt.SetScale(2)
 	shot := func(d time.Duration) image.Image {
 		for step := 16 * time.Millisecond; d > 0; d -= step {
 			tt.Advance(step)
@@ -90,33 +102,25 @@ func render(b bencho.Block, dark bool) []image.Image {
 	return []image.Image{rest, hover, press, after}
 }
 
-func sheet(refs, ours []image.Image) image.Image {
-	const w, h, gap = stageW / 2, stageH / 2, 8
-	dst := image.NewRGBA(image.Rect(0, 0, 4*w+3*gap, 2*h+gap))
-	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.RGBA{200, 200, 200, 255}), image.Point{}, draw.Src)
-	for i := range states {
-		x := i * (w + gap)
-		if refs[i] != nil {
-			half(dst, image.Pt(x, 0), refs[i])
-		}
-		half(dst, image.Pt(x, h+gap), ours[i])
+// sheet lays out, at 2x, the still (centered in the crop's size) and our four
+// states, side by side.
+func sheet(still image.Image, ours []image.Image, crop image.Rectangle) image.Image {
+	const gap = 12
+	crop = image.Rectangle{crop.Min.Mul(2), crop.Max.Mul(2)}
+	w, h := crop.Dx(), crop.Dy()
+	dst := image.NewRGBA(image.Rect(0, 0, 5*w+4*gap, h))
+	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.RGBA{255, 0, 255, 255}), image.Point{}, draw.Src)
+	draw.Draw(dst, image.Rect(0, 0, w, h), image.NewUniform(color.RGBA{242, 242, 242, 255}), image.Point{}, draw.Src)
+	if still != nil {
+		sb := still.Bounds()
+		at := image.Pt((w-sb.Dx())/2, (h-sb.Dy())/2)
+		draw.Draw(dst, image.Rect(0, 0, w, h), still, sb.Min.Sub(at), draw.Src)
+	}
+	for i, m := range ours {
+		x := (i + 1) * (w + gap)
+		draw.Draw(dst, image.Rect(x, 0, x+w, h), m, crop.Min, draw.Src)
 	}
 	return dst
-}
-
-// half draws src at half size with 2×2 box filtering.
-func half(dst *image.RGBA, at image.Point, src image.Image) {
-	b := src.Bounds()
-	for y := 0; y+1 < b.Dy() && y/2 < stageH/2; y += 2 {
-		for x := 0; x+1 < b.Dx() && x/2 < stageW/2; x += 2 {
-			var r, g, bl uint32
-			for _, p := range [4][2]int{{0, 0}, {1, 0}, {0, 1}, {1, 1}} {
-				cr, cg, cb, _ := src.At(b.Min.X+x+p[0], b.Min.Y+y+p[1]).RGBA()
-				r, g, bl = r+cr, g+cg, bl+cb
-			}
-			dst.SetRGBA(at.X+x/2, at.Y+y/2, color.RGBA{uint8(r >> 10), uint8(g >> 10), uint8(bl >> 10), 255})
-		}
-	}
 }
 
 func clone(src *image.RGBA) image.Image {
@@ -131,7 +135,7 @@ func load(p string) image.Image {
 		return nil
 	}
 	defer f.Close()
-	img, err := png.Decode(f)
+	img, _, err := image.Decode(f)
 	if err != nil {
 		return nil
 	}
