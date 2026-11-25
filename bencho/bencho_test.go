@@ -246,66 +246,34 @@ func TestLiveVoteMovesAndTakesBackVote(t *testing.T) {
 	}
 }
 
-func TestConfirmSendStateMachine(t *testing.T) {
+// Pressing send works for a moment, then flips to a receipt with the arrival
+// time; Done flips back.
+func TestConfirmSendFlipsToReceipt(t *testing.T) {
 	sent := 0
-	var phases []bencho.ConfirmSendPhase
 	view := func(c *ui.Context) {
 		bencho.ApplyTheme(c, false)
-		ui.Box(c).Padding(16).Children(func() {
-			bencho.ConfirmSend(c, func() {
-				sent++
-			}, bencho.ConfirmSendOptions{
-				SendDuration: 200 * time.Millisecond,
-				ResetAfter:   300 * time.Millisecond,
-				OnPhaseChange: func(p bencho.ConfirmSendPhase) {
-					phases = append(phases, p)
-				},
-			})
-		})
+		bencho.ConfirmSend(c, bencho.ConfirmSendOptions{OnSend: func() { sent++ }})
 	}
-
-	tt := ui.NewTester(view, 360, 120)
+	tt := ui.NewTester(view, 320, 366)
 	tt.Frame()
-
-	// Step 1: Idle -> Confirming -> Cancel -> Idle
-	if err := tt.Click("Send invoice"); err != nil {
-		t.Fatalf("click idle: %v", err)
+	if err := tt.Click("Send €150"); err != nil {
+		t.Fatal(err)
 	}
-	tt.Frame()
-	if !tt.HasText("Confirm") || !tt.HasText("Cancel") {
-		t.Fatalf("expected Confirm and Cancel buttons, got %v", tt.Texts())
+	step(tt, 500*time.Millisecond)
+	if !tt.HasText("Sending…") || sent != 0 {
+		t.Fatalf("half a second in want Sending… and nothing sent yet (%d), got %v", sent, tt.Texts())
 	}
-	if err := tt.Click("Cancel"); err != nil {
-		t.Fatalf("click cancel: %v", err)
+	arrived := tt.Now()
+	step(tt, 2*time.Second)
+	if sent != 1 || !tt.HasText("€150 sent") || !tt.HasText(arrived.Add(1300*time.Millisecond).Format("15:04")) {
+		t.Fatalf("after the work want one send and the receipt with its time, sent %d, got %v", sent, tt.Texts())
 	}
-	tt.Frame()
-	if !tt.HasText("Send invoice") {
-		t.Fatalf("expected return to idle after Cancel, got %v", tt.Texts())
+	if err := tt.Click("Done"); err != nil {
+		t.Fatal(err)
 	}
-
-	// Step 2: Idle -> Confirming -> Sending -> Sent -> Idle
-	if err := tt.Click("Send invoice"); err != nil {
-		t.Fatalf("click idle second time: %v", err)
-	}
-	tt.Frame()
-	if err := tt.Click("Confirm"); err != nil {
-		t.Fatalf("click confirm: %v", err)
-	}
-	tt.Frame()
-	if !tt.HasText("Sending...") {
-		t.Fatalf("expected Sending... state, got %v", tt.Texts())
-	}
-
-	tt.Advance(250 * time.Millisecond)
-	tt.Frame()
-	if sent != 1 || !tt.HasText("Sent") {
-		t.Fatalf("expected Sent state and sent=1, got sent=%d texts=%v", sent, tt.Texts())
-	}
-
-	tt.Advance(350 * time.Millisecond)
-	tt.Frame()
-	if !tt.HasText("Send invoice") {
-		t.Fatalf("expected auto-reset to idle, got %v", tt.Texts())
+	step(tt, time.Second)
+	if !tt.HasText("Send €150") {
+		t.Fatalf("Done should flip back to the transfer, got %v", tt.Texts())
 	}
 }
 
