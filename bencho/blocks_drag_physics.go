@@ -151,66 +151,6 @@ func dpStrokeCircle(p *ui.Painter, cx, cy, r, w float32, col ui.Color) {
 	p.Stroke(ui.Rect{X: cx - r, Y: cy - r, W: r * 2, H: r * 2}, col, r, w)
 }
 
-func dpNewStage(c *ui.Context, key string, bg, border ui.Color, w, h float32) ui.Element {
-	return ui.Box(c).
-		Key(key).
-		Size(w, h).
-		Background(bg).
-		Radius(dpStageRadius).
-		BorderWidth(1, 1, 1, 1).
-		BorderColor(border).
-		Cursor(ui.CursorPointer)
-}
-
-// =============================================================================
-// 4. orders-globe — OrdersGlobe
-// =============================================================================
-
-// OrdersGlobeOptions configures OrdersGlobe.
-type OrdersGlobeOptions struct {
-	Width  float32
-	Height float32
-	Accent ui.Color
-}
-
-type dpCity struct {
-	code string
-	lat  float32 // degrees
-	lon  float32 // degrees
-}
-
-var dpOrderCities = []dpCity{
-	{code: "SFO", lat: 37.7, lon: -122.4},
-	{code: "NYC", lat: 40.7, lon: -74.0},
-	{code: "LON", lat: 51.5, lon: -0.1},
-	{code: "SIN", lat: 1.3, lon: 103.8},
-	{code: "TYO", lat: 35.7, lon: 139.7},
-}
-
-var dpOrderRoutes = [][2]int{
-	{0, 1}, // SFO -> NYC
-	{1, 2}, // NYC -> LON
-	{2, 3}, // LON -> SIN
-	{3, 4}, // SIN -> TYO
-	{4, 0}, // TYO -> SFO
-}
-
-type dpGlobeState struct {
-	rotY        float32
-	rotX        float32
-	velY        float32
-	velX        float32
-	wasDragging bool
-	lastFrame   time.Time
-}
-
-func dpLatLonTo3D(latDeg, lonDeg float32) (x, y, z float32) {
-	lat := latDeg * math.Pi / 180
-	lon := lonDeg * math.Pi / 180
-	cLat := dpCos32(lat)
-	return cLat * dpSin32(lon), -dpSin32(lat), cLat * dpCos32(lon)
-}
-
 func dpRotate3D(x, y, z, rotY, rotX float32) (rx, ry, rz float32) {
 	cy, sy := dpCos32(rotY), dpSin32(rotY)
 	x1 := x*cy + z*sy
@@ -221,200 +161,15 @@ func dpRotate3D(x, y, z, rotY, rotX float32) (rx, ry, rz float32) {
 	return x1, y2, z2
 }
 
-// OrdersGlobe renders a 3D projected rotating wireframe globe with live pulsing
-// order ping arcs across NYC, LON, TYO, SFO, and SIN. Dragging rotates smoothly with inertia.
-func OrdersGlobe(c *ui.Context, opts ...OrdersGlobeOptions) ui.Element {
-	var o OrdersGlobeOptions
-	if len(opts) > 0 {
-		o = opts[0]
-	}
-	t := ThemeFrom(c)
-	w, h := dpStageSize(o.Width, o.Height)
-	accent := colorOr(o.Accent, t.Accent)
-
-	stage := dpNewStage(c, "dp_orders_globe_stage", dpSurface(t), t.Border, w, h)
-	st := ui.Local(stage, "dp_orders_globe_state", func() dpGlobeState {
-		return dpGlobeState{
-			rotY: 0.55,
-			rotX: 0.28,
-		}
-	})
-
-	dx, dy, dragging := stage.Dragged()
-	now := c.Now()
-	dt := dpStepDT(&st.lastFrame, now)
-
-	if dragging {
-		st.rotY += dx * 0.013
-		st.rotX = clamp32(st.rotX+dy*0.011, -1.05, 1.05)
-		if dt > 0 {
-			st.velY = lerp32(st.velY, (dx*0.013)/dt, 0.45)
-			st.velX = lerp32(st.velX, (dy*0.011)/dt, 0.45)
-		}
-	} else {
-		st.rotY += st.velY*dt + 0.24*dt
-		st.rotX = clamp32(st.rotX+st.velX*dt, -1.05, 1.05)
-		damp := float32(math.Pow(0.16, float64(dt)))
-		st.velY *= damp
-		st.velX *= damp
-	}
-	st.wasDragging = dragging
-	c.AnimationFrame()
-
-	sec := phaseSeconds(now)
-
-	stage.Draw(func(p *ui.Painter, r ui.Rect) {
-		if r.W <= 0 || r.H <= 0 {
-			return
-		}
-		cx := r.X + r.W*0.5
-		cy := r.Y + r.H*0.5 + 2
-		rad := dpMin32(r.W, r.H) * 0.37
-
-		// Atmospheric globe backdrop.
-		globeRect := ui.Rect{X: cx - rad, Y: cy - rad, W: rad * 2, H: rad * 2}
-		p.FillRadialGradient(globeRect, ui.RadialGradient{
-			Center: ui.Point{X: 0.36, Y: 0.30},
-			Stops: []ui.GradientStop{
-				{Color: accent.Alpha(0.16), At: 0},
-				{Color: t.SurfaceSubtle.Alpha(0.85), At: 0.65},
-				{Color: accent.Alpha(0.06), At: 1},
-			},
-		}, rad)
-		dpStrokeCircle(p, cx, cy, rad, 1.2, accent.Alpha(0.40))
-
-		wireCol := t.TextMuted
-		if t.Dark {
-			wireCol = accent
-		}
-
-		// Latitude parallels.
-		for _, latDeg := range []float32{-50, -25, 0, 25, 50} {
-			const steps = 36
-			var prevX, prevY, prevZ float32
-			for i := 0; i <= steps; i++ {
-				lonDeg := -180 + float32(i)*360/float32(steps)
-				x, y, z := dpLatLonTo3D(latDeg, lonDeg)
-				rx, ry, rz := dpRotate3D(x, y, z, st.rotY, st.rotX)
-				sx := cx + rx*rad
-				sy := cy + ry*rad
-				if i > 0 {
-					avgZ := (prevZ + rz) * 0.5
-					alpha := float32(0.08)
-					if avgZ > 0 {
-						alpha = 0.14 + avgZ*0.24
-					}
-					p.Line(prevX, prevY, sx, sy, 0.9, wireCol.Alpha(alpha))
-				}
-				prevX, prevY, prevZ = sx, sy, rz
-			}
-		}
-
-		// Longitude meridians.
-		for m := 0; m < 8; m++ {
-			lonDeg := float32(m) * 22.5
-			const steps = 28
-			var prevX, prevY, prevZ float32
-			for i := 0; i <= steps; i++ {
-				latDeg := -90 + float32(i)*180/float32(steps)
-				x, y, z := dpLatLonTo3D(latDeg, lonDeg)
-				rx, ry, rz := dpRotate3D(x, y, z, st.rotY, st.rotX)
-				sx := cx + rx*rad
-				sy := cy + ry*rad
-				if i > 0 {
-					avgZ := (prevZ + rz) * 0.5
-					alpha := float32(0.07)
-					if avgZ > 0 {
-						alpha = 0.12 + avgZ*0.22
-					}
-					p.Line(prevX, prevY, sx, sy, 0.9, wireCol.Alpha(alpha))
-				}
-				prevX, prevY, prevZ = sx, sy, rz
-			}
-		}
-
-		// Elevated 3D order arcs between cities.
-		arcCol := t.Success
-		if t.Dark {
-			arcCol = ui.Hex("#38bdf8")
-		}
-		for idx, rt := range dpOrderRoutes {
-			cA := dpOrderCities[rt[0]]
-			cB := dpOrderCities[rt[1]]
-			ax, ay, az := dpLatLonTo3D(cA.lat, cA.lon)
-			bx, by, bz := dpLatLonTo3D(cB.lat, cB.lon)
-
-			prog := float32(mod1(sec*0.42 + float64(idx)*0.21))
-			const segs = 18
-			var prevSX, prevSY, prevZ float32
-			for s := 0; s <= segs; s++ {
-				u := float32(s) / float32(segs)
-				ix := lerp32(ax, bx, u)
-				iy := lerp32(ay, by, u)
-				iz := lerp32(az, bz, u)
-				ilen := float32(math.Sqrt(float64(ix*ix + iy*iy + iz*iz)))
-				if ilen < 0.001 {
-					ilen = 1
-				}
-				lift := 1.0 + dpSin32(u*math.Pi)*0.26
-				ix, iy, iz = ix/ilen*lift, iy/ilen*lift, iz/ilen*lift
-				rx, ry, rz := dpRotate3D(ix, iy, iz, st.rotY, st.rotX)
-				sx := cx + rx*rad
-				sy := cy + ry*rad
-				if s > 0 && (prevZ > -0.15 || rz > -0.15) {
-					alpha := clamp32(0.18+(rz+0.2)*0.45, 0.08, 0.72)
-					p.Line(prevSX, prevSY, sx, sy, 1.3, arcCol.Alpha(alpha))
-				}
-				prevSX, prevSY, prevZ = sx, sy, rz
-			}
-
-			// Traveling order ping comet.
-			ix := lerp32(ax, bx, prog)
-			iy := lerp32(ay, by, prog)
-			iz := lerp32(az, bz, prog)
-			ilen := float32(math.Sqrt(float64(ix*ix + iy*iy + iz*iz)))
-			if ilen > 0.001 {
-				lift := 1.0 + dpSin32(prog*math.Pi)*0.26
-				rx, ry, rz := dpRotate3D(ix/ilen*lift, iy/ilen*lift, iz/ilen*lift, st.rotY, st.rotX)
-				if rz > -0.1 {
-					pxC := cx + rx*rad
-					pyC := cy + ry*rad
-					dpFillCircle(p, pxC, pyC, 4.5, arcCol.Alpha(0.28))
-					dpFillCircle(p, pxC, pyC, 2.2, ui.Hex("#ffffff"))
-				}
-			}
-		}
-
-		// City nodes + pulsing rings + front labels.
-		for idx, city := range dpOrderCities {
-			x, y, z := dpLatLonTo3D(city.lat, city.lon)
-			rx, ry, rz := dpRotate3D(x, y, z, st.rotY, st.rotX)
-			sx := cx + rx*rad
-			sy := cy + ry*rad
-			if rz < -0.05 {
-				dpFillCircle(p, sx, sy, 1.8, accent.Alpha(0.22))
-				continue
-			}
-			pulse := float32(mod1(sec*0.75 + float64(idx)*0.19))
-			dpStrokeCircle(p, sx, sy, 3+pulse*9, 1.2, t.Success.Alpha((1-pulse)*0.75))
-			dpFillCircle(p, sx, sy, 2.8, t.Success)
-			if rz > 0.2 {
-				p.RichText(sx+5, sy-6, 36, ui.Span{
-					Text:   city.code,
-					Size:   8.5,
-					Weight: 700,
-					Color:  t.Text.Alpha(clamp32(rz*1.1, 0.35, 0.95)),
-				})
-			}
-		}
-
-		// Live pulse header badge.
-		ordersPerMin := 480 + int(math.Sin(sec*1.3)*14)
-		dpDrawPillBadge(p, r.X+12, r.Y+10, fmt.Sprintf("LIVE • %d/m", ordersPerMin), t.Surface.Alpha(0.92), t.BorderStrong, t.Text)
-		dpDrawHint(p, r, t, "Drag to rotate globe", 0.72)
-	})
-
-	return stage
+func dpNewStage(c *ui.Context, key string, bg, border ui.Color, w, h float32) ui.Element {
+	return ui.Box(c).
+		Key(key).
+		Size(w, h).
+		Background(bg).
+		Radius(dpStageRadius).
+		BorderWidth(1, 1, 1, 1).
+		BorderColor(border).
+		Cursor(ui.CursorPointer)
 }
 
 // =============================================================================
@@ -2124,15 +1879,6 @@ func DragBall(c *ui.Context, opts ...DragBallOptions) ui.Element {
 // =============================================================================
 
 func init() {
-	registerDemo(
-		"orders-globe",
-		"3D projected rotating wireframe globe with live pulsing order arcs across SFO, NYC, LON, SIN, and TYO.",
-		func(c *ui.Context) {
-			ui.Box(c).Center().Children(func() {
-				OrdersGlobe(c)
-			})
-		},
-	)
 	registerDemo(
 		"card-swap",
 		"Layered tactile card deck where dragging the front card sideways past threshold smoothly cycles it behind the stack.",
