@@ -1,6 +1,8 @@
 package coss
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 	"github.com/margbug01/mygox-ui/coss/icons"
 	"github.com/margbug01/mygox-ui/coss/theme"
@@ -35,6 +37,95 @@ func ToastViewport(c *ui.Context) {
 				})
 		}
 	})
+}
+
+// ToastStackOptions shape a ToastStack; the zero value is coss's look.
+type ToastStackOptions struct {
+	Width, Height float32 // of a toast
+	Slots         int     // the most toasts it holds, which its height is for; 3 when 0
+	Peek          float32 // px of each tucked toast that shows; 14 when 0
+	Gap           float32 // px between the toasts fanned out; 10 when 0
+	Rest          float32 // px from the front toast, while they are tucked, to the stack's bottom
+	Corner        float32
+	Background    ui.Color
+	Border        ui.Color // a tucked toast's outline
+	Ring          ui.Color // drawn round the toasts shown, as coss's border
+	// Content builds toast k in its card in place of coss's icon, title and
+	// description; reveal is how far it shows.
+	Content func(k int, reveal float32)
+}
+
+// ToastStack lays toasts, oldest first, out as a stack in place: the newest
+// in front, and those before it narrower and tucked behind, Peek px of each
+// showing above it, as an outline. With the pointer over the stack they
+// spring apart into a list at its bottom, Gap apart, and a toast slides in
+// from above as it first shows. A toast's ID names it, its index when
+// empty.
+func ToastStack(c *ui.Context, toasts []ui.Toast, o ToastStackOptions) ui.Element {
+	t := theme.Of(c)
+	if o.Width == 0 {
+		o.Width, o.Height, o.Corner, o.Background, o.Border, o.Ring = 360, 66, t.RadiusLG, t.Popover, t.Border, t.Border
+	}
+	if o.Slots == 0 {
+		o.Slots = 3
+	}
+	if o.Peek == 0 {
+		o.Peek = 14
+	}
+	if o.Gap == 0 {
+		o.Gap = 10
+	}
+	content := o.Content
+	if content == nil {
+		content = func(k int, reveal float32) {
+			ui.Column(c).WidthPercent(100).HeightPercent(100).Justify(ui.Center).TextColor(t.PopoverForeground).Opacity(reveal).
+				Children(func() { toastBody(c, toasts[k], nil) })
+		}
+	}
+	n, slots := float32(len(toasts)), float32(o.Slots)
+	h := slots*o.Height + (slots-1)*o.Gap
+	root := ui.Box(c).Size(o.Width, h)
+	fan := root.Spring("fan", b2f(root.Hovered()), ui.SpringOptions{Duration: 420 * time.Millisecond, Bounce: 0.25})
+	restFront := h - o.Height - o.Rest
+	root.Children(func() {
+		for k, ts := range toasts {
+			depth := n - 1 - float32(k)
+			pos := slots - n + float32(k) // its place fanned out, the list kept at the bottom
+			rest := restFront - depth*o.Peek
+			y := rest + (pos*(o.Height+o.Gap)-rest)*fan
+			shrink := (1 - fan) * depth * 7
+			reveal := float32(1)
+			if depth > 0 {
+				reveal = min(max(fan, 0), 1)
+			}
+			var key any = k
+			if ts.ID != "" {
+				key = ts.ID
+			}
+			box := ui.Box(c).Key(key).Absolute().Left(shrink).Top(y).Size(o.Width-2*shrink, o.Height)
+			born := ui.Local(box, "born", func() bool { return false })
+			enter := box.Spring("enter", b2f(*born), ui.SpringOptions{Duration: 360 * time.Millisecond, Bounce: 0.2})
+			if !*born {
+				*born = true
+				c.AnimationFrame()
+			}
+			box.Translate(0, (1-enter)*-16).Opacity(min(max(enter, 0), 1))
+			box.Draw(func(p *ui.Painter, r ui.Rect) {
+				p.Fill(r, o.Background.Alpha(reveal), o.Corner)
+				if o.Ring.A != 0 {
+					p.Stroke(r, o.Ring.Alpha(reveal), o.Corner, 1)
+				}
+				if reveal < 1 {
+					p.Stroke(r, o.Border.Alpha(1-reveal), o.Corner, 1)
+				}
+			})
+			if reveal < 0.05 {
+				continue
+			}
+			box.Children(func() { content(k, reveal) })
+		}
+	})
+	return root
 }
 
 // AnchoredToast shows ts above anchor, sideOffset apart: as a tooltip of

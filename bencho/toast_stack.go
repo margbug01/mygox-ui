@@ -1,9 +1,11 @@
 package bencho
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/margbug01/mygox-ui/coss"
 	"github.com/margbug01/mygox-ui/coss/icons"
 )
 
@@ -44,7 +46,7 @@ type toastStackState struct {
 // ToastStack is three toasts at the edge: the newest in front, the two behind
 // peeking out above it. Point at them and they spring apart into a list;
 // close one with its cross and it slips away, and the stack refills once all
-// are gone.
+// are gone. It is coss's ToastStack with bencho's toasts in its look.
 func ToastStack(c *ui.Context, opts ...ToastStackOptions) ui.Element {
 	var o ToastStackOptions
 	if len(opts) > 0 {
@@ -61,11 +63,8 @@ func ToastStack(c *ui.Context, opts ...ToastStackOptions) ui.Element {
 	}
 	o.Peek, o.Gap, o.Corner = clamp32(o.Peek, 6, 24), clamp32(o.Gap, 4, 20), clamp32(o.Corner, 0, 32)
 	t := ThemeFrom(c)
-	n := len(toastStackToasts)
-	h := float32(n)*toastStackToast + float32(n-1)*o.Gap
-
-	root := ui.Box(c).Size(toastStackW, h)
-	st := ui.Local(root, "toast_stack", func() toastStackState { return toastStackState{} })
+	holder := ui.Box(c)
+	st := ui.Local(holder, "toast_stack", func() toastStackState { return toastStackState{} })
 	if st.gone == [3]bool{true, true, true} {
 		if wait := toastStackRefill - c.Now().Sub(st.lastGone); wait > 0 {
 			c.After(wait)
@@ -73,61 +72,23 @@ func ToastStack(c *ui.Context, opts ...ToastStackOptions) ui.Element {
 			st.gone = [3]bool{}
 		}
 	}
-	fan := root.Spring("fan", b2f(root.Hovered()), ui.SpringOptions{Duration: 420 * time.Millisecond, Bounce: 0.25})
-	restFront := h - toastStackToast - 60 // the front toast's top at rest: 88 of 212 at the defaults
-
-	// The toasts still up, newest last; depth counts back from the front one.
+	// The toasts still up, newest last.
 	var up []int
-	for i := range n {
+	var toasts []ui.Toast
+	for i := range toastStackToasts {
 		if !st.gone[i] {
 			up = append(up, i)
+			toasts = append(toasts, ui.Toast{ID: strconv.Itoa(i)})
 		}
 	}
-	root.Children(func() {
-		for k, i := range up {
-			depth := float32(len(up) - 1 - k)
-			pos := float32(n - len(up) + k) // fanned slot, the list kept at the bottom
-			rest := restFront - depth*o.Peek
-			y := lerp32(rest, pos*(toastStackToast+o.Gap), fan)
-			shrink := (1 - fan) * depth * 7
-			toastStackOne(c, t, o, i, y, shrink, depth, fan, func() { st.gone[i], st.lastGone = true, c.Now() })
-		}
-	})
-	return root
-}
-
-// toastStackOne draws toast i at y, narrowed by shrink px a side; a toast
-// behind the front one (depth > 0) shows only its outline until fanned.
-func toastStackOne(c *ui.Context, t Theme, o ToastStackOptions, i int, y, shrink, depth, fan float32, dismiss func()) {
-	ts := toastStackToasts[i]
-	reveal := float32(1)
-	if depth > 0 {
-		reveal = clamp32(fan, 0, 1)
-	}
-	box := ui.Box(c).Key(i).Absolute().Left(shrink).Top(y).Size(toastStackW-2*shrink, toastStackToast)
-	// A toast slides in from above when it first shows.
-	born := ui.Local(box, "born", func() bool { return false })
-	enter := box.Spring("enter", b2f(*born), ui.SpringOptions{Duration: 360 * time.Millisecond, Bounce: 0.2})
-	if !*born {
-		*born = true
-		c.AnimationFrame()
-	}
-	box.Translate(0, (1-enter)*-16).Opacity(clamp32(enter, 0, 1))
-	box.Draw(func(p *ui.Painter, r ui.Rect) {
-		p.Fill(r, t.Surface.Alpha(reveal), o.Corner)
-		if reveal < 1 {
-			p.Stroke(r, t.Border.Alpha(1-reveal), o.Corner, 1)
-		}
-	})
-	if reveal < 0.05 {
-		return
-	}
-	box.Children(func() {
+	content := func(k int, reveal float32) {
+		i := up[k]
+		ts := toastStackToasts[i]
 		col := t.TextSubtle
 		if ts.hue != "" {
 			col = ui.Hex(ts.hue)
 		}
-		ui.Row(c).Absolute().Left(0).Top(0).Size(toastStackW-2*shrink, toastStackToast).PaddingX(16).Gap(12).AlignItems(ui.Center).
+		ui.Row(c).Absolute().Left(0).Top(0).WidthPercent(100).Height(toastStackToast).PaddingX(16).Gap(12).AlignItems(ui.Center).
 			Opacity(reveal).Children(func() {
 			ui.Icon(c, ts.icon()).Size(18, 18).TextColor(col)
 			ui.Column(c).Grow(1).Gap(2).Children(func() {
@@ -140,11 +101,19 @@ func toastStackOne(c *ui.Context, t Theme, o ToastStackOptions, i int, y, shrink
 				btn.Scale(1-0.06*press, 1-0.06*press)
 				btn.Children(func() { ui.Text(c, "Retry").FontSize(13).FontWeight(500).TextColor(t.Text) })
 			}
-			ui.Box(c).Size(24, 24).Radius(12).Center().Cursor(ui.CursorPointer).OnClick(dismiss).Children(func() {
+			ui.Box(c).Size(24, 24).Radius(12).Center().Cursor(ui.CursorPointer).
+				OnClick(func() { st.gone[i], st.lastGone = true, c.Now() }).Children(func() {
 				ui.Icon(c, icons.X()).Size(16, 16).TextColor(t.TextSubtle)
 			})
 		})
+	}
+	holder.Children(func() {
+		coss.ToastStack(c, toasts, coss.ToastStackOptions{
+			Width: toastStackW, Height: toastStackToast, Slots: len(toastStackToasts), Peek: o.Peek, Gap: o.Gap, Rest: 60,
+			Corner: o.Corner, Background: t.Surface, Border: t.Border, Content: content,
+		})
 	})
+	return holder
 }
 
 func init() {

@@ -41,6 +41,7 @@ func init() {
 	Register(Entry{ID: "p-toast-11", Family: "toast", Description: "Deduplicated error toast", View: PToast11, Source: extractFunc(tableToastSource, "PToast11")})
 	Register(Entry{ID: "p-toast-12", Family: "toast", Description: "Anchored save success toast", View: PToast12, Source: extractFunc(tableToastSource, "PToast12")})
 	Register(Entry{ID: "p-toast-13", Family: "toast", Description: "Anchored save error toast", View: PToast13, Source: extractFunc(tableToastSource, "PToast13")})
+	Register(Entry{ID: "p-toast-stack", Family: "toast", Description: "Toasts stacked in place that fan out under the pointer (mygox motion, not on coss.com)", View: PToastStack, Source: extractFunc(tableToastSource, "PToastStack")})
 }
 
 type project struct {
@@ -401,6 +402,16 @@ func anchoredToastShowing(c *ui.Context, until *time.Time) bool {
 	}
 	c.After(left)
 	return true
+}
+
+// PToastStack is mygox's own: the newest toast in front and the others
+// tucked behind it, springing apart into a list under the pointer.
+func PToastStack(c *ui.Context) {
+	coss.ToastStack(c, []ui.Toast{
+		{ID: "saved", Type: "success", Title: "Success!", Description: "Your changes have been saved."},
+		{ID: "cli", Type: "info", Title: "Heads up!", Description: "Add components with the cli."},
+		{ID: "event", Title: "Event has been created", Description: "Monday, January 3rd at 6:00pm"},
+	}, coss.ToastStackOptions{})
 }
 
 func PToast1(c *ui.Context) {
