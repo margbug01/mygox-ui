@@ -81,7 +81,7 @@ func pillarsDash(p *ui.Painter, x0, y0, x1, y1 float32, col ui.Color) {
 	}
 	for s := float32(0); s < l; s += 6 {
 		e := min(s+3, l)
-		p.Line(x0+dx*s/l, y0+dy*s/l, x0+dx*e/l, y0+dy*e/l, 1, col)
+		p.StrokePolyline([][2]float32{{x0 + dx*s/l, y0 + dy*s/l}, {x0 + dx*e/l, y0 + dy*e/l}}, 1, col)
 	}
 }
 
