@@ -72,8 +72,19 @@ func SwipeDeck(c *ui.Context, opts ...SwipeDeckOptions) ui.Element {
 	left, top := float32(48), float32(32)
 
 	deck.Children(func() {
-		// Back to front, so the front card is drawn last.
+		// Back to front, then the card flying off on top of them all.
+		var draw []int // positions in st.order
 		for pos := min(len(st.order), 5) - 1; pos >= 0; pos-- {
+			if st.order[pos] != st.flying {
+				draw = append(draw, pos)
+			}
+		}
+		for pos, idx := range st.order {
+			if idx == st.flying {
+				draw = append(draw, pos)
+			}
+		}
+		for _, pos := range draw {
 			idx := st.order[pos]
 			cd := o.Cards[idx]
 			card := ui.Box(c).Key(idx).Absolute().Size(swipeDeckCardW, swipeDeckCardH)
