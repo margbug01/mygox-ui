@@ -2,6 +2,7 @@ package bencho
 
 import (
 	"time"
+	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/margbug01/mygox-ui/coss/icons"
@@ -45,11 +46,22 @@ type aiChatInputState struct {
 	effort AIChatInputEffort
 	menu   bool
 	focus  bool
+
+	// The prompts sent, oldest first, which Up and Down step through as a
+	// terminal's history: at is the one shown, len(sent) for the draft being
+	// typed, kept in draft while an earlier one shows. Edits to the prompts
+	// brought back last until the next send.
+	sent     []string
+	at       int
+	draft    string
+	edits    map[int]string
+	caretEnd bool // a prompt was brought back: the caret goes after it
 }
 
 // AIChatInput is a prompt bar that stretches from a pill into a box when
 // pressed, with a model menu and an effort step below; the mic turns into a
-// send arrow as you type.
+// send arrow as you type. Up brings back the prompts sent before, Down the
+// later ones and, past the last, what was being typed.
 func AIChatInput(c *ui.Context, opts ...AIChatInputOptions) ui.Element {
 	var o AIChatInputOptions
 	if len(opts) > 0 {
@@ -80,7 +92,37 @@ func AIChatInput(c *ui.Context, opts ...AIChatInputOptions) ui.Element {
 		if o.OnSend != nil {
 			o.OnSend(st.prompt)
 		}
-		st.prompt = ""
+		if len(st.sent) == 0 || st.sent[len(st.sent)-1] != st.prompt {
+			st.sent = append(st.sent, st.prompt)
+		}
+		st.prompt, st.at, st.draft, st.edits = "", len(st.sent), "", nil
+	}
+	// recall shows the prompt sent step places from the one shown, keeping
+	// what is shown now to come back to; false at either end.
+	recall := func(k ui.TextKey, step int) bool {
+		to := st.at + step
+		if to < 0 || to > len(st.sent) {
+			return false
+		}
+		if st.at == len(st.sent) {
+			st.draft = k.Text()
+		} else if k.Text() != st.sent[st.at] {
+			if st.edits == nil {
+				st.edits = map[int]string{}
+			}
+			st.edits[st.at] = k.Text()
+		}
+		st.at = to
+		show := st.draft
+		if to < len(st.sent) {
+			show = st.sent[to]
+			if e, ok := st.edits[to]; ok {
+				show = e
+			}
+		}
+		k.SetText(show)
+		st.caretEnd = true
+		return true
 	}
 
 	spring := ui.SpringOptions{Duration: 520 * time.Millisecond, Bounce: float64(clamp32(o.Bounce, 0, 100)) / 100 * 0.5}
@@ -99,15 +141,25 @@ func AIChatInput(c *ui.Context, opts ...AIChatInputOptions) ui.Element {
 				Absolute().Left(lerp32(20, 16, in)).Top(lerp32((aiChatInputPillH-22)/2, 14, in)).Size(w-lerp32(20+aiChatInputBtn+16, 32, in), 22).
 				OnSubmit(send).
 				OnTextKey(func(k ui.TextKey) bool {
-					if k.Key == ui.KeyEscape && k.Text() == "" {
+					switch {
+					case k.Key == ui.KeyEscape && k.Text() == "":
 						st.open, st.menu = false, false
 						return true
+					case k.Key == ui.KeyUp && k.Mods == 0:
+						return recall(k, -1)
+					case k.Key == ui.KeyDown && k.Mods == 0:
+						return recall(k, 1)
 					}
 					return false
 				})
 			if st.focus {
 				field.Focus()
 				st.focus = false
+			}
+			if st.caretEnd {
+				n := utf8.RuneCountInString(st.prompt)
+				field.SetTextSelection(n, n)
+				st.caretEnd = false
 			}
 			if field.Focused() && !st.open {
 				st.open = true

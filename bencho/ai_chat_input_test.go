@@ -64,3 +64,72 @@ func TestAIChatInputOpensAndSends(t *testing.T) {
 		t.Fatalf("Enter sends the prompt, sent %q", sent)
 	}
 }
+
+// Up brings back the prompts sent, newest first, and Down the later ones
+// and then the draft being typed; an edit to a prompt brought back stays
+// until the next send, and a prompt brought back sends as typed.
+func TestAIChatInputHistory(t *testing.T) {
+	var sent []string
+	tt := ui.NewTester(func(c *ui.Context) {
+		bencho.ApplyTheme(c, false)
+		bencho.AIChatInput(c, bencho.AIChatInputOptions{OnSend: func(p string) { sent = append(sent, p) }})
+	}, 340, 200)
+	tt.Frame()
+	tt.ClickAt(170, 100)
+	step(tt, time.Second)
+	key := func(k ui.Key) {
+		tt.Key(0, k)
+		step(tt, 16*time.Millisecond)
+	}
+	shows := func(want string) {
+		t.Helper()
+		for _, a := range tt.AccessAll() {
+			if a.Role == ui.RoleTextField {
+				if a.Value != want {
+					t.Fatalf("the field shows %q, want %q", a.Value, want)
+				}
+				return
+			}
+		}
+		t.Fatal("no text field")
+	}
+
+	tt.Type("first")
+	key(ui.KeyEnter)
+	tt.Type("second")
+	key(ui.KeyEnter)
+	tt.Type("dra")
+	step(tt, 16*time.Millisecond)
+
+	key(ui.KeyUp)
+	shows("second")
+	key(ui.KeyUp)
+	shows("first")
+	key(ui.KeyUp) // the oldest: it stays
+	shows("first")
+	tt.Type("!")
+	step(tt, 16*time.Millisecond)
+	shows("first!")
+	key(ui.KeyDown)
+	shows("second")
+	key(ui.KeyUp)
+	shows("first!")
+	key(ui.KeyDown)
+	key(ui.KeyDown)
+	shows("dra")
+
+	key(ui.KeyUp)
+	key(ui.KeyUp)
+	key(ui.KeyEnter)
+	if want := []string{"first", "second", "first!"}; len(sent) != 3 || sent[2] != want[2] {
+		t.Fatalf("sent %q, want %q", sent, want)
+	}
+	// The send forgets the edit: Up from the empty field shows what went
+	// last, then the first prompt as it was sent.
+	key(ui.KeyUp)
+	shows("first!")
+	key(ui.KeyUp)
+	shows("second")
+	key(ui.KeyUp)
+	shows("first")
+}

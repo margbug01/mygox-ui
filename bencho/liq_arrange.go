@@ -1,7 +1,9 @@
 package bencho
 
 import (
+	"fmt"
 	"math"
+	"slices"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -32,7 +34,9 @@ type reorderListState struct {
 	movedX   float32 // drag since time last moved on
 	movedY   float32
 	last     time.Time
-	lastHeld int // the row let go last, which wobbles back
+	lastHeld int   // the row let go last, which wobbles back
+	grab     int   // the item picked up with the keyboard, or -1
+	grabFrom []int // the order before it was picked up, which Escape puts back
 }
 
 const (
@@ -47,6 +51,11 @@ const (
 // ReorderList is a drag to reorder list with a liquid feel: drag a row to
 // a new place and the rows it passes fuse with it like liquid, and a
 // flung row stretches with its speed and wobbles back when let go.
+//
+// The keyboard reorders it too, as sortable lists do: the arrows move the
+// focus between rows, Space or Enter picks the focused row up, the arrows,
+// Home and End move it, Space or Enter drops it, and Escape, or Tab out,
+// puts it back. Screen readers hear each step.
 func ReorderList(c *ui.Context, opts ...ReorderListOptions) ui.Element {
 	var o ReorderListOptions
 	if len(opts) > 0 {
@@ -79,7 +88,7 @@ func ReorderList(c *ui.Context, opts ...ReorderListOptions) ui.Element {
 	n := len(o.Items)
 	list := ui.Box(c).Size(reorderListW, float32(reorderListTop*2+(n-1)*reorderListPitch+reorderListRowH))
 	st := ui.Local(list, "reorder_list", func() reorderListState {
-		s := reorderListState{held: -1, lastHeld: -1, last: now}
+		s := reorderListState{held: -1, lastHeld: -1, grab: -1, last: now}
 		for i := range o.Items {
 			s.order = append(s.order, i)
 		}
@@ -131,12 +140,68 @@ func ReorderList(c *ui.Context, opts ...ReorderListOptions) ui.Element {
 	speed := float32(math.Hypot(float64(st.vx), float64(st.vy)))
 	stretch := list.Spring("stretch", clamp32(speed/1800, 0, 1)*give*0.3*b2f(st.held >= 0), ui.SpringOptions{Duration: 520 * time.Millisecond, Bounce: 0.55})
 	tilt := list.Spring("tilt", clamp32(st.vx/900, -1, 1)*lean*14*b2f(st.held >= 0), ui.SpringOptions{Duration: 420 * time.Millisecond, Bounce: 0.4})
-	lift := list.Spring("lift", b2f(st.held >= 0), ui.SpringOptions{Duration: 240 * time.Millisecond, Bounce: 0.3})
+	lift := list.Spring("lift", b2f(st.held >= 0 || st.grab >= 0), ui.SpringOptions{Duration: 240 * time.Millisecond, Bounce: 0.3})
 	// Rows fuse while the held one moves past them, and part when it rests.
 	passing := list.Spring("passing", clamp32(float32(math.Abs(float64(st.vy)))/220, 0, 1)*b2f(st.held >= 0), ui.SpringOptions{Duration: 300 * time.Millisecond})
 	focus := st.held
 	if focus < 0 {
+		focus = st.grab
+	}
+	if focus < 0 {
 		focus = st.lastHeld
+	}
+	names := func(order []int) []string {
+		out := make([]string, len(order))
+		for i, j := range order {
+			out[i] = o.Items[j].Name
+		}
+		return out
+	}
+	// keys moves the row id picked up with the keyboard, or picks it up.
+	keys := func(row ui.Element, id int) {
+		name := o.Items[id].Name
+		at := slices.Index(st.order, id)
+		pick := row.Shortcut(0, ui.KeySpace) || row.Shortcut(0, ui.KeyEnter)
+		if st.grab < 0 {
+			if pick {
+				st.grab, st.grabFrom = id, slices.Clone(st.order)
+				c.Announce(fmt.Sprintf("Picked up %s, position %d of %d.", name, at+1, n))
+				c.AnimationFrame()
+			}
+			return
+		}
+		if st.grab != id {
+			return
+		}
+		up, down := row.Shortcut(0, ui.KeyUp), row.Shortcut(0, ui.KeyDown)
+		home, end := row.Shortcut(0, ui.KeyHome), row.Shortcut(0, ui.KeyEnd)
+		escape := row.Shortcut(0, ui.KeyEscape)
+		to := at
+		switch {
+		case pick:
+			st.grab, st.lastHeld = -1, id
+			c.Announce(fmt.Sprintf("Dropped %s at position %d of %d.", name, at+1, n))
+			if o.OnReorder != nil && !slices.Equal(st.order, st.grabFrom) {
+				o.OnReorder(names(st.order))
+			}
+		case escape, row.FocusLeft():
+			st.order, st.grab = st.grabFrom, -1
+			c.Announce(fmt.Sprintf("Moved %s back to position %d of %d.", name, slices.Index(st.order, id)+1, n))
+		case up:
+			to = max(at-1, 0)
+		case down:
+			to = min(at+1, n-1)
+		case home:
+			to = 0
+		case end:
+			to = n - 1
+		}
+		if to != at {
+			next := slices.Delete(slices.Clone(st.order), at, at+1)
+			st.order = slices.Insert(next, to, id)
+			c.Announce(fmt.Sprintf("%s, position %d of %d.", name, to+1, n))
+		}
+		c.AnimationFrame()
 	}
 
 	list.Draw(func(p *ui.Painter, r ui.Rect) {
@@ -172,6 +237,7 @@ func ReorderList(c *ui.Context, opts ...ReorderListOptions) ui.Element {
 			p.FillPath(&neck, t.Surface)
 		}
 	})
+	list.Role(ui.RoleList).FocusGroup(ui.Vertical)
 	list.Children(func() {
 		// The held row last, on top.
 		draw := make([]int, 0, n)
@@ -182,15 +248,23 @@ func ReorderList(c *ui.Context, opts ...ReorderListOptions) ui.Element {
 		}
 		if st.held >= 0 {
 			draw = append(draw, st.held)
+		} else if st.grab >= 0 {
+			draw = append(slices.DeleteFunc(draw, func(id int) bool { return id == st.grab }), st.grab)
 		}
 		for _, id := range draw {
 			it := o.Items[id]
 			ps := pos[id]
 			row := ui.Box(c).Key(id).Absolute().Left(ps.x).Top(ps.y).Size(reorderListRowW, reorderListRowH).
-				Background(t.Surface).Radius(corner).Cursor(ui.CursorGrab)
+				Background(t.Surface).Radius(corner).Cursor(ui.CursorGrab).
+				Focusable().Role(ui.RoleListItem).Label(it.Name)
 			dx, dy, dragging := row.Dragged()
 			switch {
 			case dragging:
+				if st.grab >= 0 {
+					// A drag puts back the row picked up with the keyboard.
+					st.order, st.grab = st.grabFrom, -1
+					order = st.order
+				}
 				if st.held != id {
 					st.held, st.dx, st.dy, st.vx, st.vy = id, 0, 0, 0, 0
 				}
@@ -208,13 +282,11 @@ func ReorderList(c *ui.Context, opts ...ReorderListOptions) ui.Element {
 				// Let go: the row takes the slot it is over.
 				st.order, st.held, st.lastHeld = order, -1, id
 				st.dx, st.dy, st.vx, st.vy = 0, 0, 0, 0
-				names := make([]string, n)
-				for i, j := range order {
-					names[i] = o.Items[j].Name
-				}
 				if o.OnReorder != nil {
-					o.OnReorder(names)
+					o.OnReorder(names(order))
 				}
+			default:
+				keys(row, id)
 			}
 			if focus == id {
 				s := 1 + 0.03*lift
