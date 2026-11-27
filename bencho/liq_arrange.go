@@ -37,6 +37,7 @@ type reorderListState struct {
 	lastHeld int   // the row let go last, which wobbles back
 	grab     int   // the item picked up with the keyboard, or -1
 	grabFrom []int // the order before it was picked up, which Escape puts back
+	focusTo  int   // the item the arrows move the focus to, or -1
 }
 
 const (
@@ -88,7 +89,7 @@ func ReorderList(c *ui.Context, opts ...ReorderListOptions) ui.Element {
 	n := len(o.Items)
 	list := ui.Box(c).Size(reorderListW, float32(reorderListTop*2+(n-1)*reorderListPitch+reorderListRowH))
 	st := ui.Local(list, "reorder_list", func() reorderListState {
-		s := reorderListState{held: -1, lastHeld: -1, grab: -1, last: now}
+		s := reorderListState{held: -1, lastHeld: -1, grab: -1, focusTo: -1, last: now}
 		for i := range o.Items {
 			s.order = append(s.order, i)
 		}
@@ -157,36 +158,18 @@ func ReorderList(c *ui.Context, opts ...ReorderListOptions) ui.Element {
 		}
 		return out
 	}
-	// keys moves the row id picked up with the keyboard, or picks it up.
+	// keys handles the keys pressed on row id. Every row takes the arrows,
+	// Home and End, picked up or not, so which element gets a key never
+	// waits on the frame after Space: they move the row picked up, else
+	// the focus.
 	keys := func(row ui.Element, id int) {
 		name := o.Items[id].Name
 		at := slices.Index(st.order, id)
 		pick := row.Shortcut(0, ui.KeySpace) || row.Shortcut(0, ui.KeyEnter)
-		if st.grab < 0 {
-			if pick {
-				st.grab, st.grabFrom = id, slices.Clone(st.order)
-				c.Announce(fmt.Sprintf("Picked up %s, position %d of %d.", name, at+1, n))
-				c.AnimationFrame()
-			}
-			return
-		}
-		if st.grab != id {
-			return
-		}
 		up, down := row.Shortcut(0, ui.KeyUp), row.Shortcut(0, ui.KeyDown)
 		home, end := row.Shortcut(0, ui.KeyHome), row.Shortcut(0, ui.KeyEnd)
-		escape := row.Shortcut(0, ui.KeyEscape)
 		to := at
 		switch {
-		case pick:
-			st.grab, st.lastHeld = -1, id
-			c.Announce(fmt.Sprintf("Dropped %s at position %d of %d.", name, at+1, n))
-			if o.OnReorder != nil && !slices.Equal(st.order, st.grabFrom) {
-				o.OnReorder(names(st.order))
-			}
-		case escape, row.FocusLeft():
-			st.order, st.grab = st.grabFrom, -1
-			c.Announce(fmt.Sprintf("Moved %s back to position %d of %d.", name, slices.Index(st.order, id)+1, n))
 		case up:
 			to = max(at-1, 0)
 		case down:
@@ -196,12 +179,35 @@ func ReorderList(c *ui.Context, opts ...ReorderListOptions) ui.Element {
 		case end:
 			to = n - 1
 		}
-		if to != at {
+		if pick || to != at {
+			c.AnimationFrame()
+		}
+		if st.grab < 0 && pick {
+			st.grab, st.grabFrom, pick = id, slices.Clone(st.order), false
+			c.Announce(fmt.Sprintf("Picked up %s, position %d of %d.", name, at+1, n))
+		}
+		if st.grab != id {
+			if to != at {
+				st.focusTo = st.order[to]
+			}
+			return
+		}
+		switch {
+		case pick:
+			st.grab, st.lastHeld = -1, id
+			c.Announce(fmt.Sprintf("Dropped %s at position %d of %d.", name, at+1, n))
+			if o.OnReorder != nil && !slices.Equal(st.order, st.grabFrom) {
+				o.OnReorder(names(st.order))
+			}
+		case row.Shortcut(0, ui.KeyEscape), row.FocusLeft():
+			st.order, st.grab = st.grabFrom, -1
+			c.Announce(fmt.Sprintf("Moved %s back to position %d of %d.", name, slices.Index(st.order, id)+1, n))
+			c.AnimationFrame()
+		case to != at:
 			next := slices.Delete(slices.Clone(st.order), at, at+1)
 			st.order = slices.Insert(next, to, id)
 			c.Announce(fmt.Sprintf("%s, position %d of %d.", name, to+1, n))
 		}
-		c.AnimationFrame()
 	}
 
 	list.Draw(func(p *ui.Painter, r ui.Rect) {
@@ -287,6 +293,10 @@ func ReorderList(c *ui.Context, opts ...ReorderListOptions) ui.Element {
 				}
 			default:
 				keys(row, id)
+			}
+			if st.focusTo == id {
+				row.Focus()
+				st.focusTo = -1
 			}
 			if focus == id {
 				s := 1 + 0.03*lift
